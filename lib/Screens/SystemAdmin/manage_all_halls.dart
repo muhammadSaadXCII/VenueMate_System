@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/SystemAdmin/manage_hall_details.dart';
+import 'package:venuemate_system/Screens/SystemAdmin/manage_hall_details.dart';
 import 'package:venuemate_system/Utils/navigation.dart';
 
 class ManageAllHallsScreen extends StatefulWidget {

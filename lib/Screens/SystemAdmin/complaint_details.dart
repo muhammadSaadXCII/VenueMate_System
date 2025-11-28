@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/SystemAdmin/resolve_complaint_sheet.dart';
+import 'package:venuemate_system/Screens/SystemAdmin/resolve_complaint_sheet.dart';
 import 'package:venuemate_system/Widgets/gradient_button.dart';
 
 class ComplaintDetailsScreen extends StatelessWidget {

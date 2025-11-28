@@ -49,9 +49,9 @@ class _RejectRegistrationScreenState extends State<RejectRegistrationScreen> {
         child: GradientButton(
           text: "Submit Reason",
           onTap: () {
-            print("Selected: $_selectedReason");
+            debugPrint("Selected: $_selectedReason");
             if (isOtherSelected) {
-              print("Custom Note: ${_reasonController.text}");
+              debugPrint("Custom Note: ${_reasonController.text}");
             }
           },
         ),

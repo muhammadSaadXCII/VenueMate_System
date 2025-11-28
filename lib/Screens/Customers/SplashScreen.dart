@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Customers/SelectRoleScreen.dart';
+import 'package:venuemate_system/Screens/Customers/SelectRoleScreen.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
