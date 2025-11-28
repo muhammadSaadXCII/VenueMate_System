@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:badges/badges.dart' as badges;
-import 'package:venuemate_system/Shared/user_notifications.dart';
-import 'package:venuemate_system/SystemAdmin/manage_all_halls.dart';
-import 'package:venuemate_system/SystemAdmin/manage_all_users.dart';
-import 'package:venuemate_system/SystemAdmin/handle_complaints.dart';
-import 'package:venuemate_system/SystemAdmin/pending_registrations.dart';
+import 'package:venuemate_system/Screens/Shared/user_notifications.dart';
+import 'package:venuemate_system/Screens/SystemAdmin/manage_all_halls.dart';
+import 'package:venuemate_system/Screens/SystemAdmin/manage_all_users.dart';
+import 'package:venuemate_system/Screens/SystemAdmin/handle_complaints.dart';
+import 'package:venuemate_system/Screens/SystemAdmin/pending_registrations.dart';
 import 'package:venuemate_system/Utils/navigation.dart';
 
 class SystemAdminHome extends StatelessWidget {

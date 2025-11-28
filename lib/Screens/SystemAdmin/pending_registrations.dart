@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/SystemAdmin/review_registrations.dart';
+import 'package:venuemate_system/Screens/SystemAdmin/review_registrations.dart';
 import 'package:venuemate_system/Utils/navigation.dart';
 
 class PendingRegistrationsScreen extends StatelessWidget {

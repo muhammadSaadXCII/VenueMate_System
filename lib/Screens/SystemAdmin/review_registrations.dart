@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/SystemAdmin/reject_registration.dart';
+import 'package:venuemate_system/Screens/SystemAdmin/reject_registration.dart';
 import 'package:venuemate_system/Utils/navigation.dart';
 import 'package:venuemate_system/Widgets/gradient_button.dart';
 

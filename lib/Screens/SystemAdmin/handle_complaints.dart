@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/SystemAdmin/complaint_details.dart';
+import 'package:venuemate_system/Screens/SystemAdmin/complaint_details.dart';
 import 'package:venuemate_system/Utils/navigation.dart';
 
 class ComplaintsScreen extends StatefulWidget {
