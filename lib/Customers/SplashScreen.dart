@@ -1,31 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:venuemate_system/Customers/SelectRoleScreen.dart';
-
-void main() {
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-  ));
-  runApp(const VenueMateApp());
-}
-
-class VenueMateApp extends StatelessWidget {
-  const VenueMateApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Venue Mate',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-      ),
-      home: const SplashScreen(),
-    );
-  }
-}
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -42,15 +16,15 @@ class SplashScreen extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           // 1. Background Image Layer (Clear, no blur overlay)
-          Image.asset('assets/images/Backgroundimage.png',
-          fit: BoxFit.cover,
-          ),
-
+          Image.asset('assets/images/Backgroundimage.png', fit: BoxFit.cover),
 
           // 2. Main Content Layer
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 24.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -69,7 +43,11 @@ class SplashScreen extends StatelessWidget {
                     // color: _themeOrange,
                     errorBuilder: (context, error, stackTrace) {
                       // Placeholder in case asset is not found yet
-                      return Icon(Icons.image_not_supported, size: 80, color: _themeOrange);
+                      return Icon(
+                        Icons.image_not_supported,
+                        size: 80,
+                        color: _themeOrange,
+                      );
                     },
                   ),
                   const SizedBox(height: 3),
@@ -108,10 +86,12 @@ class SplashScreen extends StatelessWidget {
                     height: 50,
                     child: ElevatedButton(
                       onPressed: () {
-                          Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => SelectRoleScreen()),
-            );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SelectRoleScreen(),
+                          ),
+                        );
                         debugPrint("Next button pressed");
                       },
                       style: ElevatedButton.styleFrom(
