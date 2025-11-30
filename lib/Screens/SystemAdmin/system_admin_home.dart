@@ -163,7 +163,7 @@ class _AdminHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFFB8C00), Color(0xFFFFCC80)],
+          colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(30),
