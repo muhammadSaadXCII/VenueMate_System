@@ -27,7 +27,7 @@ class PendingReviewScreen extends StatelessWidget {
           },
           child: Container(
             width: double.infinity,
-            height: 55,
+            height: 50,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
