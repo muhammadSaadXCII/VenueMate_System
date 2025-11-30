@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
+import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,11 +14,11 @@ class MyApp extends StatelessWidget {
       title: 'VenueMate Application',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFFF47C20)),
         fontFamily: "Roboto",
         useMaterial3: true,
       ),
-      home: SystemAdminHome(),
+      home: HallAdminRootLayout(),
     );
   }
 }
