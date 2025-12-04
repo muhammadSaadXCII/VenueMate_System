@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Customers/AllEventsScreen.dart';
-import 'package:venuemate_system/Customers/EditProfileScreen.dart';
-import 'package:venuemate_system/Customers/HelpandSupportScreen.dart';
-import 'package:venuemate_system/Customers/HomePageVenueScreen.dart';
-import 'package:venuemate_system/Customers/MapScreen.dart';
-import 'package:venuemate_system/Customers/MessagingScreen.dart';
-import 'package:venuemate_system/Customers/NotificationScreen.dart';
-import 'package:venuemate_system/Customers/SettingsScreen.dart';
+import 'AllEventsScreen.dart';
+import 'EditProfileScreen.dart';
+import 'HelpandSupportScreen.dart';
+import 'HomePageVenueScreen.dart';
+import 'MapScreen.dart';
+import 'MessagingScreen.dart';
+import 'NotificationScreen.dart';
+import 'SettingsScreen.dart';
 
 class Profilescreen extends StatefulWidget {
   const Profilescreen({super.key});

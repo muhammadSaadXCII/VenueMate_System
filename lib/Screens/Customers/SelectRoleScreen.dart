@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Customers/HomePageVenueScreen.dart';
-import 'package:venuemate_system/Customers/SignUpScreen.dart';
+import 'HomePageVenueScreen.dart';
+import 'SignUpScreen.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({Key? key}) : super(key: key);

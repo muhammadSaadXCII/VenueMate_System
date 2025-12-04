@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Customers/EventDetailScreen.dart';
+import 'EventDetailScreen.dart';
 
 class BasicDetailsScreen extends StatefulWidget {
   const BasicDetailsScreen({Key? key}) : super(key: key);

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Customers/HomePageVenueScreen.dart';
-import 'package:venuemate_system/Customers/ViewReciept.dart';
+import 'HomePageVenueScreen.dart';
+import 'ViewReciept.dart';
 
 class CongratulationsScreen extends StatefulWidget {
   const CongratulationsScreen({super.key});

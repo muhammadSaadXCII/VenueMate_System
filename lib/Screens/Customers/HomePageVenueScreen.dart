@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Customers/MapScreen.dart';
-import 'package:venuemate_system/Customers/MessagingScreen.dart';
-import 'package:venuemate_system/Customers/NotificationScreen.dart';
-import 'package:venuemate_system/Customers/PackagesDetailScreen.dart';
-import 'package:venuemate_system/Customers/ProfileScreen.dart';
-import 'package:venuemate_system/Customers/SearchingScreen.dart';
-import 'package:venuemate_system/Customers/VenueDetailScreen.dart';
+import 'MapScreen.dart';
+import 'MessagingScreen.dart';
+import 'NotificationScreen.dart';
+import 'PackagesDetailScreen.dart';
+import 'ProfileScreen.dart';
+import 'SearchingScreen.dart';
+import 'VenueDetailScreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);

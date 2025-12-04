@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart';
+import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,7 +19,7 @@ class MyApp extends StatelessWidget {
         fontFamily: "Roboto",
         useMaterial3: true,
       ),
-      home: HallAdminRootLayout(),
+      home: SystemAdminHome(),
     );
   }
 }

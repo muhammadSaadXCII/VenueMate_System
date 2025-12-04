@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Customers/HomePageVenueScreen.dart';
-import 'package:venuemate_system/Customers/MessagingScreen.dart';
-import 'package:venuemate_system/Customers/ProfileScreen.dart';
+import 'HomePageVenueScreen.dart';
+import 'MessagingScreen.dart';
+import 'ProfileScreen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({Key? key}) : super(key: key);

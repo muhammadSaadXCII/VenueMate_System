@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Customers/PaymentScreen.dart';
+import 'PaymentScreen.dart';
 
 class CustomizeEventScreen extends StatefulWidget {
   const CustomizeEventScreen({Key? key}) : super(key: key);

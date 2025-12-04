@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Customers/ForgotPasswordScreen.dart';
-import 'package:venuemate_system/Customers/HomePageVenueScreen.dart';
-import 'package:venuemate_system/Customers/SignUpScreen.dart';
+import 'ForgotPasswordScreen.dart';
+import 'HomePageVenueScreen.dart';
+import 'SignUpScreen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);

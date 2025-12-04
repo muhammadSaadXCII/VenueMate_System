@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Customers/LoginScreen.dart';
-import 'package:venuemate_system/Customers/SelectRoleScreen.dart';
+import 'LoginScreen.dart';
+import 'SelectRoleScreen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
