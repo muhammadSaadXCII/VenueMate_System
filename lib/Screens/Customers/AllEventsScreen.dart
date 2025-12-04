@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:venuemate_system/Customers/BookingDetailsScreen.dart';
-import 'package:venuemate_system/Customers/CancelBookingScreen.dart';
-import 'package:venuemate_system/Customers/ViewReciept.dart';
+// import 'package:venuemate_system/Customers/CancelBookingScreen.dart';
+// import 'package:venuemate_system/Customers/ViewReciept.dart';
 
 class AllEventsScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -372,7 +372,7 @@ class _AllEventsScreenState extends State<AllEventsScreen>
                 onPressed: () {
                   Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => ViewReceiptScreen()),
+              MaterialPageRoute(builder: (context) => ViewRe()),
             );
                 },
                 style: ElevatedButton.styleFrom(
