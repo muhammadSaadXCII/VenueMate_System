@@ -99,7 +99,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            const RoleSelectionScreen(),
+            const LoginScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },

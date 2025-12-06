@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart';
+import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart'; // ✅ Import Admin Home
 
 // Screens Imports
 import 'OnBoardingScreen.dart'; 
-import 'HomePageVenueScreen.dart'; // Admin Home
-// import 'HomeScreen.dart'; // Customer Home (Ensure this file exists)
+import 'HomePageVenueScreen.dart'; 
+
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -25,13 +26,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
 
-    // 1. Initialize Animation Controller
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3000),
     );
 
-    // 2. Define Fade Animation
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -39,7 +38,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
     );
 
-    // 3. Define Scale Animation
     _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -47,25 +45,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
     );
 
-    // 4. Start the animation
     _controller.forward();
-
-    // 5. Check Login Status instead of simple Timer
     _checkLoginStatus();
   }
 
   // --- AUTO LOGIN LOGIC ---
   void _checkLoginStatus() async {
-    // Wait for animations to complete (at least 3-4 seconds)
     await Future.delayed(const Duration(seconds: 4));
 
     if (!mounted) return;
 
-    // Get Current User
     User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      // User is Logged In -> Check Role from Firestore
       try {
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
@@ -73,14 +65,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             .get();
 
         if (userDoc.exists) {
-          // Get Data safely
           Map<String, dynamic>? data = userDoc.data() as Map<String, dynamic>?;
-          String role = data?['role'] ?? 'customer'; // Default to customer
+          String role = data?['role'] ?? 'customer'; 
 
           if (!mounted) return;
 
-          // Navigate based on Role
-          if (role == 'venue_owner') {
+          // --- ROLE BASED REDIRECTION ---
+          if (role == 'system_admin') {
+             // ✅ Go to System Admin Home
+             Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const SystemAdminHome()),
+            );
+          } else if (role == 'venue_owner') {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (context) => const HallAdminHomeScreen()),
             );
@@ -90,16 +86,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             );
           }
         } else {
-          // User exists in Auth but not DB (Edge case) -> Go to Onboarding
           _navigateToOnboarding();
         }
       } catch (e) {
-        // If internet error or other issue -> Go to Onboarding (or show error)
         print("Error fetching user data: $e");
         _navigateToOnboarding();
       }
     } else {
-      // User Not Logged In -> Go to Onboarding
       _navigateToOnboarding();
     }
   }
@@ -119,7 +112,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Matches the orange color from your screenshot
       backgroundColor: const Color(0xFFF47C20),
       body: Center(
         child: FadeTransition(
@@ -129,7 +121,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // --- Logo Section ---
                 Container(
                   width: 120,
                   height: 120,
@@ -144,13 +135,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       ),
                     ],
                   ),
-                  // Using padding to make the icon smaller inside the white box
                   padding: const EdgeInsets.all(20),
                   child: Image.asset(
                     'assets/images/venuemate.png',
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
-                      // Fallback icon if image is missing
                       return const Icon(
                         Icons.account_balance,
                         size: 50,
@@ -159,10 +148,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     },
                   ),
                 ),
-                
                 const SizedBox(height: 20),
-
-                // --- App Name ---
                 const Text(
                   'VenueMate',
                   style: TextStyle(
@@ -172,10 +158,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     letterSpacing: 1.0,
                   ),
                 ),
-
                 const SizedBox(height: 10),
-
-                // --- Tagline ---
                 Text(
                   'Find Your Perfect Venue',
                   style: TextStyle(

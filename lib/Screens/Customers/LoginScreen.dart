@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:venuemate_system/Screens/Customers/SelectRoleScreen.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart';
+import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart'; // ✅ Import Admin Home
 import 'ForgotPasswordScreen.dart';
-import 'HomePageVenueScreen.dart'; // Ensure you have this file
+import 'HomePageVenueScreen.dart'; 
 import 'SignUpScreen.dart';
-// import 'HomeScreen.dart'; // Ensure you have this file (Customer Home)
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -20,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = false;
-  bool _isLoading = false; // To show loading spinner
+  bool _isLoading = false; 
 
   @override
   void dispose() {
@@ -29,7 +31,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // --- SHOW ERROR DIALOG ---
   void _showErrorDialog(String title, String message) {
     showDialog(
       context: context,
@@ -55,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // --- LOGIN LOGIC ---
   void _loginUser() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -63,23 +63,21 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        // 1. Authenticate with Email & Password
+        // 1. Authenticate
         UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
-        // 2. Fetch User Role from Firestore
-        // We use the UID to find the specific document in the 'users' collection
+        // 2. Fetch Role
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(userCredential.user!.uid)
             .get();
 
         if (userDoc.exists) {
-          // Get the data map
           Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-          String role = userData['role'] ?? 'customer'; // Default to customer if null
+          String role = userData['role'] ?? 'customer'; 
 
           if (!mounted) return;
           
@@ -88,21 +86,24 @@ class _LoginScreenState extends State<LoginScreen> {
           });
 
           // 3. Navigate based on Role
-          if (role == 'venue_owner') {
-            // Navigate to Venue Owner/Admin Home
+          if (role == 'system_admin') {
+             // ✅ Navigate to System Admin Home
+             Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const SystemAdminHome()),
+            );
+          } else if (role == 'venue_owner') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const HallAdminHomeScreen()),
             );
           } else {
-            // Navigate to Customer Home
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
           }
         } else {
-          // User exists in Auth but not in Database (Rare edge case)
           setState(() {
             _isLoading = false;
           });
@@ -115,18 +116,14 @@ class _LoginScreenState extends State<LoginScreen> {
         });
         
         String errorMessage = "An error occurred";
-        if (e.code == 'user-not-found') {
-          errorMessage = "No user found for that email.";
-        } else if (e.code == 'wrong-password') {
-          errorMessage = "Wrong password provided.";
-        } else if (e.code == 'invalid-credential') {
+        if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
           errorMessage = "Invalid email or password.";
+        } else if (e.code == 'wrong-password') {
+          errorMessage = "Invalid password.";
         } else if (e.code == 'network-request-failed') {
           errorMessage = "Please check your internet connection.";
         }
-        
         _showErrorDialog("Login Failed", errorMessage);
-        
       } catch (e) {
         setState(() {
           _isLoading = false;
@@ -144,6 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
+              // ... (Keep all UI code same as provided) ...
               // Top Half - Image Section
               Container(
                 height: MediaQuery.of(context).size.height * 0.4,
@@ -157,7 +155,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: Stack(
                   children: [
-                    // Gradient Overlay
                     Container(
                       decoration: BoxDecoration(
                         borderRadius: const BorderRadius.only(
@@ -174,7 +171,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    // Logo and Text
                     Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -430,7 +426,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => SignUpScreen(selectedRole: '',)),
+                                  MaterialPageRoute(builder: (context) => RoleSelectionScreen()),
                                 );
                               },
                               child: const Text(

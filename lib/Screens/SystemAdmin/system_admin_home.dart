@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:badges/badges.dart' as badges;
-import 'package:venuemate_system/Screens/Shared/user_notifications.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:venuemate_system/Screens/Customers/LoginScreen.dart'; // ✅ Ensure correct path to LoginScreen
 import 'package:venuemate_system/Screens/SystemAdmin/manage_all_halls.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/manage_all_users.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/handle_complaints.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/pending_registrations.dart';
+import 'package:venuemate_system/Screens/Shared/user_notifications.dart';
 import 'package:venuemate_system/Utils/navigation.dart';
 
 class SystemAdminHome extends StatelessWidget {
@@ -68,7 +70,7 @@ class SystemAdminHome extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Expanded(
+                          const Expanded(
                             child: StatCard(
                               count: "150",
                               label: "Total Halls",
@@ -76,7 +78,7 @@ class SystemAdminHome extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 16),
-                          Expanded(
+                          const Expanded(
                             child: StatCard(
                               count: "500",
                               label: "Total Users",
@@ -88,7 +90,7 @@ class SystemAdminHome extends StatelessWidget {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(
+                          const Expanded(
                             child: StatCard(
                               count: "320",
                               label: "Total Bookings",
@@ -96,7 +98,7 @@ class SystemAdminHome extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 16),
-                          Expanded(
+                          const Expanded(
                             child: StatCard(
                               count: "150",
                               label: "Cancelled\nBookings",
@@ -154,6 +156,51 @@ class SystemAdminHome extends StatelessWidget {
 class _AdminHeader extends StatelessWidget {
   const _AdminHeader();
 
+  // --- FIXED LOGOUT FUNCTION ---
+  void _handleLogout(BuildContext context) async {
+    // 1. Show confirmation dialog
+    bool confirm = await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Logout"),
+            content: const Text("Are you sure you want to logout?"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child:
+                    const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text("Logout",
+                    style: TextStyle(color: Color(0xFFF47C20))),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (confirm) {
+      try {
+        // 2. Sign out from Firebase
+        await FirebaseAuth.instance.signOut();
+
+        if (!context.mounted) return;
+
+        // 3. Navigate to Login Screen and CLEAR STACK
+        // This ensures back button closes app instead of going back to admin home
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (Route<dynamic> route) => false,
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error logging out: $e")),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -181,13 +228,11 @@ class _AdminHeader extends StatelessWidget {
               color: Colors.black87,
             ),
           ),
-
           Row(
             children: [
+              // LOGOUT BUTTON
               GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                },
+                onTap: () => _handleLogout(context),
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: const BoxDecoration(
@@ -292,7 +337,6 @@ class ActionCard extends StatelessWidget {
             ],
           ),
           const SizedBox(width: 16),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
