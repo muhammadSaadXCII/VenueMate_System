@@ -6,6 +6,37 @@ import 'PackagesDetailScreen.dart';
 import 'ProfileScreen.dart';
 import 'SearchingScreen.dart';
 import 'VenueDetailScreen.dart';
+import 'FavoritesScreen.dart';
+
+// Favorite Item Model
+class FavoriteItem {
+  final String id;
+  final String imagePath;
+  final String title;
+  final String subtitle;
+  final String price;
+  final String rating;
+  final bool isPackage;
+  final String? location;
+  final String? capacity;
+  final String? includes;
+
+  FavoriteItem({
+    required this.id,
+    required this.imagePath,
+    required this.title,
+    required this.subtitle,
+    required this.price,
+    required this.rating,
+    required this.isPackage,
+    this.location,
+    this.capacity,
+    this.includes,
+  });
+}
+
+// Global list to store favorites
+List<FavoriteItem> favoritesList = [];
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -17,6 +48,25 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   int _selectedCategory = 0; // 0 = Venues, 1 = Packages
+
+  // Track favorites by ID
+  Set<String> _favoriteIds = {};
+
+  void _toggleFavorite(FavoriteItem item) {
+    setState(() {
+      if (_favoriteIds.contains(item.id)) {
+        _favoriteIds.remove(item.id);
+        favoritesList.removeWhere((fav) => fav.id == item.id);
+      } else {
+        _favoriteIds.add(item.id);
+        favoritesList.add(item);
+      }
+    });
+  }
+
+  bool _isFavorite(String id) {
+    return _favoriteIds.contains(id);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,32 +144,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 16),
                   // Search Box
                   GestureDetector(
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => FilterSearchScreen()), // your next screen
-    );
-  },
-  child: Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF4E9),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: const AbsorbPointer( // prevents keyboard opening
-      child: TextField(
-        readOnly: true,
-        decoration: InputDecoration(
-          icon: Icon(Icons.search, color: Colors.grey),
-          border: InputBorder.none,
-          hintText: "Search...",
-          hintStyle: TextStyle(color: Colors.grey),
-        ),
-      ),
-    ),
-  ),
-)
-
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => FilterSearchScreen()),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF4E9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const AbsorbPointer(
+                        child: TextField(
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            icon: Icon(Icons.search, color: Colors.grey),
+                            border: InputBorder.none,
+                            hintText: "Search...",
+                            hintStyle: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
                 ],
               ),
             ),
@@ -182,7 +231,12 @@ class _HomeScreenState extends State<HomeScreen> {
           _navBarItem(Icons.person_outline, "Profile", 4, unselectedColor: Colors.black),
         ],
         onTap: (index) {
-          if (index == 2) {
+          if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => FavoritesScreen()),
+            );
+          } else if (index == 2) {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => MapScreen()),
@@ -300,8 +354,8 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
-              _buildRecentlyViewedCard(),
-              _buildRecentlyViewedCard(),
+              _buildRecentlyViewedCard("venue_1", false),
+              _buildRecentlyViewedCard("venue_2", false),
             ],
           ),
         ),
@@ -341,15 +395,15 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
-              _buildRecentlyViewedCard(),
-              _buildRecentlyViewedCard(),
+              _buildRecentlyViewedCard("package_1", true),
+              _buildRecentlyViewedCard("package_2", true),
             ],
           ),
         ),
         const SizedBox(height: 10),
         // Featured Packages
         const Text(
-          "Featured Venues",
+          "Featured Packages",
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -365,6 +419,18 @@ class _HomeScreenState extends State<HomeScreen> {
   //     FEATURED PACKAGE CARD (NEW DESIGN)
   // ===========================
   Widget _buildFeaturedPackageCard() {
+    String cardId = "featured_package_1";
+    FavoriteItem packageItem = FavoriteItem(
+      id: cardId,
+      imagePath: "assets/images/cardimage 2.png",
+      title: "Exclusive Birthday Celebration Bundle",
+      subtitle: "Al Rehmat Banquet Hall",
+      price: "Rs. 20,000",
+      rating: "4.0",
+      isPackage: true,
+      includes: "200 Guests • 12 Menu Items • 4 Services",
+    );
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -395,9 +461,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: InkWell(
                   onTap: (){
                     Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => Packagesdetailscreen()),
-            );
+                      context,
+                      MaterialPageRoute(builder: (context) => Packagesdetailscreen()),
+                    );
                   },
                   child: Image.asset(
                     "assets/images/cardimage 2.png",
@@ -411,16 +477,19 @@ class _HomeScreenState extends State<HomeScreen> {
               Positioned(
                 top: 8,
                 left: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.favorite_border,
-                    color: Colors.red,
-                    size: 18,
+                child: GestureDetector(
+                  onTap: () => _toggleFavorite(packageItem),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _isFavorite(cardId) ? Icons.favorite : Icons.favorite_border,
+                      color: Colors.red,
+                      size: 18,
+                    ),
                   ),
                 ),
               ),
@@ -467,12 +536,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 Divider(
-  color: Color(0xFFCCCCCC), // Color of the line
-  thickness: 5,       // Thickness of the line
-  indent: 16,         // Optional: space from the left
-  endIndent: 16,      // Optional: space from the right
-),
-
+                  color: Color(0xFFCCCCCC),
+                  thickness: 5,
+                  indent: 16,
+                  endIndent: 16,
+                ),
                 
                 // Includes Section
                 const Text(
@@ -518,10 +586,6 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Container(
           padding: const EdgeInsets.all(12),
-          // decoration: BoxDecoration(
-          //   color: const Color(0xFFF47C20).withOpacity(0.1),
-          //   borderRadius: BorderRadius.circular(8),
-          // ),
           child: Image.asset(
             imagePath,
             width: 35,
@@ -529,10 +593,10 @@ class _HomeScreenState extends State<HomeScreen> {
             fit: BoxFit.contain,
             color: const Color(0xFFF47C20),
             errorBuilder: (context, error, stackTrace) {
-              // Fallback icons if images not found
               IconData fallbackIcon = Icons.fastfood;
-              if (label == "Dinner") fallbackIcon = Icons.restaurant;
-              if (label == "Lighting") fallbackIcon = Icons.lightbulb;
+              if (label.contains("Guests")) fallbackIcon = Icons.people;
+              if (label.contains("Menu")) fallbackIcon = Icons.restaurant_menu;
+              if (label.contains("Services")) fallbackIcon = Icons.business_center;
               
               return Icon(
                 fallbackIcon,
@@ -542,13 +606,13 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ),
-        // const SizedBox(height: 0),
         Text(
           label,
           style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
@@ -557,7 +621,18 @@ class _HomeScreenState extends State<HomeScreen> {
   // ===========================
   //     RECENTLY VIEWED CARD
   // ===========================
-  Widget _buildRecentlyViewedCard() {
+  Widget _buildRecentlyViewedCard(String id, bool isPackage) {
+    FavoriteItem item = FavoriteItem(
+      id: id,
+      imagePath: "assets/images/cardimage 2.png",
+      title: "Al Rehman Marquee",
+      subtitle: "300 Capacity",
+      price: "Rs. 15,000",
+      rating: "4.0",
+      isPackage: isPackage,
+      capacity: "300 Capacity",
+    );
+
     return Container(
       width: 165,
       margin: const EdgeInsets.only(right: 12),
@@ -596,16 +671,19 @@ class _HomeScreenState extends State<HomeScreen> {
               Positioned(
                 top: 8,
                 right: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.favorite_border,
-                    size: 18,
-                    color: Colors.red,
+                child: GestureDetector(
+                  onTap: () => _toggleFavorite(item),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _isFavorite(id) ? Icons.favorite : Icons.favorite_border,
+                      size: 18,
+                      color: Colors.red,
+                    ),
                   ),
                 ),
               ),
@@ -657,6 +735,20 @@ class _HomeScreenState extends State<HomeScreen> {
   //     FEATURED VENUE CARD
   // ===========================
   Widget _buildFeaturedVenueCard() {
+    String cardId = "featured_venue_1";
+    FavoriteItem venueItem = FavoriteItem(
+      id: cardId,
+      imagePath: "assets/images/cardimage 2.png",
+      title: "Al Rehman Banquet Hall",
+      subtitle: "Model Colony, Street 124, Karachi, Pakistan",
+      price: "Rs. 15,000/Event",
+      rating: "4.0",
+      isPackage: false,
+      location: "Model Colony, Street 124, Karachi, Pakistan",
+      capacity: "300–1000 Capacity",
+      includes: "4 Services • 20 Different Menu Items",
+    );
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -686,9 +778,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: InkWell(
                   onTap: (){
                     Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => VenueDetailsScreen()),
-            );
+                      context,
+                      MaterialPageRoute(builder: (context) => VenueDetailsScreen()),
+                    );
                   },
                   child: Image.asset(
                     "assets/images/cardimage 2.png",
@@ -701,16 +793,19 @@ class _HomeScreenState extends State<HomeScreen> {
               Positioned(
                 top: 12,
                 right: 12,
-                child: Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.favorite_border,
-                    color: Colors.red,
-                    size: 20,
+                child: GestureDetector(
+                  onTap: () => _toggleFavorite(venueItem),
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _isFavorite(cardId) ? Icons.favorite : Icons.favorite_border,
+                      color: Colors.red,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
@@ -785,13 +880,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Screens/Customers/FavoritesScreen.dart';
 import 'HomePageVenueScreen.dart';
 import 'MessagingScreen.dart';
 import 'ProfileScreen.dart';
@@ -87,7 +88,13 @@ class _MapScreenState extends State<MapScreen> {
         context,
         MaterialPageRoute(builder: (context) => HomeScreen()), // replace MapPage() with your page
       );
-    }else if(index==2){
+    }else if(index==1){
+       Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => FavoritesScreen()),
+            );
+    }
+    else if(index==2){
        Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => MapScreen()),

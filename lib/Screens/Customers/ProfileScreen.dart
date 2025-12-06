@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Screens/Customers/FavoritesScreen.dart';
 import 'AllEventsScreen.dart';
 import 'EditProfileScreen.dart';
 import 'HelpandSupportScreen.dart';
@@ -242,7 +243,16 @@ class _ProfilescreenState extends State<Profilescreen> {
               MaterialPageRoute(builder: (context) => HomeScreen()),
             );
             // Navigator.pop(context);
-          } else if (index == 2) {
+          } else if (index == 1) {
+            // Navigate to Map
+             // Navigator.push(...)
+              Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => FavoritesScreen()),
+            );
+          }
+          
+          else if (index == 2) {
             // Navigate to Map
              // Navigator.push(...)
               Navigator.push(
