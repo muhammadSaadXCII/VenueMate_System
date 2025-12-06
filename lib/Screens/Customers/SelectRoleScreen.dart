@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'HomePageVenueScreen.dart';
 import 'SignUpScreen.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
@@ -41,15 +40,101 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
     super.dispose();
   }
 
-  // --- UPDATED NAVIGATION FUNCTION ---
-  // No longer checks if _selectedRole is null.
-  // Defaults to 0 (Customer) if nothing is selected.
+  // Updated Navigation Function with Validation
   void _navigateToSignUp() {
+    // Check if role is selected
+    if (_selectedRole == null) {
+      // Show popup if no role is selected
+      _showRoleSelectionAlert();
+      return;
+    }
+
+    // Convert role to string for database
+    String roleString = _selectedRole == 1 ? "venue_owner" : "customer";
+
+    // Navigate to SignUp Screen
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SignUpScreen(),
+        builder: (context) => SignUpScreen(selectedRole: roleString),
       ),
+    );
+  }
+
+  // Popup Alert for Role Selection
+  void _showRoleSelectionAlert() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          backgroundColor: Colors.white,
+          contentPadding: const EdgeInsets.all(20),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Warning Icon
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange,
+                  size: 50,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Role Required',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Please select a role to continue.\nChoose either Customer or Venue Owner.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 24),
+              // OK Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close Dialog
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF47C20),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -190,7 +275,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
                             width: double.infinity,
                             height: 56,
                             child: ElevatedButton(
-                              // Always enabled now
                               onPressed: _navigateToSignUp,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFF47C20),
@@ -222,10 +306,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
                           const SizedBox(height: 16),
                           TextButton(
                             onPressed: () {
-                              Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => HomeScreen()),
-            );
+                              // Skip logic (Navigate to Guest Home)
                             },
                             child: const Text(
                               'Skip for now',

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1023649558072",
+    "project_id": "venuemate-system",
+    "storage_bucket": "venuemate-system.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1023649558072:android:933b565c4ac7d3afa840cd",
+        "android_client_info": {
+          "package_name": "com.example.venuemate_system"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1E9vnjm0DQhimZG1KHvbzQzlOkbUQkfQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

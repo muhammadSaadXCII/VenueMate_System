@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({Key? key}) : super(key: key);
@@ -10,7 +11,10 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  bool _isEmailSent = false;
+  
+  bool _isEmailSent = false; // Toggles between Form and Success Message
+  bool _isLoading = false;   // Controls the loading spinner on button
+  
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -42,23 +46,59 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
     super.dispose();
   }
 
-  void _sendResetLink() {
+  // --- FIREBASE PASSWORD RESET LOGIC ---
+  Future<void> _sendResetLink() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
-        _isEmailSent = true;
+        _isLoading = true;
       });
-      
-      // Simulate sending email
-      Future.delayed(const Duration(seconds: 2), () {
-        // Here you would call your API to send reset email
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password reset link sent to your email!'),
-            backgroundColor: Color(0xFFF47C20),
-            behavior: SnackBarBehavior.floating,
-          ),
+
+      try {
+        // 1. Send Reset Email via Firebase
+        await FirebaseAuth.instance.sendPasswordResetEmail(
+          email: _emailController.text.trim(),
         );
-      });
+
+        // 2. If successful, update UI to show success message
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _isEmailSent = true;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Password reset link sent! Check your email.'),
+              backgroundColor: Color(0xFFF47C20),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        // 3. Handle Errors
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          
+          String errorMessage = "An error occurred";
+          if (e.code == 'user-not-found') {
+            errorMessage = "No user found with this email.";
+          } else if (e.code == 'invalid-email') {
+            errorMessage = "Please enter a valid email address.";
+          } else {
+            errorMessage = e.message ?? "Failed to send reset email.";
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -176,7 +216,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                               if (value == null || value.isEmpty) {
                                 return 'Please enter your email';
                               }
-                              if (!value.contains('@') || !value.contains('.')) {
+                              // Simple regex for validation
+                              final emailRegex = RegExp(
+                                r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+"
+                              );
+                              if (!emailRegex.hasMatch(value)) {
                                 return 'Please enter a valid email';
                               }
                               return null;
@@ -188,7 +232,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                             width: double.infinity,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: _sendResetLink,
+                              onPressed: _isLoading ? null : _sendResetLink,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFF47C20),
                                 shape: RoundedRectangleBorder(
@@ -196,14 +240,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                                 ),
                                 elevation: 3,
                               ),
-                              child: const Text(
-                                'Send Reset Link',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                              child: _isLoading 
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : const Text(
+                                  'Send Reset Link',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                              ),
                             ),
                           ),
                         ],

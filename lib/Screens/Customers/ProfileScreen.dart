@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 import 'package:venuemate_system/Screens/Customers/FavoritesScreen.dart';
 import 'AllEventsScreen.dart';
 import 'EditProfileScreen.dart';
 import 'HelpandSupportScreen.dart';
 import 'HomePageVenueScreen.dart';
+import 'LoginScreen.dart'; // Import Login Screen
 import 'MapScreen.dart';
 import 'MessagingScreen.dart';
 import 'NotificationScreen.dart';
@@ -19,6 +21,48 @@ class Profilescreen extends StatefulWidget {
 class _ProfilescreenState extends State<Profilescreen> {
   // Set index to 4 because this is the Profile screen
   int _selectedIndex = 4;
+
+  // --- LOGOUT FUNCTION ---
+  void _handleLogout() async {
+    // 1. Show confirmation dialog (Optional but good practice)
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Logout"),
+        content: const Text("Are you sure you want to logout?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Logout", style: TextStyle(color: Color(0xFFF47C20))),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirm) {
+      try {
+        // 2. Sign out from Firebase
+        await FirebaseAuth.instance.signOut();
+
+        if (!mounted) return;
+
+        // 3. Navigate to Login Screen and remove all previous routes
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false, // This removes all back history
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error logging out: $e")),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,15 +82,9 @@ class _ProfilescreenState extends State<Profilescreen> {
                   width: double.infinity,
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                     
-                      // colors: [
-                      //   Color(0xFFF47C20), // Your primary orange
-                      //   Color(0xFFFFB74D), // Lighter orange for gradient
-                      // ],
                       colors: [Color(0xFFF47C20), Color.fromARGB(255, 233, 184, 69)],
-                          begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                    
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
                     ),
                   ),
                 ),
@@ -80,6 +118,8 @@ class _ProfilescreenState extends State<Profilescreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 10),
+                      // Note: Yahan aap Firebase se User ka naam bhi fetch kar sakte hain
                       const Text(
                         "Muhammad Ahmed",
                         style: TextStyle(
@@ -88,128 +128,119 @@ class _ProfilescreenState extends State<Profilescreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                        const Text(
-                        "m.ahmed@email.com",
-                        style: TextStyle(
+                      Text(
+                        FirebaseAuth.instance.currentUser?.email ?? "m.ahmed@email.com", // Shows real email if available
+                        style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 14,
                           decoration: TextDecoration.underline,
                           decorationColor: Colors.white70,
                         ),
-                      ), 
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 15,),
+            const SizedBox(height: 30),
 
             // MIDDLE SECTION: Floating Action Card (Bookings/Logout)
-            // We use transform to pull this container up over the orange background
             Transform.translate(
-  offset: const Offset(0, -40),
-  child: Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 0),
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // All Bookings (already clickable)
-          InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => AllEventsScreen()),
-              );
-            },
-            child: _buildActionItem(Icons.calendar_month_outlined, "All Bookings"),
-          ),
+              offset: const Offset(0, -40),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // All Bookings
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => AllEventsScreen()),
+                          );
+                        },
+                        child: _buildActionItem(Icons.calendar_month_outlined, "All Bookings"),
+                      ),
 
-          Container(height: 40, width: 1, color: Colors.grey[300]),
+                      Container(height: 40, width: 1, color: Colors.grey[300]),
 
-          // ✅ Logout (NOW CLICKABLE)
-          InkWell(
-            onTap: () {
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(builder: (context) => LogoutScreen()),
-              // );
-            },
-            child: _buildActionItem(Icons.logout, "Logout"),
-          ),
-        ],
-      ),
-    ),
-  ),
-),
-
+                      // ✅ LOGOUT BUTTON LOGIC ADDED HERE
+                      InkWell(
+                        onTap: _handleLogout, // Calls the logout function
+                        child: _buildActionItem(Icons.logout, "Logout"),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
             // BOTTOM SECTION: Menu List (Edit Profile, etc.)
-           Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 20),
-  child: Container(
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Column(
-      children: [
-        _buildMenuItem(
-          Icons.person_outline,
-          "Edit Profile",
-          () {
-            Navigator.push(context,
-              MaterialPageRoute(builder: (_) => EditProfileScreen()));
-          },
-        ),
-        _buildDivider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  children: [
+                    _buildMenuItem(
+                      Icons.person_outline,
+                      "Edit Profile",
+                      () {
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => EditProfileScreen()));
+                      },
+                    ),
+                    _buildDivider(),
 
-        _buildMenuItem(
-          Icons.notifications_none,
-          "Notifications",
-          () {
-            Navigator.push(context,
-              MaterialPageRoute(builder: (_) => NotificationScreen()));
-          },
-        ),
-        _buildDivider(),
+                    _buildMenuItem(
+                      Icons.notifications_none,
+                      "Notifications",
+                      () {
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => NotificationScreen()));
+                      },
+                    ),
+                    _buildDivider(),
 
-        _buildMenuItem(
-          Icons.settings_outlined,
-          "Settings",
-          () {
-            Navigator.push(context,
-              MaterialPageRoute(builder: (_) => SettingsScreen()));
-          },
-        ),
-        _buildDivider(),
+                    _buildMenuItem(
+                      Icons.settings_outlined,
+                      "Settings",
+                      () {
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => SettingsScreen()));
+                      },
+                    ),
+                    _buildDivider(),
 
-        _buildMenuItem(
-          Icons.headset_mic_outlined,
-          "Help & Support",
-          () {
-            Navigator.push(context,
-              MaterialPageRoute(builder: (_) => HelpSupportScreen()));
-          },
-        ),
-      ],
-    ),
-  ),
-),
-          
-
+                    _buildMenuItem(
+                      Icons.headset_mic_outlined,
+                      "Help & Support",
+                      () {
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => HelpSupportScreen()));
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
             const SizedBox(height: 20),
             const Text(
@@ -221,7 +252,7 @@ class _ProfilescreenState extends State<Profilescreen> {
         ),
       ),
 
-      // YOUR BOTTOM NAVIGATION BAR CODE
+      // BOTTOM NAVIGATION BAR
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         type: BottomNavigationBarType.fixed,
@@ -237,41 +268,29 @@ class _ProfilescreenState extends State<Profilescreen> {
         ],
         onTap: (index) {
           if (index == 0) {
-            // Navigate back to Home
-             Navigator.push(
+            Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => HomeScreen()),
             );
-            // Navigator.pop(context);
           } else if (index == 1) {
-            // Navigate to Map
-             // Navigator.push(...)
-              Navigator.push(
+            Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => FavoritesScreen()),
             );
-          }
-          
-          else if (index == 2) {
-            // Navigate to Map
-             // Navigator.push(...)
-              Navigator.push(
+          } else if (index == 2) {
+            Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => MapScreen()),
             );
-          }
-          else if (index == 3) {
-            // Navigate to Map
-             // Navigator.push(...)
-              Navigator.push(
+          } else if (index == 3) {
+            Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => ChatListScreen()),
             );
           } else if (index == 4) {
-            // We are already on Profile, do nothing
+            // Already on Profile
           } else {
-             // Handle other tabs
-             setState(() => _selectedIndex = index);
+            setState(() => _selectedIndex = index);
           }
         },
       ),
@@ -280,7 +299,6 @@ class _ProfilescreenState extends State<Profilescreen> {
 
   // --- Helper Widgets ---
 
-  // 1. The small action buttons (Bookings / Logout)
   Widget _buildActionItem(IconData icon, String label) {
     return Column(
       children: [
@@ -298,38 +316,34 @@ class _ProfilescreenState extends State<Profilescreen> {
     );
   }
 
-  // 2. The Menu List Items
   Widget _buildMenuItem(IconData icon, String title, VoidCallback onTap) {
-  return InkWell(
-    onTap: onTap,   // 👈 individual function for each item
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.orange, size: 26),
-          const SizedBox(width: 16),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.orange, size: 26),
+            const SizedBox(width: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-          const Spacer(),
-          const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-        ],
+            const Spacer(),
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-
-  // 3. Simple Divider
   Widget _buildDivider() {
     return const Divider(height: 1, thickness: 1, indent: 20, endIndent: 20, color: Color(0xFFEEEEEE));
   }
 
-  // YOUR NAVBAR ITEM BUILDER
   BottomNavigationBarItem _navBarItem(IconData icon, String label, int index,
       {Color unselectedColor = Colors.black}) {
     bool isActive = _selectedIndex == index;

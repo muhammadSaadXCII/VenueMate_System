@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart';
 import 'ForgotPasswordScreen.dart';
-import 'HomePageVenueScreen.dart';
+import 'HomePageVenueScreen.dart'; // Ensure you have this file
 import 'SignUpScreen.dart';
+// import 'HomeScreen.dart'; // Ensure you have this file (Customer Home)
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -16,12 +20,120 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = false;
+  bool _isLoading = false; // To show loading spinner
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  // --- SHOW ERROR DIALOG ---
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red),
+              const SizedBox(width: 10),
+              Text(title, style: const TextStyle(color: Colors.red)),
+            ],
+          ),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("OK", style: TextStyle(color: Color(0xFFF47C20))),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- LOGIN LOGIC ---
+  void _loginUser() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        // 1. Authenticate with Email & Password
+        UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+
+        // 2. Fetch User Role from Firestore
+        // We use the UID to find the specific document in the 'users' collection
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .get();
+
+        if (userDoc.exists) {
+          // Get the data map
+          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+          String role = userData['role'] ?? 'customer'; // Default to customer if null
+
+          if (!mounted) return;
+          
+          setState(() {
+            _isLoading = false;
+          });
+
+          // 3. Navigate based on Role
+          if (role == 'venue_owner') {
+            // Navigate to Venue Owner/Admin Home
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HallAdminHomeScreen()),
+            );
+          } else {
+            // Navigate to Customer Home
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          }
+        } else {
+          // User exists in Auth but not in Database (Rare edge case)
+          setState(() {
+            _isLoading = false;
+          });
+          _showErrorDialog("Login Failed", "User data not found in database.");
+        }
+
+      } on FirebaseAuthException catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        
+        String errorMessage = "An error occurred";
+        if (e.code == 'user-not-found') {
+          errorMessage = "No user found for that email.";
+        } else if (e.code == 'wrong-password') {
+          errorMessage = "Wrong password provided.";
+        } else if (e.code == 'invalid-credential') {
+          errorMessage = "Invalid email or password.";
+        } else if (e.code == 'network-request-failed') {
+          errorMessage = "Please check your internet connection.";
+        }
+        
+        _showErrorDialog("Login Failed", errorMessage);
+        
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        _showErrorDialog("Error", e.toString());
+      }
+    }
   }
 
   @override
@@ -45,28 +157,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: Stack(
                   children: [
-                    // Background Image - Commented Out
-                    // ClipRRect(
-                    //   borderRadius: const BorderRadius.only(
-                    //     bottomLeft: Radius.circular(40),
-                    //     bottomRight: Radius.circular(40),
-                    //   ),
-                    //   child: Image.asset(
-                    //     'assets/images/login_banner.jpg',
-                    //     width: double.infinity,
-                    //     height: double.infinity,
-                    //     fit: BoxFit.cover,
-                    //   ),
-                    // ),
-                    
-                    // Background Icon - Commented Out
-                    // Container(
-                    //   color: const Color(0xFFF47C20),
-                    //   child: Center(
-                    //     child: Image.asset('assets/images/venuemate.png'),
-                    //   ),
-                    // ),
-                    
                     // Gradient Overlay
                     Container(
                       decoration: BoxDecoration(
@@ -90,7 +180,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
-                               // it incrsease are reduce the conatiner size
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
                               color: Colors.white,
@@ -107,6 +196,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               'assets/images/venuemate.png',
                               height: 100,
                               width: 100,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Icons.location_city, size: 80, color: Color(0xFFF47C20));
+                              },
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -186,9 +278,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (value == null || value.isEmpty) {
                             return 'Please enter your email';
                           }
-                          if (!value.contains('@')) {
-                            return 'Please enter a valid email';
-                          }
                           return null;
                         },
                       ),
@@ -230,9 +319,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (value == null || value.isEmpty) {
                             return 'Please enter your password';
                           }
-                          if (value.length < 6) {
-                            return 'Password must be at least 6 characters';
-                          }
                           return null;
                         },
                       ),
@@ -260,11 +346,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           TextButton(
                             onPressed: () {
-                              // Navigate to forgot password
-                               Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ForgotPasswordScreen()),
-            );
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => ForgotPasswordScreen()),
+                              );
                             },
                             child: const Text(
                               'Forgot Password?',
@@ -283,15 +368,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: double.infinity,
                         height: 55,
                         child: ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              // Handle login
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (context) => const HomeScreen()),
-                              );
-                            }
-                          },
+                          onPressed: _isLoading ? null : _loginUser,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFF47C20),
                             shape: RoundedRectangleBorder(
@@ -299,14 +376,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             elevation: 3,
                           ),
-                          child: const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const CircularProgressIndicator(color: Colors.white)
+                              : const Text(
+                                  'Login',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -349,11 +428,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             TextButton(
                               onPressed: () {
-                                // Navigate to sign up
-                                 Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => SignUpScreen()),
-            );
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => SignUpScreen(selectedRole: '',)),
+                                );
                               },
                               child: const Text(
                                 'Sign Up',

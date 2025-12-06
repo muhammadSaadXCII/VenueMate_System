@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'OnBoardingScreen.dart'; // Ensure this import points to your actual next screen
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart';
+
+// Screens Imports
+import 'OnBoardingScreen.dart'; 
+import 'HomePageVenueScreen.dart'; // Admin Home
+// import 'HomeScreen.dart'; // Customer Home (Ensure this file exists)
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -21,7 +28,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // 1. Initialize Animation Controller
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 3000),
     );
 
     // 2. Define Fade Animation
@@ -43,12 +50,64 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // 4. Start the animation
     _controller.forward();
 
-    // 5. Navigate to the next screen automatically after 4 seconds
-    Timer(const Duration(seconds: 4), () {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const OnboardingScreen()),
-      );
-    });
+    // 5. Check Login Status instead of simple Timer
+    _checkLoginStatus();
+  }
+
+  // --- AUTO LOGIN LOGIC ---
+  void _checkLoginStatus() async {
+    // Wait for animations to complete (at least 3-4 seconds)
+    await Future.delayed(const Duration(seconds: 4));
+
+    if (!mounted) return;
+
+    // Get Current User
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      // User is Logged In -> Check Role from Firestore
+      try {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists) {
+          // Get Data safely
+          Map<String, dynamic>? data = userDoc.data() as Map<String, dynamic>?;
+          String role = data?['role'] ?? 'customer'; // Default to customer
+
+          if (!mounted) return;
+
+          // Navigate based on Role
+          if (role == 'venue_owner') {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const HallAdminHomeScreen()),
+            );
+          } else {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          }
+        } else {
+          // User exists in Auth but not DB (Edge case) -> Go to Onboarding
+          _navigateToOnboarding();
+        }
+      } catch (e) {
+        // If internet error or other issue -> Go to Onboarding (or show error)
+        print("Error fetching user data: $e");
+        _navigateToOnboarding();
+      }
+    } else {
+      // User Not Logged In -> Go to Onboarding
+      _navigateToOnboarding();
+    }
+  }
+
+  void _navigateToOnboarding() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+    );
   }
 
   @override

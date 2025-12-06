@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'LoginScreen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({Key? key}) : super(key: key);
+  final String selectedRole;
+
+  const SignUpScreen({Key? key, required this.selectedRole}) : super(key: key);
 
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
@@ -21,6 +25,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscureConfirmPassword = true;
   bool _agreeToTerms = false;
   int _currentStep = 0;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -32,30 +37,357 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  void _handleSignUp() {
-    if (_formKey.currentState!.validate()) {
-      if (!_agreeToTerms) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please agree to Terms & Conditions'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
+  // --- VALIDATION FUNCTIONS ---
+
+  // 1. Strict Structural Validation (RFC 5322)
+  bool _isValidEmailStructure(String email) {
+    // This regex ensures:
+    // - No spaces
+    // - Correct @ symbol usage
+    // - Domain must have a valid extension (like .com, .net)
+    final emailRegex = RegExp(
+      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+    );
+    return emailRegex.hasMatch(email);
+  }
+
+  // 2. Common Typo Detection (Blocks gmil.com, gmal.com, etc.)
+  String? _checkEmailTypos(String email) {
+    // We only check the part after the '@'
+    if (!email.contains('@')) return null;
+    
+    String domain = email.split('@').last.toLowerCase();
+    
+    // Check Gmail typos
+    if (domain == 'gmil.com' || domain == 'gmal.com' || domain == 'gmai.com' || domain == 'gail.com' || domain == 'gmail.co') {
+      return 'Did you mean @gmail.com?';
+    }
+    // Check Hotmail typos
+    if (domain == 'hotmal.com' || domain == 'hotmil.com') {
+      return 'Did you mean @hotmail.com?';
+    }
+    // Check Yahoo typos
+    if (domain == 'yaho.com' || domain == 'yahooo.com') {
+      return 'Did you mean @yahoo.com?';
+    }
+    
+    return null; // No typos found
+  }
+
+  // Phone Validation
+  bool _isValidPhone(String phone) {
+    return phone.length >= 10 && phone.length <= 15;
+  }
+
+  // Password Validation
+  bool _isValidPassword(String password) {
+    return password.length >= 8;
+  }
+
+  // --- POPUP HANDLER ---
+  void _showValidationError(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          backgroundColor: Colors.white,
+          contentPadding: const EdgeInsets.all(20),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  color: Colors.red,
+                  size: 50,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
-        return;
-      }
-      
-      // Handle sign up
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created successfully!'),
-          backgroundColor: Color(0xFFF47C20),
-          behavior: SnackBarBehavior.floating,
-        ),
+      },
+    );
+  }
+
+  // --- SIGNUP HANDLER (VALIDATION LOGIC) ---
+  void _handleSignUp() {
+    String emailInput = _emailController.text.trim();
+
+    // 1. Name Validation
+    if (_nameController.text.trim().isEmpty) {
+      _showValidationError('Name Required', 'Please enter your full name.');
+      return;
+    }
+    if (_nameController.text.trim().length < 3) {
+      _showValidationError('Invalid Name', 'Name must be at least 3 characters long.');
+      return;
+    }
+
+    // 2. Phone Validation
+    if (_phoneController.text.trim().isEmpty) {
+      _showValidationError('Phone Required', 'Please enter your phone number.');
+      return;
+    }
+    if (!_isValidPhone(_phoneController.text.trim())) {
+      _showValidationError('Invalid Phone', 'Please enter a valid phone number (10-15 digits).');
+      return;
+    }
+
+    // 3. Email Validation (UPDATED STRICT LOGIC)
+    if (emailInput.isEmpty) {
+      _showValidationError('Email Required', 'Please enter your email address.');
+      return;
+    }
+    
+    // Check Structural Format (x@y.z)
+    if (!_isValidEmailStructure(emailInput)) {
+      _showValidationError(
+        'Invalid Email Format',
+        'Please enter a valid email address (e.g. name@example.com).',
       );
+      return; 
+    }
+
+    // Check for Typos (gmil vs gmail)
+    String? typoError = _checkEmailTypos(emailInput);
+    if (typoError != null) {
+      _showValidationError(
+        'Invalid Email Provider',
+        '$typoError\nPlease check your spelling.',
+      );
+      return;
+    }
+
+    // 4. Password Validation
+    if (_passwordController.text.isEmpty) {
+      _showValidationError('Password Required', 'Please enter a password.');
+      return;
+    }
+    if (!_isValidPassword(_passwordController.text)) {
+      _showValidationError(
+        'Weak Password',
+        'Password must be at least 8 characters long.',
+      );
+      return;
+    }
+
+    // 5. Confirm Password Validation
+    if (_confirmPasswordController.text.isEmpty) {
+      _showValidationError('Confirmation Required', 'Please confirm your password.');
+      return;
+    }
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showValidationError(
+        'Password Mismatch',
+        'Passwords do not match. Please check and try again.',
+      );
+      return;
+    }
+
+    // 6. Terms Validation
+    if (!_agreeToTerms) {
+      _showValidationError(
+        'Terms Required',
+        'Please agree to the Terms & Conditions to continue.',
+      );
+      return;
+    }
+
+    // Proceed to Backend
+    if (_formKey.currentState!.validate()) {
+      Signupuser(
+        emailInput,
+        _passwordController.text.trim(),
+        _nameController.text.trim(),
+        _phoneController.text.trim(),
+        widget.selectedRole,
+      );
+    }
+  }
+
+  // --- BACKEND LOGIC ---
+  Signupuser(String email, String pass, String name, String phone, String role) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Create User in Firebase Authentication
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: pass,
+      );
+
+      // Store User Details in Firestore
+      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+        'uid': userCredential.user!.uid,
+        'name': name,
+        'email': email,
+        'password': pass, 
+        'phone': phone,
+        'role': role,
+        'createdAt': DateTime.now(),
+      });
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Show Success Popup
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            backgroundColor: Colors.white,
+            contentPadding: const EdgeInsets.all(20),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF47C20).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: Color(0xFFF47C20),
+                    size: 50,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Success!',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Account created successfully as ${role == 'venue_owner' ? 'Venue Owner' : 'Customer'}!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => LoginScreen()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF47C20),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Login Now',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
       
-      // Navigate to login or home screen
-      Navigator.pop(context);
+      String errorMessage = 'An error occurred during signup.';
+      if (e.code == 'email-already-in-use') {
+        errorMessage = 'This email is already registered. Please use a different email or login.';
+      } else if (e.code == 'weak-password') {
+        errorMessage = 'The password is too weak. Please use a stronger password.';
+      } else if (e.code == 'invalid-email') {
+        errorMessage = 'The email address is invalid. Please enter a valid email.';
+      } else if (e.code == 'network-request-failed') {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else {
+        errorMessage = e.message ?? 'Unknown error occurred.';
+      }
+
+      _showValidationError('Signup Failed', errorMessage);
+      
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showValidationError('Error', 'Failed to create account: ${e.toString()}');
     }
   }
 
@@ -68,6 +400,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           children: [
             // Top Header Section
             Container(
+              
               decoration: const BoxDecoration(
                 color: Color(0xFFF47C20),
                 borderRadius: BorderRadius.only(
@@ -118,7 +451,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Sign up to get started',
+                    'Sign up as ${widget.selectedRole == "venue_owner" ? "Venue Owner" : "Customer"}',
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white.withOpacity(0.9),
@@ -149,10 +482,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       
                       // Form Fields
                       if (_currentStep == 0) ...[
-                        // Personal Information
                         _buildSectionTitle('Personal Information'),
                         const SizedBox(height: 20),
-                        // Full Name
                         _buildTextField(
                           controller: _nameController,
                           label: 'Full Name',
@@ -169,7 +500,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           },
                         ),
                         const SizedBox(height: 20),
-                        // Phone Number
                         _buildTextField(
                           controller: _phoneController,
                           label: 'Phone Number',
@@ -178,7 +508,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           keyboardType: TextInputType.phone,
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(11),
+                            LengthLimitingTextInputFormatter(15),
                           ],
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -191,25 +521,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           },
                         ),
                         const SizedBox(height: 30),
-                        // Next Button
                         SizedBox(
                           width: double.infinity,
                           height: 55,
                           child: ElevatedButton(
                             onPressed: () {
-                              if (_nameController.text.isNotEmpty &&
-                                  _phoneController.text.length >= 10) {
-                                setState(() {
-                                  _currentStep = 1;
-                                });
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Please fill all fields'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
+                              if (_nameController.text.trim().isEmpty) {
+                                _showValidationError('Name Required', 'Please enter your full name.');
+                                return;
                               }
+                              if (_nameController.text.trim().length < 3) {
+                                _showValidationError('Invalid Name', 'Name must be at least 3 characters long.');
+                                return;
+                              }
+                              if (_phoneController.text.trim().isEmpty) {
+                                _showValidationError('Phone Required', 'Please enter your phone number.');
+                                return;
+                              }
+                              if (!_isValidPhone(_phoneController.text.trim())) {
+                                _showValidationError('Invalid Phone', 'Please enter a valid phone number (10-15 digits).');
+                                return;
+                              }
+                              
+                              setState(() {
+                                _currentStep = 1;
+                              });
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFF47C20),
@@ -229,10 +565,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                         ),
                       ] else ...[
-                        // Account Information
                         _buildSectionTitle('Account Information'),
                         const SizedBox(height: 20),
-                        // Email
                         _buildTextField(
                           controller: _emailController,
                           label: 'Email Address',
@@ -243,14 +577,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your email';
                             }
-                            if (!value.contains('@') || !value.contains('.')) {
+                            if (!_isValidEmailStructure(value)) {
                               return 'Please enter a valid email';
+                            }
+                            if (_checkEmailTypos(value) != null) {
+                              return 'Please check your email spelling';
                             }
                             return null;
                           },
                         ),
                         const SizedBox(height: 20),
-                        // Password
                         _buildTextField(
                           controller: _passwordController,
                           label: 'Password',
@@ -279,7 +615,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           },
                         ),
                         const SizedBox(height: 20),
-                        // Confirm Password
                         _buildTextField(
                           controller: _confirmPasswordController,
                           label: 'Confirm Password',
@@ -308,10 +643,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           },
                         ),
                         const SizedBox(height: 20),
-                        // Password Strength Indicator
                         _buildPasswordStrength(),
                         const SizedBox(height: 20),
-                        // Terms and Conditions
                         Row(
                           children: [
                             Checkbox(
@@ -331,9 +664,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     style: TextStyle(fontSize: 14),
                                   ),
                                   GestureDetector(
-                                    onTap: () {
-                                      // Show terms and conditions
-                                    },
+                                    onTap: () {},
                                     child: const Text(
                                       'Terms & Conditions',
                                       style: TextStyle(
@@ -348,9 +679,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     style: TextStyle(fontSize: 14),
                                   ),
                                   GestureDetector(
-                                    onTap: () {
-                                      // Show privacy policy
-                                    },
+                                    onTap: () {},
                                     child: const Text(
                                       'Privacy Policy',
                                       style: TextStyle(
@@ -366,7 +695,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ],
                         ),
                         const SizedBox(height: 20),
-                        // Back and Sign Up Buttons
                         Row(
                           children: [
                             Expanded(
@@ -401,12 +729,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               child: SizedBox(
                                 height: 55,
                                 child: ElevatedButton(
-                                  onPressed: (){
-                                    Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => LoginScreen()),
-            );
-                                  },
+                                  onPressed: _isLoading ? null : _handleSignUp,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFFF47C20),
                                     shape: RoundedRectangleBorder(
@@ -414,14 +737,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     ),
                                     elevation: 3,
                                   ),
-                                  child: const Text(
-                                    'Sign Up',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                                  child: _isLoading
+                                      ? const CircularProgressIndicator(color: Colors.white)
+                                      : const Text(
+                                          'Sign Up',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
                                 ),
                               ),
                             ),
@@ -430,7 +755,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ],
                       
                       const SizedBox(height: 30),
-                      // Divider
                       Row(
                         children: [
                           Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
@@ -445,7 +769,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      // Social Sign Up
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -455,7 +778,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ],
                       ),
                       const SizedBox(height: 30),
-                      // Sign In Link
                       Center(
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -469,7 +791,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             ),
                             TextButton(
                               onPressed: () {
-                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                                );
                               },
                               child: const Text(
                                 'Sign In',
