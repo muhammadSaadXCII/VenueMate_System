@@ -1,188 +1,423 @@
 import 'package:flutter/material.dart';
+import 'SignUpScreen.dart';
 
-class SelectRoleScreen extends StatefulWidget {
-  const SelectRoleScreen({super.key});
+class RoleSelectionScreen extends StatefulWidget {
+  const RoleSelectionScreen({Key? key}) : super(key: key);
 
   @override
-  State<SelectRoleScreen> createState() => _SelectRoleScreenState();
+  State<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
 }
 
-class _SelectRoleScreenState extends State<SelectRoleScreen> {
-  int selectedIndex = -1;
+class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTickerProviderStateMixin {
+  int? _selectedRole; // 0 = Customer, 1 = Venue Owner
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  // Updated Navigation Function with Validation
+  void _navigateToSignUp() {
+    // Check if role is selected
+    if (_selectedRole == null) {
+      // Show popup if no role is selected
+      _showRoleSelectionAlert();
+      return;
+    }
+
+    // Convert role to string for database
+    String roleString = _selectedRole == 1 ? "venue_owner" : "customer";
+
+    // Navigate to SignUp Screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SignUpScreen(selectedRole: roleString),
+      ),
+    );
+  }
+
+  // Popup Alert for Role Selection
+  void _showRoleSelectionAlert() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          backgroundColor: Colors.white,
+          contentPadding: const EdgeInsets.all(20),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Warning Icon
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange,
+                  size: 50,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Role Required',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Please select a role to continue.\nChoose either Customer or Venue Owner.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 24),
+              // OK Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close Dialog
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF47C20),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              
-              Color(0xFFF3DEC1),
-               Color(0xFFE8821C),
-             
-              
+              const Color(0xFFF47C20),
+              const Color(0xFFF47C20).withOpacity(0.8),
+              Colors.white,
             ],
-            stops: [0.4, 1.0],
+            stops: const [0.0, 0.4, 1.0],
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 60),
-
-                // 🔶 App Icon + Title
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: SingleChildScrollView(
+                child: Column(
                   children: [
-                   Image.asset('assets/images/venuemate.png',
-                       width: 80,
-                    height: 80,),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Venue Mate",
+                    const SizedBox(height: 40),
+                    // Logo and Title Section
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Image.asset(
+                        'assets/images/venuemate.png',
+                        height: 80,
+                        width: 80,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(
+                            Icons.location_city,
+                            size: 80,
+                            color: Color(0xFFF47C20),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'VenueMate',
                       style: TextStyle(
-                        fontSize: 26,
+                        fontSize: 36,
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey.shade900,
+                        color: Colors.white,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Find Your Perfect Venue',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white.withOpacity(0.9),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 60),
+                    // Selection Title
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        'Select Your Role',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        'Choose how you want to continue',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    // Role Cards
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        children: [
+                          _buildRoleCard(
+                            index: 0,
+                            title: 'Customer',
+                            subtitle: 'Find and book venues for your events',
+                            icon: Icons.person_outline,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFF47C20), Color(0xFFFF9D5C)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          _buildRoleCard(
+                            index: 1,
+                            title: 'Venue Owner',
+                            subtitle: 'List your venues and manage bookings',
+                            icon: Icons.business_outlined,
+                            gradient: LinearGradient(
+                              colors: [Colors.grey[800]!, Colors.grey[600]!],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    // Continue Button
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: _navigateToSignUp,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFF47C20),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 5,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Text(
+                                    'Continue',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Icon(
+                                    Icons.arrow_forward,
+                                    color: Colors.white,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: () {
+                              // Skip logic (Navigate to Guest Home)
+                            },
+                            child: const Text(
+                              'Skip for now',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 35),
-
-                const Text(
-                  "SELECT ROLE",
-                  style: TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                     fontFamily: 'Roboto',
-                  ),
-                ),
-
-                const SizedBox(height: 35),
-
-                // ▶ Customer Card
-                GestureDetector(
-                  onTap: () => setState(() => selectedIndex = 0),
-                  child: Container(
-                    padding: const EdgeInsets.all(25),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF47C20),
-                      borderRadius: BorderRadius.circular(26),
-                      border: selectedIndex == 0
-                          ? Border.all(color: Color(0xFF1C0F32) , width: 2)
-                          : null,
-                    ),
-                    child: Row(
-                      children: const [
-                        Icon(Icons.person_2_sharp, color: Colors.black, size: 60),
-                        SizedBox(width: 15),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Customer",
-                              style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black),
-                            ),
-                            SizedBox(height: 3),
-                            Text(
-                              "Find & book Your\nPerfect venue",
-                              style: TextStyle(fontSize: 13, color: Colors.black),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 45),
-
-                // ▶ Hall Admin Card
-                GestureDetector(
-                  onTap: () => setState(() => selectedIndex = 1),
-                  child: Container(
-                    padding: const EdgeInsets.all(25),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1C0F32),
-                      borderRadius: BorderRadius.circular(26),
-                      border: selectedIndex == 1
-                          ? Border.all(color:Color(0xFFF47C20), width: 2)
-                          : null,
-                    ),
-                    child: Row(
-                      children: const [
-                        Icon(Icons.account_balance, color: Colors.orange, size: 40),
-                        SizedBox(width: 15),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Hall Admin",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange,
-                              ),
-                            ),
-                            SizedBox(height: 3),
-                            Text(
-                              "Manage Your Hall &\nBookings Easily",
-                              style: TextStyle(fontSize: 13, color: Colors.white),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const Spacer(),
-
-                // ▶ Next Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                     color: Color(0xFFF47C20),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: selectedIndex == -1 ? null : () {},
-                      child: const Text(
-                        "Next",
-                        style: TextStyle(
-                            fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-              ],
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleCard({
+    required int index,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Gradient gradient,
+  }) {
+    bool isSelected = _selectedRole == index;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedRole = index;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: isSelected ? gradient : null,
+          color: isSelected ? null : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.transparent : Colors.grey[300]!,
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? const Color(0xFFF47C20).withOpacity(0.4)
+                  : Colors.grey.withOpacity(0.1),
+              blurRadius: isSelected ? 20 : 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white.withOpacity(0.2) : const Color(0xFFF47C20).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                icon,
+                size: 40,
+                color: isSelected ? Colors.white : const Color(0xFFF47C20),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isSelected ? Colors.white.withOpacity(0.9) : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isSelected ? Icons.check : Icons.arrow_forward_ios,
+                size: 20,
+                color: isSelected ? const Color(0xFFF47C20) : Colors.grey[400],
+              ),
+            ),
+          ],
         ),
       ),
     );
