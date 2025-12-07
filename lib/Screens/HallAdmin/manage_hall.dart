@@ -19,130 +19,59 @@ class _ManageHallScreenState extends State<ManageHallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Layout Decision
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 280.0,
-            floating: false,
-            pinned: true,
-            backgroundColor: Colors.white,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            leading: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  CarouselSlider(
-                    options: CarouselOptions(
-                      height: double.infinity,
-                      viewportFraction: 1.0,
-                      autoPlayInterval: Duration(seconds: 3),
-                      enableInfiniteScroll: false,
-                      autoPlay: true,
-                      onPageChanged: (index, reason) {
-                        setState(() {
-                          _currentImageIndex = index;
-                        });
-                      },
-                    ),
-                    items: _hallImages.map((imageUrl) {
-                      return Image.network(
-                        imageUrl,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                      );
-                    }).toList(),
-                  ),
+      backgroundColor: const Color(0xFFF9FAFB),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 700) {
+            return _buildDesktopLayout();
+          } else {
+            return _buildMobileLayout();
+          }
+        },
+      ),
+    );
+  }
 
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.3),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  Positioned(
-                    bottom: 16,
-                    right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
+  // ==========================================
+  // DESKTOP LAYOUT (2 Columns)
+  // ==========================================
+  Widget _buildDesktopLayout() {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // LEFT COLUMN: Images & Basic Info (40%)
+              Expanded(
+                flex: 4,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Image Carousel (Fixed height for desktop)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: SizedBox(
+                          height: 300,
+                          child: _buildImageCarousel(),
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.photo_library,
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            "${_currentImageIndex + 1}/${_hallImages.length}",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: _cardDecoration(),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
                               "Al Rehman Banquet Hall",
                               style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.black87,
-                                height: 1.2,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -150,20 +79,15 @@ class _ManageHallScreenState extends State<ManageHallScreen> {
                               children: [
                                 Icon(
                                   Icons.location_on,
-                                  size: 16,
+                                  size: 18,
                                   color: Colors.grey[600],
                                 ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    "Model Colony, Karachi, PK",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Model Colony, Karachi, PK",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey[600],
                                   ),
                                 ),
                               ],
@@ -173,75 +97,279 @@ class _ManageHallScreenState extends State<ManageHallScreen> {
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 24),
-                  const Divider(),
-                  const SizedBox(height: 24),
-
-                  _buildSectionHeader("Public Details", onEdit: () {}),
-
-                  const SizedBox(height: 12),
-
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: _cardDecoration(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildInfoRow(
-                          Icons.description,
-                          "Description",
-                          "A luxurious venue perfect for weddings and corporate events with premium catering services.",
-                        ),
-                        const SizedBox(height: 20),
-                        _buildInfoRow(
-                          Icons.groups,
-                          "Guest Capacity",
-                          "300 - 800 Guests",
-                        ),
-                        const SizedBox(height: 20),
-                        _buildInfoRow(
-                          Icons.phone,
-                          "Contact Number",
-                          "+92 3XX XXXXXXX",
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  _buildSectionHeader("Private Details", onEdit: () {}),
-
-                  const SizedBox(height: 12),
-
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: _cardDecoration(),
-                    child: Column(
-                      children: [
-                        _buildInfoRow(
-                          Icons.account_balance,
-                          "Bank Name",
-                          "Meezan Bank Ltd",
-                        ),
-                        const SizedBox(height: 20),
-                        _buildInfoRow(
-                          Icons.numbers,
-                          "Account Number",
-                          "PK35 MEZN 0000 **** ****",
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-                ],
+                ),
               ),
+
+              const SizedBox(width: 32),
+
+              // RIGHT COLUMN: Details Sections (60%)
+              Expanded(
+                flex: 6,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildSectionHeader("Public Details", onEdit: () {}),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(32),
+                        decoration: _cardDecoration(),
+                        child: Column(
+                          children: [
+                            _buildInfoRow(
+                              Icons.description,
+                              "Description",
+                              "A luxurious venue perfect for weddings and corporate events with premium catering services.",
+                            ),
+                            const SizedBox(height: 24),
+                            _buildInfoRow(
+                              Icons.groups,
+                              "Guest Capacity",
+                              "300 - 800 Guests",
+                            ),
+                            const SizedBox(height: 24),
+                            _buildInfoRow(
+                              Icons.phone,
+                              "Contact Number",
+                              "+92 3XX XXXXXXX",
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      _buildSectionHeader("Private Details", onEdit: () {}),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(32),
+                        decoration: _cardDecoration(),
+                        child: Column(
+                          children: [
+                            _buildInfoRow(
+                              Icons.account_balance,
+                              "Bank Name",
+                              "Meezan Bank Ltd",
+                            ),
+                            const SizedBox(height: 24),
+                            _buildInfoRow(
+                              Icons.numbers,
+                              "Account Number",
+                              "PK35 MEZN 0000 **** ****",
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // MOBILE LAYOUT (Slivers)
+  // ==========================================
+  Widget _buildMobileLayout() {
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          expandedHeight: 280.0,
+          floating: false,
+          pinned: true,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () =>
+                  Navigator.pop(context), // Ensure navigation context exists
             ),
           ),
-        ],
-      ),
+          flexibleSpace: FlexibleSpaceBar(background: _buildImageCarousel()),
+        ),
+
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Info
+                const Text(
+                  "Al Rehman Banquet Hall",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.black87,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      "Model Colony, Karachi, PK",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 24),
+
+                // Public Details
+                _buildSectionHeader("Public Details", onEdit: () {}),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: _cardDecoration(),
+                  child: Column(
+                    children: [
+                      _buildInfoRow(
+                        Icons.description,
+                        "Description",
+                        "A luxurious venue perfect for weddings and corporate events with premium catering services.",
+                      ),
+                      const SizedBox(height: 20),
+                      _buildInfoRow(
+                        Icons.groups,
+                        "Guest Capacity",
+                        "300 - 800 Guests",
+                      ),
+                      const SizedBox(height: 20),
+                      _buildInfoRow(
+                        Icons.phone,
+                        "Contact Number",
+                        "+92 3XX XXXXXXX",
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 30),
+
+                // Private Details
+                _buildSectionHeader("Private Details", onEdit: () {}),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: _cardDecoration(),
+                  child: Column(
+                    children: [
+                      _buildInfoRow(
+                        Icons.account_balance,
+                        "Bank Name",
+                        "Meezan Bank Ltd",
+                      ),
+                      const SizedBox(height: 20),
+                      _buildInfoRow(
+                        Icons.numbers,
+                        "Account Number",
+                        "PK35 MEZN 0000 **** ****",
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // SHARED WIDGETS
+  // ==========================================
+
+  Widget _buildImageCarousel() {
+    return Stack(
+      alignment: Alignment.bottomRight,
+      children: [
+        CarouselSlider(
+          options: CarouselOptions(
+            height: double.infinity,
+            viewportFraction: 1.0,
+            autoPlayInterval: const Duration(seconds: 3),
+            enableInfiniteScroll: false,
+            autoPlay: true,
+            onPageChanged: (index, reason) {
+              setState(() {
+                _currentImageIndex = index;
+              });
+            },
+          ),
+          items: _hallImages.map((imageUrl) {
+            return Image.network(
+              imageUrl,
+              width: double.infinity,
+              height: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                color: Colors.grey[200],
+                child: const Icon(Icons.broken_image),
+              ),
+            );
+          }).toList(),
+        ),
+
+        // Gradient Overlay
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.transparent, Colors.black.withOpacity(0.3)],
+            ),
+          ),
+        ),
+
+        // Page Counter
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.6),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withOpacity(0.2)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.photo_library, color: Colors.white, size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  "${_currentImageIndex + 1}/${_hallImages.length}",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -91,7 +91,6 @@ class ResolveComplaintSheet extends StatelessWidget {
                 );
               },
             ),
-
             const SizedBox(height: 10),
           ],
         ),

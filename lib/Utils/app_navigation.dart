@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:animations/animations.dart';
 
-class Navigation {
+class AppNavigation {
   static void push(BuildContext context, Widget screen) {
     Navigator.push(
       context,

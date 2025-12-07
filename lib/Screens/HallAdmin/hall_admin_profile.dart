@@ -1,10 +1,13 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:venuemate_system/Screens/Customers/LoginScreen.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
+import 'package:venuemate_system/Screens/Shared/settings.dart';
 import 'package:venuemate_system/Screens/HallAdmin/edit_profile.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_feedbacks.dart';
-import 'package:venuemate_system/Screens/Shared/settings.dart';
-import 'package:venuemate_system/Screens/Shared/user_complaint_center.dart';
 import 'package:venuemate_system/Screens/Shared/user_notifications.dart';
-import 'package:venuemate_system/Utils/navigation.dart';
+import 'package:venuemate_system/Screens/Shared/user_complaint_center.dart';
 
 class HallAdminProfileScreen extends StatelessWidget {
   const HallAdminProfileScreen({super.key});
@@ -120,14 +123,14 @@ class HallAdminProfileScreen extends StatelessWidget {
                           icon: Icons.feedback_outlined,
                           label: "Hall Feedbacks",
                           onTap: () {
-                            Navigation.push(context, HallFeedbacksScreen());
+                            AppNavigation.push(context, HallFeedbacksScreen());
                           },
                         ),
                         _DashboardButton(
                           icon: Icons.notifications_outlined,
                           label: "Notifications",
                           onTap: () {
-                            Navigation.push(context, NotificationsScreen());
+                            AppNavigation.push(context, UserNotificationsScreen());
                           },
                         ),
                       ],
@@ -151,7 +154,7 @@ class HallAdminProfileScreen extends StatelessWidget {
                     icon: Icons.person_outline,
                     title: "Edit Profile",
                     onTap: () {
-                      Navigation.push(context, EditProfileScreen());
+                      AppNavigation.push(context, EditProfileScreen());
                     },
                   ),
                   const Padding(
@@ -162,7 +165,7 @@ class HallAdminProfileScreen extends StatelessWidget {
                     icon: Icons.settings_outlined,
                     title: "Settings",
                     onTap: () {
-                      Navigation.push(context, SettingsScreen());
+                      AppNavigation.push(context, SettingsScreen());
                     },
                   ),
                   const Padding(
@@ -173,7 +176,7 @@ class HallAdminProfileScreen extends StatelessWidget {
                     icon: Icons.report_problem_outlined,
                     title: "Complaint Center",
                     onTap: () {
-                      Navigation.push(context, UserComplaintCenterScreen());
+                      AppNavigation.push(context, UserComplaintCenterScreen());
                     },
                   ),
                   const Padding(
@@ -183,9 +186,7 @@ class HallAdminProfileScreen extends StatelessWidget {
                   _ProfileMenuTile(
                     icon: Icons.logout_outlined,
                     title: "Logout",
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
+                    onTap: () => _handleLogout(context),
                   ),
                 ],
               ),
@@ -300,5 +301,54 @@ class _ProfileMenuTile extends StatelessWidget {
         color: Colors.black87,
       ),
     );
+  }
+}
+
+void _handleLogout(BuildContext context) async {
+  bool confirm =
+      await showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text("Logout"),
+              content: const Text("Are you sure you want to logout?"),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text(
+                    "Cancel",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text(
+                    "Logout",
+                    style: TextStyle(color: Color(0xFFF47C20)),
+                  ),
+                ),
+              ],
+            ),
+      ) ??
+      false;
+
+  if (confirm) {
+    try {
+      await FirebaseAuth.instance.signOut();
+      final googleSignIn = GoogleSignIn();
+      await googleSignIn.disconnect();
+      await googleSignIn.signOut();
+
+      if (!context.mounted) return;
+      
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (Route<dynamic> route) => false,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error logging out: $e")));
+    }
   }
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Screens/HallAdmin/manage_refund_sheet.dart';
-import 'package:venuemate_system/Screens/HallAdmin/view_receipt_sheet.dart';
-import 'package:venuemate_system/Screens/Shared/user_booking_details.dart';
-import 'package:venuemate_system/Utils/navigation.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Screens/Shared/user_booking_details.dart';
+import 'package:venuemate_system/Screens/HallAdmin/view_receipt_sheet.dart';
+import 'package:venuemate_system/Screens/HallAdmin/manage_refund_sheet.dart';
 
 class HallAdminBookingsScreen extends StatefulWidget {
   const HallAdminBookingsScreen({super.key});
@@ -144,7 +144,7 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
   }
 
   void _navigateToDetails(BuildContext context) {
-    Navigation.push(context, UserBookingDetailsScreen());
+    AppNavigation.push(context, UserBookingDetailsScreen());
   }
 
   void _showReceiptSheet(BuildContext context) {

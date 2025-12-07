@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart';
-import 'package:venuemate_system/Utils/navigation.dart';
 
 class PendingReviewScreen extends StatelessWidget {
   const PendingReviewScreen({super.key});
@@ -14,20 +14,18 @@ class PendingReviewScreen extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.logout, color: Colors.black),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () {},
         ),
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(30.0),
         child: GestureDetector(
           onTap: () {
-            Navigation.push(context, HallAdminRootLayout());
+            AppNavigation.push(context, HallAdminRootLayout());
           },
           child: Container(
             width: double.infinity,
-            height: 50,
+            height: 55,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               gradient: const LinearGradient(

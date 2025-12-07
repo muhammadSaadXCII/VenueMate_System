@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:badges/badges.dart' as badges;
-import 'package:venuemate_system/Screens/HallAdmin/hall_admin_bookings.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'package:venuemate_system/Screens/HallAdmin/manage_hall.dart';
 import 'package:venuemate_system/Screens/HallAdmin/manage_menu.dart';
 import 'package:venuemate_system/Screens/HallAdmin/manage_packages.dart';
-import 'package:venuemate_system/Screens/HallAdmin/manage_vendor_services.dart';
 import 'package:venuemate_system/Screens/Shared/user_notifications.dart';
-import 'package:venuemate_system/Utils/navigation.dart';
+import 'package:venuemate_system/Screens/HallAdmin/hall_admin_bookings.dart';
+import 'package:venuemate_system/Screens/HallAdmin/manage_vendor_services.dart';
 
 class HallAdminHomeScreen extends StatelessWidget {
   const HallAdminHomeScreen({super.key});
@@ -45,7 +45,7 @@ class HallAdminHomeScreen extends StatelessWidget {
 
               GestureDetector(
                 onTap: () {
-                  Navigation.push(context, NotificationsScreen());
+                  AppNavigation.push(context, UserNotificationsScreen());
                 },
                 child: Container(
                   padding: const EdgeInsets.all(8),
@@ -200,7 +200,7 @@ class HallAdminHomeScreen extends StatelessWidget {
                             title: "Manage Hall",
                             icon: Icons.storefront_outlined,
                             onActionTap: () {
-                              Navigation.push(context, ManageHallScreen());
+                              AppNavigation.push(context, ManageHallScreen());
                             },
                           ),
                         ),
@@ -210,7 +210,7 @@ class HallAdminHomeScreen extends StatelessWidget {
                             title: "Manage Menu",
                             icon: Icons.restaurant_menu_outlined,
                             onActionTap: () {
-                              Navigation.push(context, ManageMenuScreen());
+                              AppNavigation.push(context, ManageMenuScreen());
                             },
                           ),
                         ),
@@ -224,7 +224,10 @@ class HallAdminHomeScreen extends StatelessWidget {
                             title: "Manage Services",
                             icon: Icons.room_service_outlined,
                             onActionTap: () {
-                              Navigation.push(context, ManageServicesScreen());
+                              AppNavigation.push(
+                                context,
+                                ManageServicesScreen(),
+                              );
                             },
                           ),
                         ),
@@ -234,7 +237,10 @@ class HallAdminHomeScreen extends StatelessWidget {
                             title: "Manage Packages",
                             icon: Icons.card_giftcard_outlined,
                             onActionTap: () {
-                              Navigation.push(context, ManagePackagesScreen());
+                              AppNavigation.push(
+                                context,
+                                ManagePackagesScreen(),
+                              );
                             },
                           ),
                         ),
