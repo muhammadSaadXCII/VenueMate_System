@@ -399,7 +399,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
             children: steps.map((step) {
               final stepNumber = step['number'] as int;
               final isActive = stepNumber == currentStep;
-              final isCompleted = stepNumber < currentStep;
               
               return Expanded(
                 child: Center(

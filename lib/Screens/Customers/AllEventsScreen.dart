@@ -551,6 +551,7 @@ class _AllEventsScreenState extends State<AllEventsScreen>
     );
   }
 
+  // ignore: unused_element
   void _showCancelDialog(BuildContext context) {
     showDialog(
       context: context,

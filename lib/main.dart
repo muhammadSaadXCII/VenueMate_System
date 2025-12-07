@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
 import 'package:venuemate_system/Screens/Customers/SplashScreen.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

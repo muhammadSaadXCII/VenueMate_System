@@ -7,7 +7,6 @@ import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
 import 'ForgotPasswordScreen.dart';
 import 'HomePageVenueScreen.dart'; 
-import 'SignUpScreen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);

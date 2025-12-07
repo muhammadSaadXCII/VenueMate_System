@@ -49,24 +49,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     }
   }
 
-  void _navigateToNext() {
-    if (_formKey.currentState!.validate() && selectedDate != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const CustomizeEventScreen(),
-        ),
-      );
-    } else if (selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a date'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -269,7 +251,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             children: steps.map((step) {
               final stepNumber = step['number'] as int;
               final isActive = stepNumber == currentStep;
-              final isCompleted = stepNumber < currentStep;
               
               return Expanded(
                 child: Center(

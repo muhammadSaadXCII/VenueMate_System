@@ -35,14 +35,6 @@ class _CustomizeEventScreenState extends State<CustomizeEventScreen> {
     },
   ];
 
-  void _navigateToNext() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const PaymentScreen(),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -241,7 +233,6 @@ class _CustomizeEventScreenState extends State<CustomizeEventScreen> {
             children: steps.map((step) {
               final stepNumber = step['number'] as int;
               final isActive = stepNumber == currentStep;
-              final isCompleted = stepNumber < currentStep;
               
               return Expanded(
                 child: Center(
