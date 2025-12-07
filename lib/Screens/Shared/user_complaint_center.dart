@@ -168,11 +168,7 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
                   indicatorSize: TabBarIndicatorSize.tab,
                   dividerColor: Colors.transparent,
                   indicator: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
+                    color: Color(0xFFF47C20),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   labelColor: Colors.white,
@@ -266,11 +262,7 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
             indicatorSize: TabBarIndicatorSize.tab,
             dividerColor: Colors.transparent,
             indicator: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
+             color: Color(0xFFF47C20),
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(

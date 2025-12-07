@@ -304,6 +304,9 @@ class _ProfileMenuTile extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// SAFE LOGOUT LOGIC (FIXED)
+// ---------------------------------------------------------------------------
 void _handleLogout(BuildContext context) async {
   bool confirm =
       await showDialog(
@@ -334,21 +337,35 @@ void _handleLogout(BuildContext context) async {
 
   if (confirm) {
     try {
+      // 1. Always sign out from Firebase
       await FirebaseAuth.instance.signOut();
-      final googleSignIn = GoogleSignIn();
-      await googleSignIn.disconnect();
-      await googleSignIn.signOut();
+
+      // 2. Try to handle Google Sign Out safely
+      // Added try-catch and isSignedIn check to prevent PlatformException
+      try {
+        final googleSignIn = GoogleSignIn();
+        if (await googleSignIn.isSignedIn()) {
+          await googleSignIn.disconnect();
+          await googleSignIn.signOut();
+        }
+      } catch (e) {
+        // Just ignore google errors, so user can still logout from app
+        debugPrint("Google logout error (ignored): $e");
+      }
 
       if (!context.mounted) return;
-      
+
+      // 3. Navigate to Login
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
         (Route<dynamic> route) => false,
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error logging out: $e")));
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error logging out: $e")));
+      }
     }
   }
 }

@@ -485,12 +485,13 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
             children: [
               const Text(
                 "Meezan Bank Ltd",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
               const SizedBox(height: 4),
               Text(
                 "PK35 MEZN **** **** 1234",
                 style: TextStyle(
+                  fontSize:13 ,
                   fontFamily: 'monospace',
                   color: Colors.grey[600],
                 ),

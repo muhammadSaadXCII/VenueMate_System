@@ -65,15 +65,17 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
     final horizontalPadding = isDesktop
         ? screenWidth * 0.1
         : isTablet
-        ? 40.0
-        : 20.0;
+            ? 40.0
+            : 20.0;
 
     final crossAxisCount = isDesktop ? 2 : 1;
+    
+    // UPDATED: Changed 4.5 to 3.8 for Desktop to allow more height
     final childAspectRatio = isDesktop
-        ? 4.5
+        ? 3.8 
         : isTablet
-        ? 5.0
-        : 3.5;
+            ? 5.0
+            : 3.5;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -90,8 +92,8 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
             fontSize: isDesktop
                 ? 24
                 : isTablet
-                ? 22
-                : 20,
+                    ? 22
+                    : 20,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -104,8 +106,8 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
               vertical: isDesktop
                   ? 20
                   : isTablet
-                  ? 16
-                  : 10,
+                      ? 16
+                      : 10,
             ),
             child: Column(
               children: [
@@ -169,7 +171,11 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
           Expanded(
             child: isDesktop
                 ? GridView.builder(
-                    padding: EdgeInsets.all(horizontalPadding),
+                    // UPDATED: Removed top padding to reduce space between tabs and cards on Web
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding, 
+                      vertical: 10
+                    ),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: crossAxisCount,
                       crossAxisSpacing: 24,
@@ -197,7 +203,11 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
                     },
                   )
                 : ListView.builder(
-                    padding: EdgeInsets.all(horizontalPadding),
+                    // UPDATED: Also updated here for consistency
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding, 
+                      vertical: 10
+                    ),
                     itemCount: _users.length,
                     itemBuilder: (context, index) {
                       final user = _users[index];
@@ -298,53 +308,55 @@ class UserManagementCard extends StatelessWidget {
   Widget build(BuildContext context) {
     bool isActive = status == "Active";
 
+    // UPDATED: Increased height for Desktop from 110.0 to 130.0 to fix overflow
     final cardHeight = isDesktop
-        ? 110.0
+        ? 130.0 
         : isTablet
-        ? 105.0
-        : 95.0;
+            ? 105.0
+            : 95.0;
+            
     final avatarSize = isDesktop
         ? 70.0
         : isTablet
-        ? 65.0
-        : 60.0;
+            ? 65.0
+            : 60.0;
     final borderRadius = isDesktop ? 20.0 : 16.0;
     final cardPadding = isDesktop
         ? 16.0
         : isTablet
-        ? 14.0
-        : 10.0;
+            ? 14.0
+            : 10.0;
 
     final nameFontSize = isDesktop
         ? 16.0
         : isTablet
-        ? 15.0
-        : 14.0;
+            ? 15.0
+            : 14.0;
     final roleFontSize = isDesktop
         ? 14.0
         : isTablet
-        ? 13.0
-        : 12.0;
+            ? 13.0
+            : 12.0;
     final emailFontSize = isDesktop
         ? 14.0
         : isTablet
-        ? 13.0
-        : 12.0;
+            ? 13.0
+            : 12.0;
     final statusFontSize = isDesktop
         ? 12.0
         : isTablet
-        ? 11.0
-        : 10.0;
+            ? 11.0
+            : 10.0;
     final manageFontSize = isDesktop
         ? 15.0
         : isTablet
-        ? 14.0
-        : 13.0;
+            ? 14.0
+            : 13.0;
     final iconSize = isDesktop
         ? 14.0
         : isTablet
-        ? 13.0
-        : 11.0;
+            ? 13.0
+            : 11.0;
 
     return GestureDetector(
       onTap: onManageTap,
@@ -442,8 +454,8 @@ class UserManagementCard extends StatelessWidget {
                 width: isDesktop
                     ? 16
                     : isTablet
-                    ? 12
-                    : 8,
+                        ? 12
+                        : 8,
               ),
 
               Column(
@@ -455,8 +467,8 @@ class UserManagementCard extends StatelessWidget {
                       horizontal: isDesktop
                           ? 14
                           : isTablet
-                          ? 12
-                          : 10,
+                              ? 12
+                              : 10,
                       vertical: isDesktop ? 6 : 4,
                     ),
                     decoration: BoxDecoration(

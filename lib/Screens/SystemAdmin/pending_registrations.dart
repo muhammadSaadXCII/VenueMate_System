@@ -16,8 +16,8 @@ class PendingRegistrationsScreen extends StatelessWidget {
     final horizontalPadding = isDesktop
         ? screenWidth * 0.15
         : isTablet
-        ? 40.0
-        : 20.0;
+            ? 40.0
+            : 20.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -75,8 +75,8 @@ class PendingRegistrationsScreen extends StatelessWidget {
                       : "Akbar Marquee & Marriage Hall",
                   submittedBy: "Rehman Hussain",
                   date: "31 Oct, 2025",
-                  imageUrl:
-                      "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60",
+                  // Yahan apna asset path dein
+                  imagePath: "assets/images/cardimage 2.png", 
                   isDesktop: isDesktop,
                   onTap: () {
                     AppNavigation.push(context, const ReviewRegistrationScreen());
@@ -95,7 +95,7 @@ class RegistrationCard extends StatelessWidget {
   final String hallName;
   final String submittedBy;
   final String date;
-  final String imageUrl;
+  final String imagePath; // Renamed from imageUrl
   final bool isDesktop;
   final VoidCallback onTap;
 
@@ -104,7 +104,7 @@ class RegistrationCard extends StatelessWidget {
     required this.hallName,
     required this.submittedBy,
     required this.date,
-    required this.imageUrl,
+    required this.imagePath, // Renamed
     required this.isDesktop,
     required this.onTap,
   });
@@ -132,8 +132,9 @@ class RegistrationCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl,
+              // CHANGED: Image.network -> Image.asset
+              child: Image.asset(
+                imagePath,
                 width: 120,
                 height: double.infinity,
                 fit: BoxFit.cover,
@@ -158,7 +159,7 @@ class RegistrationCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF2D3436),
                     ),

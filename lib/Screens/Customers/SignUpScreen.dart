@@ -39,12 +39,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   // --- VALIDATION FUNCTIONS ---
 
-  // 1. Strict Structural Validation (RFC 5322)
+  // 1. Strict Structural Validation (RFC 5322) with Domain Extension Check
   bool _isValidEmailStructure(String email) {
+    // Check basic email format with proper domain extension (2-6 letters)
     final emailRegex = RegExp(
-      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+      r"^[a-zA-Z0-9.!#$%&'*+\-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,6}$",
     );
-    return emailRegex.hasMatch(email);
+    
+    if (!emailRegex.hasMatch(email)) {
+      return false;
+    }
+    
+    // Additional check: ensure domain has valid extension
+    String domain = email.split('@').last.toLowerCase();
+    List<String> domainParts = domain.split('.');
+    
+    // Must have at least domain name and extension
+    if (domainParts.length < 2) {
+      return false;
+    }
+    
+    // Extension must be 2-6 characters
+    String extension = domainParts.last;
+    if (extension.length < 2 || extension.length > 6) {
+      return false;
+    }
+    
+    return true;
   }
 
   // 2. Common Typo Detection
@@ -52,28 +73,47 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!email.contains('@')) return null;
     String domain = email.split('@').last.toLowerCase();
 
+    // Gmail typos
     if (domain == 'gmil.com' ||
         domain == 'gmal.com' ||
         domain == 'gmai.com' ||
         domain == 'gail.com' ||
-        domain == 'gmail.co') {
+        domain == 'gmail.co' ||
+        domain == 'gamil.com' ||
+        domain == 'gmali.com' ||
+        domain == 'gma.com') {
       return 'Did you mean @gmail.com?';
     }
 
-    if (domain == 'hotmal.com' || domain == 'hotmil.com') {
+    // Hotmail typos
+    if (domain == 'hotmal.com' || 
+        domain == 'hotmil.com' || 
+        domain == 'hotmail.co' ||
+        domain == 'hotmial.com') {
       return 'Did you mean @hotmail.com?';
     }
 
-    if (domain == 'yaho.com' || domain == 'yahooo.com') {
+    // Yahoo typos
+    if (domain == 'yaho.com' || 
+        domain == 'yahooo.com' || 
+        domain == 'yahoo.co' ||
+        domain == 'yhaoo.com') {
       return 'Did you mean @yahoo.com?';
+    }
+
+    // Outlook typos
+    if (domain == 'outlok.com' || 
+        domain == 'outlock.com' || 
+        domain == 'outlook.co') {
+      return 'Did you mean @outlook.com?';
     }
 
     return null;
   }
 
-  // Phone Validation
+  // Phone Validation - Exactly 11 digits
   bool _isValidPhone(String phone) {
-    return phone.length >= 10 && phone.length <= 15;
+    return phone.length == 11;
   }
 
   // Password Validation
@@ -178,7 +218,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!_isValidPhone(_phoneController.text.trim())) {
       _showValidationError(
         'Invalid Phone',
-        'Please enter a valid phone number (10-15 digits).',
+        'Please enter exactly 11 digits for your phone number.',
       );
       return;
     }
@@ -195,7 +235,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!_isValidEmailStructure(emailInput)) {
       _showValidationError(
         'Invalid Email Format',
-        'Please enter a valid email address (e.g. name@example.com).',
+        'Please enter a valid email address with a proper domain (e.g. name@example.com).',
       );
       return;
     }
@@ -536,19 +576,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         _buildTextField(
                           controller: _phoneController,
                           label: 'Phone Number',
-                          hint: 'Enter your phone number',
+                          hint: 'Enter 11-digit phone number',
                           icon: Icons.phone_outlined,
                           keyboardType: TextInputType.phone,
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(15),
+                            LengthLimitingTextInputFormatter(11),
                           ],
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your phone number';
                             }
-                            if (value.length < 10) {
-                              return 'Please enter a valid phone number';
+                            if (value.length != 11) {
+                              return 'Phone number must be exactly 11 digits';
                             }
                             return null;
                           },
@@ -585,7 +625,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               )) {
                                 _showValidationError(
                                   'Invalid Phone',
-                                  'Please enter a valid phone number (10-15 digits).',
+                                  'Please enter exactly 11 digits for your phone number.',
                                 );
                                 return;
                               }

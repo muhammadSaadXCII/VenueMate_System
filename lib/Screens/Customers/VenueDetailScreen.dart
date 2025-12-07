@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Screens/Customers/BasicDetailScreen.dart';
 
 class VenueDetailsScreen extends StatefulWidget {
   const VenueDetailsScreen({Key? key}) : super(key: key);
@@ -322,7 +323,12 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
           child: SizedBox(
             height: 40, // Fits well inside footer
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                 Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => BasicDetailsScreen()),
+            );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF47C20),
                 shape: RoundedRectangleBorder(

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:venuemate_system/Screens/Customers/FavoritesScreen.dart';
+import 'package:venuemate_system/Screens/Shared/user_complaint_center.dart';
 import 'AllEventsScreen.dart';
 import 'EditProfileScreen.dart';
 import 'HelpandSupportScreen.dart';
 import 'HomePageVenueScreen.dart';
-import 'LoginScreen.dart'; // Import Login Screen
+import 'LoginScreen.dart';
 import 'MapScreen.dart';
 import 'MessagingScreen.dart';
 import 'NotificationScreen.dart';
 import 'SettingsScreen.dart';
+// Note: Import your Complaint Screen here if you have one created
+// import 'ComplaintCenterScreen.dart'; 
 
 class Profilescreen extends StatefulWidget {
   const Profilescreen({super.key});
@@ -24,7 +27,6 @@ class _ProfilescreenState extends State<Profilescreen> {
 
   // --- LOGOUT FUNCTION ---
   void _handleLogout() async {
-    // 1. Show confirmation dialog (Optional but good practice)
     bool confirm = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -45,16 +47,14 @@ class _ProfilescreenState extends State<Profilescreen> {
 
     if (confirm) {
       try {
-        // 2. Sign out from Firebase
         await FirebaseAuth.instance.signOut();
 
         if (!mounted) return;
 
-        // 3. Navigate to Login Screen and remove all previous routes
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false, // This removes all back history
+          (route) => false,
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -119,7 +119,6 @@ class _ProfilescreenState extends State<Profilescreen> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      // Note: Yahan aap Firebase se User ka naam bhi fetch kar sakte hain
                       const Text(
                         "Muhammad Ahmed",
                         style: TextStyle(
@@ -129,7 +128,7 @@ class _ProfilescreenState extends State<Profilescreen> {
                         ),
                       ),
                       Text(
-                        FirebaseAuth.instance.currentUser?.email ?? "m.ahmed@email.com", // Shows real email if available
+                        FirebaseAuth.instance.currentUser?.email ?? "m.ahmed@email.com",
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 14,
@@ -148,7 +147,7 @@ class _ProfilescreenState extends State<Profilescreen> {
             Transform.translate(
               offset: const Offset(0, -40),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 0),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   decoration: BoxDecoration(
@@ -178,9 +177,9 @@ class _ProfilescreenState extends State<Profilescreen> {
 
                       Container(height: 40, width: 1, color: Colors.grey[300]),
 
-                      // ✅ LOGOUT BUTTON LOGIC ADDED HERE
+                      // Logout Button
                       InkWell(
-                        onTap: _handleLogout, // Calls the logout function
+                        onTap: _handleLogout,
                         child: _buildActionItem(Icons.logout, "Logout"),
                       ),
                     ],
@@ -228,6 +227,19 @@ class _ProfilescreenState extends State<Profilescreen> {
                       },
                     ),
                     _buildDivider(),
+
+                    // --- COMPLAINT CENTER ADDED HERE ---
+                    _buildMenuItem(
+                      Icons.report_problem_outlined, // Icon for complaints
+                      "Complaint Center",
+                      () {
+                        // Navigate to your Complaint Screen here
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => UserComplaintCenterScreen()));
+                        
+                      },
+                    ),
+                    _buildDivider(),
+                    // -----------------------------------
 
                     _buildMenuItem(
                       Icons.headset_mic_outlined,

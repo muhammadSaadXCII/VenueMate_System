@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:venuemate_system/Screens/Customers/SelectRoleScreen.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart';
+import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
 import 'ForgotPasswordScreen.dart';
 import 'HomePageVenueScreen.dart'; 
@@ -104,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
         } else if (role == 'venue_owner') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const HallAdminHomeScreen()),
+            MaterialPageRoute(builder: (context) => const HallAdminRootLayout()),
           );
         } else {
           // Default to Customer Home
@@ -351,7 +352,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               ],
                             ),
                             child: Image.asset(
-                              'assets/images/venuemate.png',
+                              // 'assets/images/venuemate.png',
+                              'assets/images/venuematelogo3.png',
                               height: 100,
                               width: 100,
                               errorBuilder: (context, error, stackTrace) {
