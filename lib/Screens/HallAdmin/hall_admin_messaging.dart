@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
-import 'package:venuemate_system/Utils/navigation.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
 
 class HallAdminMessagingScreen extends StatelessWidget {
   const HallAdminMessagingScreen({super.key});
@@ -162,7 +162,7 @@ class ChatTile extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            Navigation.push(
+            AppNavigation.push(
               context,
               ChattingScreen(username: name, avatarUrl: avatarUrl),
             );

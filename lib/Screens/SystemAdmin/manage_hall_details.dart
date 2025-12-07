@@ -21,384 +21,194 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 250.0,
-            floating: false,
-            pinned: true,
-            backgroundColor: const Color(0xFFFEA845),
-            leading: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CarouselSlider(
-                    options: CarouselOptions(
-                      height: double.infinity,
-                      viewportFraction: 1.0,
-                      enableInfiniteScroll: false,
-                      autoPlay: true,
-                      onPageChanged: (index, reason) {
-                        setState(() {
-                          _currentImageIndex = index;
-                        });
-                      },
-                    ),
-                    items:
-                        _hallImages.map((imageUrl) {
-                          return Image.network(
-                            imageUrl,
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder:
-                                (context, error, stackTrace) =>
-                                    Container(color: Colors.grey),
-                          );
-                        }).toList(),
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isDesktop = screenWidth >= 1000;
+        final isTablet = screenWidth >= 600 && screenWidth < 1000;
 
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.4),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  Positioned(
-                    bottom: 16,
-                    right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.photo_library,
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            "${_currentImageIndex + 1}/${_hallImages.length}",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+        return Scaffold(
+          backgroundColor: const Color(0xFFF5F7FA),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1400),
+              child: isDesktop
+                  ? _buildDesktopLayout(context)
+                  : _buildMobileLayout(context, isTablet),
             ),
           ),
-
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          "Al Rehman Banquet Hall",
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.black87,
-                            height: 1.2,
-                          ),
-                        ),
-                      ),
-
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.green.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.check_circle,
-                              size: 14,
-                              color: Colors.green[700],
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              "Approved",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green[800],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          "Model Colony, Street 12A, Karachi",
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  Row(
-                    children: [
-                      _buildStatPill(Icons.people, "300-800", "Capacity"),
-                      const SizedBox(width: 12),
-                      _buildStatPill(Icons.star, "4.8", "Rating"),
-                      const SizedBox(width: 12),
-                      _buildStatPill(Icons.event_available, "25", "Bookings"),
-                    ],
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  const _SectionHeader(title: "Hall Owner"),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: _cardDecoration(),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 25,
-                          backgroundColor: Colors.orange.shade100,
-                          child: const Text(
-                            "RH",
-                            style: TextStyle(
-                              color: Colors.orange,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                "Rehman Hussain",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "+92 3XX XXXXXXX",
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        IconButton(
-                          onPressed: () {},
-                          icon: const Icon(Icons.phone, color: Colors.green),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.green.withOpacity(0.1),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  const _SectionHeader(title: "Description"),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: _cardDecoration(),
-                    child: const Text(
-                      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.black54,
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  const _SectionHeader(title: "Payout Details"),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: _cardDecoration().copyWith(
-                      border: Border.all(color: Colors.blueGrey.shade100),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.blueGrey.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.account_balance,
-                            color: Colors.blueGrey.shade700,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Meezan Bank Ltd",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "PK35 MEZN **** **** 1234",
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                                fontFamily: "monospace",
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 100),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-
-      bottomSheet: Container(
-        color: Colors.transparent,
-        padding: const EdgeInsets.all(20),
-        child: SafeArea(
-          child: SizedBox(
-            height: 50,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 5,
-                shadowColor: Colors.redAccent.withOpacity(0.4),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.block, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    "Disable Hall",
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildStatPill(IconData icon, String val, String label) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 20, color: const Color(0xFFFEA845)),
-            const SizedBox(height: 4),
-            Text(
-              val,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+  Widget _buildMobileLayout(BuildContext context, bool isTablet) {
+    return Stack(
+      children: [
+        CustomScrollView(
+          slivers: [
+            _buildSliverAppBar(isDesktop: false),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeaderSection(isDesktop: false),
+                    const SizedBox(height: 24),
+                    _buildStatsRow(isDesktop: false),
+                    const SizedBox(height: 32),
+                    _SectionTitle(title: "Owner Details"),
+                    _buildOwnerCard(isDesktop: false),
+                    const SizedBox(height: 32),
+                    _SectionTitle(title: "Description"),
+                    _buildDescriptionCard(),
+                    const SizedBox(height: 32),
+                    _SectionTitle(title: "Payout Information"),
+                    _buildPayoutCard(isDesktop: false),
+                  ],
+                ),
+              ),
             ),
-            Text(
-              label,
-              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+          ],
+        ),
+
+        Positioned(
+          left: 20,
+          right: 20,
+          bottom: 20,
+          child: _buildActionButtons(isDesktop: false),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopLayout(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 6,
+          child: CustomScrollView(
+            slivers: [
+              _buildSliverAppBar(isDesktop: true),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(40.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeaderSection(isDesktop: true),
+                      const SizedBox(height: 40),
+                      _SectionTitle(title: "Description"),
+                      _buildDescriptionCard(),
+                      const SizedBox(height: 40),
+                      _SectionTitle(title: "Payout Information"),
+                      _buildPayoutCard(isDesktop: true),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        Expanded(
+          flex: 4,
+          child: Container(
+            height: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(left: BorderSide(color: Colors.grey.shade200)),
+            ),
+            padding: const EdgeInsets.all(40),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  _SectionTitle(title: "Hall Statistics"),
+                  _buildStatsRow(isDesktop: true),
+                  const SizedBox(height: 40),
+                  _SectionTitle(title: "Owner Details"),
+                  _buildOwnerCard(isDesktop: true),
+                  const SizedBox(height: 40),
+                  const Divider(),
+                  const SizedBox(height: 20),
+                  _buildActionButtons(isDesktop: true),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSliverAppBar({required bool isDesktop}) {
+    return SliverAppBar(
+      expandedHeight: isDesktop ? 400 : 300,
+      pinned: true,
+      backgroundColor: Colors.white,
+      elevation: 0,
+      leading: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: CircleAvatar(
+          backgroundColor: Colors.white,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+      ),
+      flexibleSpace: FlexibleSpaceBar(
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            CarouselSlider(
+              options: CarouselOptions(
+                height: double.infinity,
+                viewportFraction: 1.0,
+                autoPlay: true,
+                onPageChanged: (index, reason) {
+                  setState(() => _currentImageIndex = index);
+                },
+              ),
+              items: _hallImages
+                  .map((img) => Image.network(img, fit: BoxFit.cover))
+                  .toList(),
+            ),
+
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.black.withOpacity(0.5)],
+                ),
+              ),
+            ),
+
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  "${_currentImageIndex + 1} / ${_hallImages.length}",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -406,35 +216,327 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
     );
   }
 
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.grey.withOpacity(0.05),
-          blurRadius: 10,
-          offset: const Offset(0, 4),
+  Widget _buildHeaderSection({required bool isDesktop}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                widget.hall['name'] ?? "Grand Palace Hall",
+                style: TextStyle(
+                  fontSize: isDesktop ? 32 : 24,
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                  color: const Color(0xFF2D3436),
+                ),
+              ),
+            ),
+            if (!isDesktop) ...[const SizedBox(width: 10), _buildStatusBadge()],
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Icon(Icons.location_on, color: Colors.grey[600], size: 20),
+            const SizedBox(width: 8),
+            Text(
+              "Model Colony, Street 12A, Karachi",
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+            if (isDesktop) ...[const Spacer(), _buildStatusBadge()],
+          ],
         ),
       ],
     );
   }
+
+  Widget _buildStatusBadge() {
+    bool isApproved = widget.hall['status'] == "Approved";
+
+    isApproved = true;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isApproved ? const Color(0xFFE6F7ED) : const Color(0xFFFFF0F1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isApproved ? Icons.check_circle : Icons.cancel,
+            size: 16,
+            color: isApproved
+                ? const Color(0xFF00B85E)
+                : const Color(0xFFD92D20),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isApproved ? "Approved" : "Disabled",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: isApproved
+                  ? const Color(0xFF00B85E)
+                  : const Color(0xFFD92D20),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsRow({required bool isDesktop}) {
+    if (isDesktop) {
+      return Column(
+        children: [
+          _buildStatItem(Icons.people_outline, "Capacity", "300 - 800 Guests"),
+          const SizedBox(height: 16),
+          _buildStatItem(Icons.star_outline, "Rating", "4.8 (120 Reviews)"),
+          const SizedBox(height: 16),
+          _buildStatItem(
+            Icons.calendar_today_outlined,
+            "Bookings",
+            "25 this month",
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(child: _buildMobileStatCard(Icons.people, "800", "Capacity")),
+        const SizedBox(width: 12),
+        Expanded(child: _buildMobileStatCard(Icons.star, "4.8", "Rating")),
+        const SizedBox(width: 12),
+        Expanded(child: _buildMobileStatCard(Icons.event, "25", "Bookings")),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(IconData icon, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Icon(icon, color: Colors.orange, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileStatCard(IconData icon, String value, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.orange, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOwnerCard({required bool isDesktop}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: Colors.orange.shade50,
+            child: const Text(
+              "RH",
+              style: TextStyle(
+                color: Colors.orange,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Rehman Hussain",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "rehman@example.com",
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.phone),
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.green.shade50,
+              foregroundColor: Colors.green,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDescriptionCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: const Text(
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+        style: TextStyle(height: 1.6, color: Colors.black87),
+      ),
+    );
+  }
+
+  Widget _buildPayoutCard({required bool isDesktop}) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blueGrey.shade100),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blueGrey.shade100),
+            ),
+            child: Icon(
+              Icons.account_balance,
+              color: Colors.blueGrey[700],
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 20),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Meezan Bank Ltd",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "PK35 MEZN **** **** 1234",
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons({required bool isDesktop}) {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton.icon(
+        onPressed: () {},
+        icon: const Icon(Icons.block),
+        label: const Text("Disable Hall"),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.redAccent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _SectionHeader extends StatelessWidget {
+class _SectionTitle extends StatelessWidget {
   final String title;
-  const _SectionHeader({required this.title});
+  const _SectionTitle({required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0, left: 4),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: Colors.black87,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF2D3436),
         ),
       ),
     );

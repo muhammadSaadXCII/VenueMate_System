@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Screens/HallAdmin/reject_payment.dart';
-import 'package:venuemate_system/Utils/navigation.dart';
 import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Screens/HallAdmin/reject_payment.dart';
 
 class ViewReceiptSheet extends StatelessWidget {
   const ViewReceiptSheet({super.key});
@@ -57,12 +56,11 @@ class ViewReceiptSheet extends StatelessWidget {
                       height: 80,
                       width: 80,
                       fit: BoxFit.cover,
-                      errorBuilder:
-                          (context, error, stackTrace) => Container(
-                            height: 80,
-                            width: 80,
-                            color: Colors.grey[300],
-                          ),
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 80,
+                        width: 80,
+                        color: Colors.grey[300],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -90,14 +88,14 @@ class ViewReceiptSheet extends StatelessWidget {
                               children: [
                                 Icon(
                                   Icons.calendar_today,
-                                  size: 12,
+                                  size: 14,
                                   color: Colors.orange[800],
                                 ),
                                 const SizedBox(width: 4),
                                 const Text(
-                                  "20 Nov, 2025",
+                                  "20 November, 2025",
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -210,7 +208,12 @@ class ViewReceiptSheet extends StatelessWidget {
                   Expanded(
                     child: GestureDetector(
                       onTap: () {
-                        Navigation.push(context, RejectPaymentScreen());
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => RejectPaymentScreen(),
+                          ),
+                        );
                       },
                       child: Container(
                         height: 50,

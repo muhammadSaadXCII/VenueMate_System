@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/review_registrations.dart';
-import 'package:venuemate_system/Utils/navigation.dart';
 
 class PendingRegistrationsScreen extends StatelessWidget {
   const PendingRegistrationsScreen({super.key});
@@ -9,22 +9,33 @@ class PendingRegistrationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 1100;
+    final isTablet = screenWidth >= 600 && screenWidth < 1100;
+
+    final horizontalPadding = isDesktop
+        ? screenWidth * 0.15
+        : isTablet
+        ? 40.0
+        : 20.0;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: true,
+        centerTitle: !isDesktop,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
         title: RichText(
           text: TextSpan(
-            style: const TextStyle(fontSize: 20, color: Colors.black),
+            style: TextStyle(
+              fontSize: isDesktop ? 24 : 20,
+              color: Colors.black,
+            ),
             children: [
               TextSpan(
                 text: "$pendingCount ",
@@ -41,27 +52,40 @@ class PendingRegistrationsScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: pendingCount,
-        itemBuilder: (context, index) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16.0),
-            child: RegistrationCard(
-              hallName:
-                  index.isEven
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 24,
+            ),
+            child: GridView.builder(
+              itemCount: pendingCount,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: isDesktop ? 2 : 1,
+                crossAxisSpacing: 24,
+                mainAxisSpacing: 24,
+                mainAxisExtent: 170,
+              ),
+              itemBuilder: (context, index) {
+                return RegistrationCard(
+                  hallName: index.isEven
                       ? "Al Rehman Banquet Hall"
                       : "Akbar Marquee & Marriage Hall",
-              submittedBy: "Rehman Hussain",
-              date: "31 Oct, 2025",
-              imageUrl:
-                  "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60",
-              onTap: () {
-                Navigation.push(context, ReviewRegistrationScreen());
+                  submittedBy: "Rehman Hussain",
+                  date: "31 Oct, 2025",
+                  imageUrl:
+                      "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60",
+                  isDesktop: isDesktop,
+                  onTap: () {
+                    AppNavigation.push(context, const ReviewRegistrationScreen());
+                  },
+                );
               },
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
@@ -72,6 +96,7 @@ class RegistrationCard extends StatelessWidget {
   final String submittedBy;
   final String date;
   final String imageUrl;
+  final bool isDesktop;
   final VoidCallback onTap;
 
   const RegistrationCard({
@@ -80,6 +105,7 @@ class RegistrationCard extends StatelessWidget {
     required this.submittedBy,
     required this.date,
     required this.imageUrl,
+    required this.isDesktop,
     required this.onTap,
   });
 
@@ -88,20 +114,18 @@ class RegistrationCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-
+          border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
-              spreadRadius: 2,
+              color: Colors.black.withOpacity(0.03),
               blurRadius: 15,
               offset: const Offset(0, 5),
             ),
           ],
-          border: Border.all(color: Colors.grey.shade200),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,31 +134,19 @@ class RegistrationCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               child: Image.network(
                 imageUrl,
-                width: 90,
-                height: 90,
+                width: 120,
+                height: double.infinity,
                 fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    width: 90,
-                    height: 90,
-                    color: Colors.grey[100],
-                    child: const Center(
-                      child: Icon(Icons.image, color: Colors.grey, size: 20),
-                    ),
-                  );
-                },
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
-                    width: 90,
-                    height: 90,
+                    width: 120,
+                    height: double.infinity,
                     color: Colors.grey[200],
-                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                    child: const Icon(Icons.image, color: Colors.grey),
                   );
                 },
               ),
             ),
-
             const SizedBox(width: 16),
 
             Expanded(
@@ -146,27 +158,26 @@ class RegistrationCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Color(0xFF2D3436),
                     ),
                   ),
-
                   const SizedBox(height: 8),
 
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.person_outline,
-                        size: 14,
-                        color: Colors.grey[500],
+                        size: 16,
+                        color: Colors.grey,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           submittedBy,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 14,
                             color: Colors.grey[700],
                             fontWeight: FontWeight.w500,
                           ),
@@ -177,30 +188,57 @@ class RegistrationCard extends StatelessWidget {
                     ],
                   ),
 
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
 
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.calendar_today_outlined,
-                        size: 14,
-                        color: Colors.grey[500],
+                        size: 16,
+                        color: Colors.grey,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         date,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                       ),
                     ],
                   ),
+
+                  const Spacer(),
+
                   Align(
                     alignment: Alignment.bottomRight,
-                    child: Text(
-                      "Review >",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFF58529),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF58529).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: const Color(0xFFF58529).withOpacity(0.3),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            "Review",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFF58529),
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward,
+                            size: 16,
+                            color: Color(0xFFF58529),
+                          ),
+                        ],
                       ),
                     ),
                   ),

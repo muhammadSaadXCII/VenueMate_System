@@ -41,142 +41,252 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFB8C00), Color(0xFFFFCC80)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.orange.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "4.8",
-                        style: TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          height: 1,
-                        ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 700) {
+            return _buildDesktopLayout();
+          } else {
+            return _buildMobileLayout();
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout() {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 350,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildRatingSummaryCard(),
+                    const SizedBox(height: 32),
+                    const Text(
+                      "Filter Reviews",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
-                      Text(
-                        "OUT OF 5",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white70,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: List.generate(5, (index) {
-                            return const Icon(
-                              Icons.star,
-                              color: Colors.white,
-                              size: 24,
-                            );
-                          }),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          "Based on 124 reviews",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: _filters.map((filter) {
+                        return _FilterChip(
+                          label: filter,
+                          isSelected: _selectedFilter == filter,
+                          onTap: () => setState(() => _selectedFilter = filter),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 25),
+              const SizedBox(width: 40),
 
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _filters.map((filter) {
-                  return _FilterChip(
-                    label: filter,
-                    isSelected: _selectedFilter == filter,
-                    onTap: () {
-                      setState(() {
-                        _selectedFilter = filter;
-                      });
-                    },
-                  );
-                }).toList(),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Recent Reviews",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Expanded(
+                      child: ListView(
+                        children: const [
+                          _ReviewCard(
+                            name: "Ali Khan",
+                            date: "2 days ago",
+                            rating: 5,
+                            comment:
+                                "Amazing venue! The staff was very cooperative and the food was delicious.",
+                          ),
+                          SizedBox(height: 16),
+                          _ReviewCard(
+                            name: "Sara Ahmed",
+                            date: "1 week ago",
+                            rating: 4,
+                            comment:
+                                "Good hall, but the parking space was a bit tight for our guests.",
+                          ),
+                          SizedBox(height: 16),
+                          _ReviewCard(
+                            name: "Muzamil",
+                            date: "2 weeks ago",
+                            rating: 5,
+                            comment:
+                                "Best experience ever! The lighting and decor were spot on.",
+                          ),
+                          SizedBox(height: 16),
+                          _ReviewCard(
+                            name: "Hamza",
+                            date: "3 weeks ago",
+                            rating: 3,
+                            comment:
+                                "The AC was not working properly in the beginning.",
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-
-            const SizedBox(height: 20),
-
-            const Text(
-              "Recent Reviews",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 15),
-
-            const _ReviewCard(
-              name: "Ali Khan",
-              date: "2 days ago",
-              rating: 5,
-              comment:
-                  "Amazing venue! The staff was very cooperative and the food was delicious.",
-            ),
-            const SizedBox(height: 15),
-            const _ReviewCard(
-              name: "Sara Ahmed",
-              date: "1 week ago",
-              rating: 4,
-              comment:
-                  "Good hall, but the parking space was a bit tight for our guests.",
-            ),
-            const SizedBox(height: 15),
-            const _ReviewCard(
-              name: "Muzamil",
-              date: "2 weeks ago",
-              rating: 5,
-              comment:
-                  "Best experience ever! The lighting and decor were spot on.",
-            ),
-            const SizedBox(height: 15),
-            const _ReviewCard(
-              name: "Hamza",
-              date: "3 weeks ago",
-              rating: 3,
-              comment: "The AC was not working properly in the beginning.",
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildRatingSummaryCard(),
+          const SizedBox(height: 25),
+
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _filters.map((filter) {
+                return _FilterChip(
+                  label: filter,
+                  isSelected: _selectedFilter == filter,
+                  onTap: () => setState(() => _selectedFilter = filter),
+                );
+              }).toList(),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+          const Text(
+            "Recent Reviews",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 15),
+
+          const _ReviewCard(
+            name: "Ali Khan",
+            date: "2 days ago",
+            rating: 5,
+            comment:
+                "Amazing venue! The staff was very cooperative and the food was delicious.",
+          ),
+          const SizedBox(height: 15),
+          const _ReviewCard(
+            name: "Sara Ahmed",
+            date: "1 week ago",
+            rating: 4,
+            comment:
+                "Good hall, but the parking space was a bit tight for our guests.",
+          ),
+          const SizedBox(height: 15),
+          const _ReviewCard(
+            name: "Muzamil",
+            date: "2 weeks ago",
+            rating: 5,
+            comment:
+                "Best experience ever! The lighting and decor were spot on.",
+          ),
+          const SizedBox(height: 15),
+          const _ReviewCard(
+            name: "Hamza",
+            date: "3 weeks ago",
+            rating: 3,
+            comment: "The AC was not working properly in the beginning.",
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRatingSummaryCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFB8C00), Color(0xFFFFCC80)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "4.8",
+                style: TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  height: 1,
+                ),
+              ),
+              Text(
+                "OUT OF 5",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white70,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: List.generate(5, (index) {
+                    return const Icon(
+                      Icons.star,
+                      color: Colors.white,
+                      size: 24,
+                    );
+                  }),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Based on 124 reviews",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -254,6 +364,7 @@ class _ReviewCard extends StatelessWidget {
             offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,6 +386,7 @@ class _ReviewCard extends StatelessWidget {
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
+                        color: Colors.black87,
                       ),
                     ),
                     Text(
@@ -312,7 +424,7 @@ class _ReviewCard extends StatelessWidget {
             comment,
             style: const TextStyle(
               color: Colors.black87,
-              fontSize: 13,
+              fontSize: 14,
               height: 1.5,
             ),
           ),

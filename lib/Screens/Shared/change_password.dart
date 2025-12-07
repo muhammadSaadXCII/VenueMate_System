@@ -6,6 +6,8 @@ class ChangePasswordScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -13,10 +15,6 @@ class ChangePasswordScreen extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text(
           "Change Password",
           style: TextStyle(
@@ -26,61 +24,81 @@ class ChangePasswordScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Create new password",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: isDesktop ? 40 : 20,
             ),
-            const SizedBox(height: 10),
-            Text(
-              "Your new password must be different from previous used passwords.",
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 30),
-
-            const PasswordField(
-              label: "Old Password",
-              hint: "Enter old password",
-            ),
-            const SizedBox(height: 20),
-
-            const PasswordField(
-              label: "New Password",
-              hint: "Enter new password",
-            ),
-            const SizedBox(height: 20),
-
-            const PasswordField(
-              label: "Confirm Password",
-              hint: "Re-enter new password",
-            ),
-
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {},
-                child: const Text(
-                  "Forgot Password?",
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Create new password",
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  "Your new password must be different from previous used passwords.",
                   style: TextStyle(
-                    color: Color(0xFFF58529),
-                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                    height: 1.5,
                   ),
                 ),
-              ),
+                const SizedBox(height: 30),
+
+                const PasswordField(
+                  label: "Old Password",
+                  hint: "Enter old password",
+                ),
+                const SizedBox(height: 20),
+
+                const PasswordField(
+                  label: "New Password",
+                  hint: "Enter new password",
+                ),
+                const SizedBox(height: 20),
+
+                const PasswordField(
+                  label: "Confirm Password",
+                  hint: "Re-enter new password",
+                ),
+
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {},
+                    child: const Text(
+                      "Forgot Password?",
+                      style: TextStyle(
+                        color: Color(0xFFF58529),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: GradientButton(
+                    text: "Update Password",
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Password Updated Successfully!"),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-
-            const SizedBox(height: 40),
-
-            GradientButton(text: "Update Password", onTap: () {}),
-          ],
+          ),
         ),
       ),
     );
@@ -124,7 +142,6 @@ class _PasswordFieldState extends State<PasswordField> {
             decoration: InputDecoration(
               hintText: widget.hint,
               hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscureText
@@ -138,7 +155,6 @@ class _PasswordFieldState extends State<PasswordField> {
                   });
                 },
               ),
-
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Colors.grey),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'package:venuemate_system/Screens/Shared/about_us.dart';
 import 'package:venuemate_system/Screens/Shared/change_password.dart';
-import 'package:venuemate_system/Screens/Shared/hep_and_support.dart.dart';
 import 'package:venuemate_system/Screens/Shared/terms_and_policy.dart';
-import 'package:venuemate_system/Utils/navigation.dart';
+import 'package:venuemate_system/Screens/Shared/hep_and_support.dart.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,13 +14,13 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _pushNotifications = true;
-
   bool _isDarkMode = false;
-
   final Color _activeThemeColor = const Color(0xFFF58529);
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
@@ -28,10 +28,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text(
           "Settings",
           style: TextStyle(
@@ -41,197 +37,183 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Account",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 10),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(isDesktop ? 40 : 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionTitle("Account"),
+                const SizedBox(height: 10),
+                Container(
+                  decoration: _cardDecoration(),
+                  child: _SettingsTile(
+                    icon: Icons.lock_outline,
+                    title: "Change Password",
+                    onTap: () {
+                      AppNavigation.push(context, ChangePasswordScreen());
+                    },
+                  ),
+                ),
 
-            Container(
-              decoration: _cardDecoration(),
-              child: _SettingsTile(
-                icon: Icons.lock_outline,
-                title: "Change Password",
-                onTap: () {
-                  Navigation.push(context, ChangePasswordScreen());
-                },
-              ),
-            ),
+                const SizedBox(height: 24),
 
-            const SizedBox(height: 16),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEEEEEE),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  Row(
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEEEEE),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.palette_outlined,
-                          color: Color(0xFFF58529),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
                         children: [
-                          const Text(
-                            "Theme Mode",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.palette_outlined,
+                              color: Color(0xFFF58529),
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _isDarkMode
-                                ? "Dark theme is active"
-                                : "Light theme is active",
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                "Theme Mode",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _isDarkMode
+                                    ? "Dark theme is active"
+                                    : "Light theme is active",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          _buildThemeButton(
+                            targetModeIsDark: false,
+                            icon: Icons.light_mode_outlined,
+                            text: "Light",
+                          ),
+                          const SizedBox(width: 16),
+                          _buildThemeButton(
+                            targetModeIsDark: true,
+                            icon: Icons.dark_mode_outlined,
+                            text: "Dark",
                           ),
                         ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                ),
 
-                  Row(
+                const SizedBox(height: 24),
+
+                _buildSectionTitle("Notifications"),
+                const SizedBox(height: 10),
+                Container(
+                  decoration: _cardDecoration(),
+                  child: Column(
                     children: [
-                      _buildThemeButton(
-                        targetModeIsDark: false,
-                        icon: Icons.light_mode_outlined,
-                        text: "Light",
-                      ),
-                      const SizedBox(width: 16),
-                      _buildThemeButton(
-                        targetModeIsDark: true,
-                        icon: Icons.dark_mode_outlined,
-                        text: "Dark",
+                      _SwitchTile(
+                        title: "Push Notifications",
+                        value: _pushNotifications,
+                        onChanged: (val) =>
+                            setState(() => _pushNotifications = val),
+                        icon: Icons.notifications_outlined,
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
+                ),
 
-            const SizedBox(height: 25),
+                const SizedBox(height: 24),
 
-            const Text(
-              "Notifications",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              decoration: _cardDecoration(),
-              child: Column(
-                children: [
-                  _SwitchTile(
-                    title: "Push Notifications",
-                    value: _pushNotifications,
-                    onChanged:
-                        (val) => setState(() => _pushNotifications = val),
-                    icon: Icons.notifications_outlined,
+                _buildSectionTitle("Support"),
+                const SizedBox(height: 10),
+                Container(
+                  decoration: _cardDecoration(),
+                  child: Column(
+                    children: [
+                      _SettingsTile(
+                        icon: Icons.help_outline,
+                        title: "Help Center",
+                        onTap: () {
+                          AppNavigation.push(context, HelpSupportScreen());
+                        },
+                      ),
+                      _divider(),
+                      _SettingsTile(
+                        icon: Icons.info_outline,
+                        title: "About Us",
+                        onTap: () {
+                          AppNavigation.push(context, AboutUsScreen());
+                        },
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
 
-            const SizedBox(height: 25),
+                const SizedBox(height: 24),
 
-            const Text(
-              "Support",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              decoration: _cardDecoration(),
-              child: Column(
-                children: [
-                  _SettingsTile(
-                    icon: Icons.help_outline,
-                    title: "Help Center",
-                    onTap: () {
-                      Navigation.push(context, HelpSupportScreen());
-                    },
+                _buildSectionTitle("Legal"),
+                const SizedBox(height: 10),
+                Container(
+                  decoration: _cardDecoration(),
+                  child: Column(
+                    children: [
+                      _SettingsTile(
+                        icon: Icons.privacy_tip_outlined,
+                        title: "Privacy Policy",
+                        onTap: () {
+                          AppNavigation.push(context, PrivacyPolicyScreen());
+                        },
+                      ),
+                      _divider(),
+                      _SettingsTile(
+                        icon: Icons.description_outlined,
+                        title: "Terms & Conditions",
+                        onTap: () {
+                          AppNavigation.push(context, TermsConditionsScreen());
+                        },
+                      ),
+                    ],
                   ),
-                  _divider(),
-                  _SettingsTile(
-                    icon: Icons.info_outline,
-                    title: "About Us",
-                    onTap: () {
-                      Navigation.push(context, AboutUsScreen());
-                    },
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 40),
+              ],
             ),
-
-            const SizedBox(height: 25),
-
-            const Text(
-              "Legal",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              decoration: _cardDecoration(),
-              child: Column(
-                children: [
-                  _SettingsTile(
-                    icon: Icons.privacy_tip_outlined,
-                    title: "Privacy Policy",
-                    onTap: () {
-                      Navigation.push(context, PrivacyPolicyScreen());
-                    },
-                  ),
-                  _divider(),
-                  _SettingsTile(
-                    icon: Icons.description_outlined,
-                    title: "Terms & Conditions",
-                    onTap: () {
-                      Navigation.push(context, TermsConditionsScreen());
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: Colors.grey,
       ),
     );
   }
@@ -256,11 +238,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
+            color: Colors.white,
             border: Border.all(
               color: isActive ? activeColor : Colors.transparent,
               width: 2,
             ),
             borderRadius: BorderRadius.circular(12),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: activeColor.withOpacity(0.2),
+                      blurRadius: 8,
+                    ),
+                  ]
+                : [],
           ),
           child: Column(
             children: [
@@ -270,7 +261,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 size: 28,
               ),
               const SizedBox(height: 8),
-
               Text(
                 text,
                 style: TextStyle(
@@ -297,6 +287,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           offset: const Offset(0, 4),
         ),
       ],
+      border: Border.all(color: Colors.grey.shade200),
     );
   }
 
@@ -323,7 +314,8 @@ class _SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -339,6 +331,11 @@ class _SettingsTile extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: Colors.black87,
         ),
+      ),
+      trailing: const Icon(
+        Icons.arrow_forward_ios,
+        size: 16,
+        color: Colors.grey,
       ),
     );
   }
@@ -360,7 +357,7 @@ class _SwitchTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SwitchListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       activeColor: const Color(0xFFF58529),
       secondary: Container(
         padding: const EdgeInsets.all(8),

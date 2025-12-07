@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/reject_registration.dart';
-import 'package:venuemate_system/Utils/navigation.dart';
-import 'package:venuemate_system/Widgets/gradient_button.dart';
 
 class ReviewRegistrationScreen extends StatelessWidget {
   const ReviewRegistrationScreen({super.key});
@@ -9,12 +8,11 @@ class ReviewRegistrationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
@@ -29,30 +27,302 @@ class ReviewRegistrationScreen extends StatelessWidget {
         ),
       ),
 
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 1000) {
+            return _buildDesktopLayout(context);
+          } else {
+            return _buildMobileLayout(context);
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1200),
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 6,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(right: 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SectionHeader(title: "Applicant Info"),
+                      _buildApplicantInfoCard(isDesktop: true),
+                      const SizedBox(height: 32),
+                      _SectionHeader(title: "Hall Details"),
+                      _buildHallDetailsCard(isDesktop: true),
+                    ],
+                  ),
+                ),
+              ),
+
+              Expanded(
+                flex: 4,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildActionCard(context, isDesktop: true),
+                      const SizedBox(height: 24),
+
+                      _SectionHeader(
+                        title: "Banking Information",
+                        padding: EdgeInsets.zero,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildBankingCard(isDesktop: true),
+                      const SizedBox(height: 24),
+
+                      _SectionHeader(
+                        title: "Verification Documents",
+                        padding: EdgeInsets.zero,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDocumentsList(isDesktop: true),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 50,
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SectionHeader(title: "Applicant Info"),
+                _buildApplicantInfoCard(isDesktop: false),
+                const SizedBox(height: 24),
+                _SectionHeader(title: "Hall Details"),
+                _buildHallDetailsCard(isDesktop: false),
+                const SizedBox(height: 24),
+                _SectionHeader(title: "Banking Information"),
+                _buildBankingCard(isDesktop: false),
+                const SizedBox(height: 24),
+                _SectionHeader(title: "Verification Documents"),
+                _buildDocumentsList(isDesktop: false),
+              ],
+            ),
+          ),
+        ),
+
+        _buildMobileBottomBar(context),
+      ],
+    );
+  }
+
+  Widget _buildApplicantInfoCard({required bool isDesktop}) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabelRow("Hall Name", "Al Rehman Banquet Hall", isLarge: true),
+          Divider(height: 32, color: Colors.grey[200]),
+          _buildLabelRow("Owner Name", "Rehman Hussain"),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHallDetailsCard({required bool isDesktop}) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: _cardDecoration(),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.location_on,
+                  color: Colors.blue.shade700,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Model Colony, Street 12A, Karachi",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Pakistan",
+                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _DetailRow(
+            icon: Icons.groups,
+            label: "Capacity",
+            value: "300 - 800 Guests",
+          ),
+          const SizedBox(height: 12),
+          _DetailRow(
+            icon: Icons.phone,
+            label: "Contact",
+            value: "+92 3XX-XXXXXXX",
+          ),
+          const SizedBox(height: 24),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "DESCRIPTION",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[500],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor...",
+                  style: TextStyle(height: 1.5),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBankingCard({required bool isDesktop}) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.teal.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.account_balance,
+              color: Colors.teal.shade700,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildLabelRow("Bank", "Meezan Bank Ltd"),
+                const SizedBox(height: 8),
+                _buildLabelRow("Account No", "PK35 MEZN 0000 1234 ****"),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentsList({required bool isDesktop}) {
+    final docs = [
+      {"name": "ntn_license.pdf", "type": "pdf"},
+      {"name": "business_license.pdf", "type": "pdf"},
+      {"name": "cnic_front.jpg", "type": "img"},
+      {"name": "cnic_back.jpg", "type": "img"},
+    ];
+
+    return Column(
+      children: docs
+          .map(
+            (doc) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: DocumentCard(
+                fileName: doc['name']!,
+                fileType: doc['type']!,
+                isDesktop: isDesktop,
+                isTablet: false,
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _buildActionCard(BuildContext context, {required bool isDesktop}) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: _cardDecoration().copyWith(
+        border: Border.all(
+          color: const Color(0xFFFEA845).withOpacity(0.3),
+          width: 1.5,
+        ),
+        color: const Color(0xFFFFF8F0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Application Decision",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Please review all documents before approving.",
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
                 child: OutlinedButton(
                   onPressed: () {
-                    Navigation.push(context, RejectRegistrationScreen());
+                    AppNavigation.push(context, RejectRegistrationScreen());
                   },
                   style: OutlinedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(color: Colors.redAccent),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -60,206 +330,93 @@ class ReviewRegistrationScreen extends StatelessWidget {
                   ),
                   child: const Text(
                     "Reject",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-
-            Expanded(
-              child: GradientButton(
-                text: "Approve",
-                onTap: () {
-                  Navigator.pop(context);
-                },
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: const Color(0xFFFEA845),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    "Approve",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
+    );
+  }
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const _SectionHeader(title: "Applicant Info"),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: _cardDecoration(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildLabelRow(
-                    "Hall Name",
-                    "Al Rehman Banquet Hall",
-                    isLarge: true,
+  Widget _buildMobileBottomBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 52,
+              child: OutlinedButton(
+                onPressed: () {
+                  AppNavigation.push(context, RejectRegistrationScreen());
+                },
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.redAccent),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const Divider(height: 30, color: Colors.grey),
-                  _buildLabelRow("Owner Name", "Rehman Hussain"),
-                ],
+                  foregroundColor: Colors.redAccent,
+                ),
+                child: const Text(
+                  "Reject",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            const _SectionHeader(title: "Hall Details"),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: _cardDecoration(),
-              child: Column(
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          Icons.location_on,
-                          color: Colors.blue.shade700,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              "Model Colony, Street 12A, Karachi",
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: Colors.black87,
-                                fontWeight: FontWeight.w600,
-                                height: 1.3,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              "Pakistan",
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: SizedBox(
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFEA845),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(height: 20),
-                  _DetailRow(
-                    icon: Icons.groups,
-                    label: "Capacity",
-                    value: "300 - 800 Guests",
-                  ),
-                  const SizedBox(height: 12),
-                  _DetailRow(
-                    icon: Icons.phone,
-                    label: "Contact",
-                    value: "+92 3XX-XXXXXXX",
-                  ),
-                  const SizedBox(height: 20),
-
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          "DESCRIPTION",
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor...",
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.black87,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
+                child: const Text(
+                  "Approve",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            const _SectionHeader(title: "Banking Information"),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: _cardDecoration(),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.teal.shade50,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.account_balance,
-                      color: Colors.teal.shade700,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabelRow("Bank", "Meezan Bank Ltd"),
-                        const SizedBox(height: 6),
-                        _buildLabelRow(
-                          "Account No",
-                          "PK35 MEZN 0000 1234 ****",
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            const _SectionHeader(title: "Verification Documents"),
-
-            const DocumentCard(fileName: "ntn_license.pdf", fileType: "pdf"),
-            const SizedBox(height: 12),
-            const DocumentCard(
-              fileName: "business_license.pdf",
-              fileType: "pdf",
-            ),
-            const SizedBox(height: 12),
-            const DocumentCard(fileName: "cnic_front.jpg", fileType: "img"),
-            const SizedBox(height: 12),
-            const DocumentCard(fileName: "cnic_back.jpg", fileType: "img"),
-
-            const SizedBox(height: 40),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -268,14 +425,14 @@ class ReviewRegistrationScreen extends StatelessWidget {
     return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.grey.shade200),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withOpacity(0.03),
           blurRadius: 10,
           offset: const Offset(0, 4),
         ),
       ],
-      border: Border.all(color: Colors.grey.shade100),
     );
   }
 
@@ -308,12 +465,16 @@ class ReviewRegistrationScreen extends StatelessWidget {
 
 class _SectionHeader extends StatelessWidget {
   final String title;
-  const _SectionHeader({required this.title});
+  final EdgeInsetsGeometry padding;
+  const _SectionHeader({
+    required this.title,
+    this.padding = const EdgeInsets.only(bottom: 12, left: 4),
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0, left: 4),
+      padding: padding,
       child: Text(
         title,
         style: const TextStyle(
@@ -340,18 +501,20 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: Colors.grey[400]),
+        Icon(icon, size: 20, color: Colors.grey[400]),
         const SizedBox(width: 12),
         Text(
           "$label: ",
           style: TextStyle(fontSize: 14, color: Colors.grey[600]),
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.black87,
-            fontWeight: FontWeight.w600,
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.black87,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -362,11 +525,15 @@ class _DetailRow extends StatelessWidget {
 class DocumentCard extends StatelessWidget {
   final String fileName;
   final String fileType;
+  final bool isDesktop;
+  final bool isTablet;
 
   const DocumentCard({
     super.key,
     required this.fileName,
     required this.fileType,
+    required this.isDesktop,
+    required this.isTablet,
   });
 
   @override
@@ -381,62 +548,26 @@ class DocumentCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
-
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {},
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: getIconColor().withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(getIcon(), size: 24, color: getIconColor()),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        fileName,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        "Tap to preview",
-                        style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.visibility_outlined,
-                  size: 18,
-                  color: Colors.grey[400],
-                ),
-              ],
-            ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: getIconColor().withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
+          child: Icon(getIcon(), color: getIconColor(), size: 24),
         ),
+        title: Text(
+          fileName,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          "Tap to preview",
+          style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+        ),
+        trailing: Icon(Icons.visibility_outlined, color: Colors.grey[400]),
+        onTap: () {},
       ),
     );
   }

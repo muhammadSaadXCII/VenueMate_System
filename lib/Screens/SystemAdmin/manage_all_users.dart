@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/manage_user_details.dart';
-import 'package:venuemate_system/Utils/navigation.dart';
 
 class ManageAllUsersScreen extends StatefulWidget {
   const ManageAllUsersScreen({super.key});
@@ -57,6 +57,24 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 1200;
+    final isTablet = screenWidth >= 600 && screenWidth < 1200;
+    final isMobile = screenWidth < 600;
+
+    final horizontalPadding = isDesktop
+        ? screenWidth * 0.1
+        : isTablet
+        ? 40.0
+        : 20.0;
+
+    final crossAxisCount = isDesktop ? 2 : 1;
+    final childAspectRatio = isDesktop
+        ? 4.5
+        : isTablet
+        ? 5.0
+        : 3.5;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -64,15 +82,16 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
+        automaticallyImplyLeading: isMobile,
+        title: Text(
           "Manage All Users",
           style: TextStyle(
             color: Colors.black,
-            fontSize: 20,
+            fontSize: isDesktop
+                ? 24
+                : isTablet
+                ? 22
+                : 20,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -80,38 +99,67 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
       body: Column(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: isDesktop
+                  ? 20
+                  : isTablet
+                  ? 16
+                  : 10,
+            ),
             child: Column(
               children: [
                 Container(
+                  constraints: const BoxConstraints(maxWidth: 600),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade400),
+                    border: Border.all(color: Colors.grey.shade300),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: const TextField(
+                  child: TextField(
+                    style: TextStyle(fontSize: isDesktop ? 16 : 14),
                     decoration: InputDecoration(
                       hintText: "Search users....",
-                      hintStyle: TextStyle(color: Colors.grey),
-                      prefixIcon: Icon(Icons.search, color: Colors.grey),
+                      hintStyle: TextStyle(
+                        color: Colors.grey,
+                        fontSize: isDesktop ? 16 : 14,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Colors.grey,
+                        size: isDesktop ? 26 : 24,
+                      ),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 14),
+                      contentPadding: EdgeInsets.symmetric(
+                        vertical: isDesktop ? 18 : 14,
+                      ),
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                SizedBox(height: isDesktop ? 24 : 16),
 
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children:
-                        _filters.map((filter) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 10.0),
-                            child: _buildFilterTab(filter),
-                          );
-                        }).toList(),
+                    mainAxisAlignment: isDesktop || isTablet
+                        ? MainAxisAlignment.center
+                        : MainAxisAlignment.start,
+                    children: _filters.map((filter) {
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          right: isDesktop ? 12.0 : 10.0,
+                        ),
+                        child: _buildFilterTab(filter, isDesktop, isTablet),
+                      );
+                    }).toList(),
                   ),
                 ),
               ],
@@ -119,34 +167,74 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
           ),
 
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: _users.length,
-              itemBuilder: (context, index) {
-                final user = _users[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
-                  child: UserManagementCard(
-                    name: user['name'],
-                    role: user['role'],
-                    email: user['email'],
-                    status: user['status'],
-                    imageUrl: user['image'],
-                    onManageTap: () {
-                      Navigation.push(context, ManageUserDetailsScreen(user: user,));
+            child: isDesktop
+                ? GridView.builder(
+                    padding: EdgeInsets.all(horizontalPadding),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: 24,
+                      mainAxisSpacing: 24,
+                      childAspectRatio: childAspectRatio,
+                    ),
+                    itemCount: _users.length,
+                    itemBuilder: (context, index) {
+                      final user = _users[index];
+                      return UserManagementCard(
+                        name: user['name'],
+                        role: user['role'],
+                        email: user['email'],
+                        status: user['status'],
+                        imageUrl: user['image'],
+                        isDesktop: isDesktop,
+                        isTablet: isTablet,
+                        onManageTap: () {
+                          AppNavigation.push(
+                            context,
+                            ManageUserDetailsScreen(user: user),
+                          );
+                        },
+                      );
+                    },
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.all(horizontalPadding),
+                    itemCount: _users.length,
+                    itemBuilder: (context, index) {
+                      final user = _users[index];
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: isTablet ? 20.0 : 16.0,
+                        ),
+                        child: UserManagementCard(
+                          name: user['name'],
+                          role: user['role'],
+                          email: user['email'],
+                          status: user['status'],
+                          imageUrl: user['image'],
+                          isDesktop: isDesktop,
+                          isTablet: isTablet,
+                          onManageTap: () {
+                            AppNavigation.push(
+                              context,
+                              ManageUserDetailsScreen(user: user),
+                            );
+                          },
+                        ),
+                      );
                     },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterTab(String text) {
+  Widget _buildFilterTab(String text, bool isDesktop, bool isTablet) {
     bool isActive = _selectedFilter == text;
+    final fontSize = isDesktop ? 15.0 : 13.0;
+    final horizontalPadding = isDesktop ? 24.0 : 20.0;
+    final verticalPadding = isDesktop ? 10.0 : 8.0;
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -154,17 +242,29 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: verticalPadding,
+        ),
         decoration: BoxDecoration(
           color: isActive ? const Color(0xFFFEA845) : Colors.grey[300],
           borderRadius: BorderRadius.circular(20),
+          boxShadow: isActive && (isDesktop || isTablet)
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFFEA845).withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : [],
         ),
         child: Text(
           text,
           style: TextStyle(
             color: isActive ? Colors.white : Colors.black87,
             fontWeight: FontWeight.bold,
-            fontSize: 13,
+            fontSize: fontSize,
           ),
         ),
       ),
@@ -178,6 +278,8 @@ class UserManagementCard extends StatelessWidget {
   final String email;
   final String status;
   final String imageUrl;
+  final bool isDesktop;
+  final bool isTablet;
   final VoidCallback onManageTap;
 
   const UserManagementCard({
@@ -187,6 +289,8 @@ class UserManagementCard extends StatelessWidget {
     required this.email,
     required this.status,
     required this.imageUrl,
+    required this.isDesktop,
+    required this.isTablet,
     required this.onManageTap,
   });
 
@@ -194,47 +298,103 @@ class UserManagementCard extends StatelessWidget {
   Widget build(BuildContext context) {
     bool isActive = status == "Active";
 
+    final cardHeight = isDesktop
+        ? 110.0
+        : isTablet
+        ? 105.0
+        : 95.0;
+    final avatarSize = isDesktop
+        ? 70.0
+        : isTablet
+        ? 65.0
+        : 60.0;
+    final borderRadius = isDesktop ? 20.0 : 16.0;
+    final cardPadding = isDesktop
+        ? 16.0
+        : isTablet
+        ? 14.0
+        : 10.0;
+
+    final nameFontSize = isDesktop
+        ? 16.0
+        : isTablet
+        ? 15.0
+        : 14.0;
+    final roleFontSize = isDesktop
+        ? 14.0
+        : isTablet
+        ? 13.0
+        : 12.0;
+    final emailFontSize = isDesktop
+        ? 14.0
+        : isTablet
+        ? 13.0
+        : 12.0;
+    final statusFontSize = isDesktop
+        ? 12.0
+        : isTablet
+        ? 11.0
+        : 10.0;
+    final manageFontSize = isDesktop
+        ? 15.0
+        : isTablet
+        ? 14.0
+        : 13.0;
+    final iconSize = isDesktop
+        ? 14.0
+        : isTablet
+        ? 13.0
+        : 11.0;
+
     return GestureDetector(
       onTap: onManageTap,
       child: Container(
-        height: 95,
+        height: cardHeight,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(borderRadius),
           border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withOpacity(0.15),
               spreadRadius: 1,
-              blurRadius: 8,
+              blurRadius: isDesktop ? 12 : 8,
               offset: const Offset(0, 3),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(10.0),
+          padding: EdgeInsets.all(cardPadding),
           child: Row(
             children: [
               Container(
-                width: 60,
-                height: 60,
+                width: avatarSize,
+                height: avatarSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey.shade100),
+                  border: Border.all(
+                    color: Colors.grey.shade100,
+                    width: isDesktop ? 2 : 1,
+                  ),
                 ),
                 child: ClipOval(
                   child: Image.network(
                     imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder:
-                        (context, error, stackTrace) =>
-                            Container(color: Colors.grey[200]),
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey[200],
+                      child: Icon(
+                        Icons.person,
+                        color: Colors.grey[400],
+                        size: avatarSize * 0.5,
+                      ),
+                    ),
                   ),
                 ),
               ),
-      
-              const SizedBox(width: 12),
-      
+
+              SizedBox(width: isDesktop ? 16 : 12),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +404,10 @@ class UserManagementCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       text: TextSpan(
-                        style: const TextStyle(fontSize: 14, color: Colors.black),
+                        style: TextStyle(
+                          fontSize: nameFontSize,
+                          color: Colors.black,
+                        ),
                         children: [
                           TextSpan(
                             text: "$name ",
@@ -252,21 +415,21 @@ class UserManagementCard extends StatelessWidget {
                           ),
                           TextSpan(
                             text: "($role)",
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                              fontSize: roleFontSize,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: isDesktop ? 6 : 4),
                     Text(
                       email,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: emailFontSize,
                         color: Colors.grey[500],
                         fontWeight: FontWeight.w500,
                       ),
@@ -274,52 +437,79 @@ class UserManagementCard extends StatelessWidget {
                   ],
                 ),
               ),
-      
+
+              SizedBox(
+                width: isDesktop
+                    ? 16
+                    : isTablet
+                    ? 12
+                    : 8,
+              ),
+
               Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop
+                          ? 14
+                          : isTablet
+                          ? 12
+                          : 10,
+                      vertical: isDesktop ? 6 : 4,
                     ),
                     decoration: BoxDecoration(
-                      color:
-                          isActive
-                              ? const Color(0xFFD8F3DC)
-                              : const Color(0xFFFFD8D8),
-                      borderRadius: BorderRadius.circular(8),
+                      color: isActive
+                          ? const Color(0xFFD8F3DC)
+                          : const Color(0xFFFFD8D8),
+                      borderRadius: BorderRadius.circular(isDesktop ? 10 : 8),
                     ),
                     child: Text(
                       status,
                       style: TextStyle(
                         color: isActive ? Colors.green[700] : Colors.red[400],
-                        fontSize: 10,
+                        fontSize: statusFontSize,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-      
+
                   GestureDetector(
                     onTap: onManageTap,
-                    child: Row(
-                      children: [
-                        Text(
-                          "Manage",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isDesktop ? 12 : 8,
+                        vertical: isDesktop ? 6 : 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDesktop || isTablet
+                            ? Colors.grey[100]
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        border: isDesktop || isTablet
+                            ? Border.all(color: Colors.grey.shade300)
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            "Manage",
+                            style: TextStyle(
+                              fontSize: manageFontSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          SizedBox(width: isDesktop ? 4 : 2),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: iconSize,
                             color: Colors.grey[600],
                           ),
-                        ),
-                        const SizedBox(width: 2),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          size: 11,
-                          color: Colors.grey[600],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],

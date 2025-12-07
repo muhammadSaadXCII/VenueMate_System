@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
-class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key});
+class UserNotificationsScreen extends StatefulWidget {
+  const UserNotificationsScreen({super.key});
 
   @override
-  State<NotificationsScreen> createState() => _NotificationsScreenState();
+  State<UserNotificationsScreen> createState() =>
+      _UserNotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _UserNotificationsScreenState extends State<UserNotificationsScreen> {
   final List<Map<String, dynamic>> _notifications = [
     {
       "id": 1,
@@ -69,16 +70,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 900;
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text(
           "Notifications",
           style: TextStyle(
@@ -98,41 +99,87 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ),
           ),
+          SizedBox(width: isDesktop ? 40 : 16),
         ],
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: _notifications.length,
-        itemBuilder: (context, index) {
-          final notif = _notifications[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Slidable(
-              key: ValueKey(notif['id']),
-              endActionPane: ActionPane(
-                motion: const ScrollMotion(),
-                extentRatio: 0.25,
-                children: [
-                  SlidableAction(
-                    onPressed: (context) => _deleteNotification(index),
-                    backgroundColor: Colors.red.shade50,
-                    foregroundColor: Colors.red,
-                    icon: Icons.delete_outline,
-                    borderRadius: BorderRadius.circular(16),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child:
+              _notifications.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 0 : 20,
+                      vertical: 20,
+                    ),
+                    itemCount: _notifications.length,
+                    itemBuilder: (context, index) {
+                      final notif = _notifications[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+
+                        child:
+                            isDesktop
+                                ? NotificationCard(
+                                  title: notif['title'],
+                                  description: notif['description'],
+                                  time: notif['time'],
+                                  isUnread: notif['isUnread'],
+                                  type: notif['type'],
+
+                                  onDelete: () => _deleteNotification(index),
+                                  isDesktop: true,
+                                )
+                                : Slidable(
+                                  key: ValueKey(notif['id']),
+                                  endActionPane: ActionPane(
+                                    motion: const ScrollMotion(),
+                                    extentRatio: 0.25,
+                                    children: [
+                                      SlidableAction(
+                                        onPressed:
+                                            (context) =>
+                                                _deleteNotification(index),
+                                        backgroundColor: Colors.red.shade50,
+                                        foregroundColor: Colors.red,
+                                        icon: Icons.delete_outline,
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ],
+                                  ),
+                                  child: NotificationCard(
+                                    title: notif['title'],
+                                    description: notif['description'],
+                                    time: notif['time'],
+                                    isUnread: notif['isUnread'],
+                                    type: notif['type'],
+                                    isDesktop: false,
+                                  ),
+                                ),
+                      );
+                    },
                   ),
-                ],
-              ),
-              child: NotificationCard(
-                title: notif['title'],
-                description: notif['description'],
-                time: notif['time'],
-                isUnread: notif['isUnread'],
-                type: notif['type'],
-              ),
-            ),
-          );
-        },
+        ),
       ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.notifications_off_outlined,
+          size: 80,
+          color: Colors.grey[300],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          "No notifications yet",
+          style: TextStyle(fontSize: 18, color: Colors.grey[500]),
+        ),
+      ],
     );
   }
 }
@@ -143,6 +190,8 @@ class NotificationCard extends StatelessWidget {
   final String time;
   final bool isUnread;
   final String type;
+  final bool isDesktop;
+  final VoidCallback? onDelete;
 
   const NotificationCard({
     super.key,
@@ -151,36 +200,38 @@ class NotificationCard extends StatelessWidget {
     required this.time,
     required this.isUnread,
     required this.type,
+    required this.isDesktop,
+    this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isUnread ? Colors.white : Colors.white.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(20),
-
+        color: isUnread ? Colors.white : const Color(0xFFFAFAFA),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(isUnread ? 0.08 : 0.03),
+            color: Colors.black.withOpacity(isUnread ? 0.06 : 0.02),
             blurRadius: 15,
-            offset: const Offset(0, 5),
+            offset: const Offset(0, 4),
           ),
         ],
-        border: isUnread
-            ? Border.all(
-                color: const Color(0xFFF58529).withOpacity(0.3),
-                width: 1,
-              )
-            : Border.all(color: Colors.transparent),
+        border:
+            isUnread
+                ? Border.all(
+                  color: const Color(0xFFF58529).withOpacity(0.3),
+                  width: 1,
+                )
+                : Border.all(color: Colors.grey.shade200),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            height: 45,
-            width: 45,
+            height: 48,
+            width: 48,
             decoration: BoxDecoration(
               color: isUnread ? const Color(0xFFFFF3E0) : Colors.grey[100],
               shape: BoxShape.circle,
@@ -188,10 +239,10 @@ class NotificationCard extends StatelessWidget {
             child: Icon(
               _getIcon(type),
               color: isUnread ? const Color(0xFFF58529) : Colors.grey,
-              size: 22,
+              size: 24,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 20),
 
           Expanded(
             child: Column(
@@ -199,24 +250,50 @@ class NotificationCard extends StatelessWidget {
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: isUnread
-                            ? FontWeight.w800
-                            : FontWeight.w600,
-                        color: isUnread ? Colors.black : Colors.black54,
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight:
+                              isUnread ? FontWeight.bold : FontWeight.w600,
+                          color: isUnread ? Colors.black87 : Colors.black54,
+                        ),
                       ),
                     ),
-                    Text(
-                      time,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: isUnread ? const Color(0xFFF58529) : Colors.grey,
-                      ),
+
+                    Row(
+                      children: [
+                        Text(
+                          time,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                isUnread
+                                    ? const Color(0xFFF58529)
+                                    : Colors.grey,
+                          ),
+                        ),
+
+                        if (isDesktop && onDelete != null) ...[
+                          const SizedBox(width: 12),
+                          InkWell(
+                            onTap: onDelete,
+                            borderRadius: BorderRadius.circular(20),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4.0),
+                              child: Icon(
+                                Icons.close,
+                                size: 18,
+                                color: Colors.grey[400],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -227,9 +304,9 @@ class NotificationCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     color: isUnread ? Colors.grey[800] : Colors.grey[500],
-                    height: 1.4,
+                    height: 1.5,
                   ),
                 ),
               ],
@@ -238,10 +315,10 @@ class NotificationCard extends StatelessWidget {
 
           if (isUnread)
             Padding(
-              padding: const EdgeInsets.only(left: 8, top: 5),
+              padding: const EdgeInsets.only(left: 12, top: 5),
               child: Container(
-                width: 8,
-                height: 8,
+                width: 10,
+                height: 10,
                 decoration: const BoxDecoration(
                   color: Colors.redAccent,
                   shape: BoxShape.circle,

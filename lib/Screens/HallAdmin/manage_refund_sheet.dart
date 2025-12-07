@@ -87,14 +87,14 @@ class ManageRefundSheet extends StatelessWidget {
                               children: [
                                 Icon(
                                   Icons.calendar_today,
-                                  size: 12,
+                                  size: 14,
                                   color: Colors.orange[800],
                                 ),
                                 const SizedBox(width: 4),
                                 const Text(
-                                  "20 Nov, 2025",
+                                  "20 November, 2025",
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),

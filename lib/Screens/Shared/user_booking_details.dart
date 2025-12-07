@@ -5,13 +5,8 @@ class UserBookingDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
-    const Color primaryOrange = Color(0xFFF58529);
-    const Color textDark = Color(0xFF1F2937);
-    
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB), 
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -30,236 +25,289 @@ class UserBookingDetailsScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.08),
-                    blurRadius: 20,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 700) {
+            return _buildDesktopLayout(context);
+          } else {
+            return _buildMobileLayout(context);
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: Padding(
+          padding: const EdgeInsets.all(40.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 6,
+                child: SingleChildScrollView(
+                  child: Column(
                     children: [
-                      
-                      Container(
-                        width: 55,
-                        height: 55,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          image: const DecorationImage(
-                            image: NetworkImage(
-                              "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=60"
-                            ),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 15),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Al Rehman Banquet Hall",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: textDark,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.location_on,
-                                  size: 14,
-                                  color: primaryOrange,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    "Model Colony, Street 12A, Karachi",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildHallHeader(),
+                      const SizedBox(height: 24),
+                      _buildEventDetailsCard(),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(width: 40),
 
-            
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.05),
-                    blurRadius: 10,
-                  ),
-                ],
+              Expanded(
+                flex: 4,
+                child: SingleChildScrollView(child: _buildPaymentSummaryCard()),
               ),
-              child: Column(
-                children: [
-                  _DetailRow(
-                    icon: Icons.event,
-                    label: "Event Name",
-                    value: "Birthday Celebration",
-                  ),
-                  const Divider(height: 24),
-                  _DetailRow(
-                    icon: Icons.calendar_today,
-                    label: "Date",
-                    value: "1 November, 2025",
-                  ),
-                  const Divider(height: 24),
-                  _DetailRow(
-                    icon: Icons.access_time,
-                    label: "Time Slot",
-                    value: "Evening",
-                  ),
-                  const Divider(height: 24),
-                  _DetailRow(
-                    icon: Icons.groups,
-                    label: "Guests",
-                    value: "200 - 250 People",
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            
-            const Text(
-              "Booking Summary",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _PriceRow(
-                    label: "Hall Rent",
-                    price: "Rs. 15,000",
-                    isBold: true,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "Add-ons",
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _PriceRow(label: "Chicken Cheese Paratha", price: "Rs. 400"),
-                  _PriceRow(label: "White Chicken Karahi", price: "Rs. 60"),
-                  _PriceRow(label: "Premium Catering", price: "Rs. 5000"),
-                  _PriceRow(label: "Event Photography", price: "Rs. 5000"),
-
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Divider(
-                      thickness: 1,
-                      color: Colors.black12,
-                      indent: 10,
-                      endIndent: 10,
-                    ), 
-                  ),
-
-                  
-                  _PriceRow(
-                    label: "Grand Total",
-                    price: "Rs. 28,000",
-                    isTotal: true,
-                  ),
-                  const SizedBox(height: 8),
-                  _PriceRow(
-                    label: "Paid (25% Advance)",
-                    price: "- Rs. 7,000",
-                    color: Colors.green,
-                  ),
-
-                  const SizedBox(height: 16),
-                  
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF3E0), 
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: primaryOrange.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Text(
-                          "Remaining Payment",
-                          style: TextStyle(
-                            color: Color(0xFFE65100),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          "Rs. 21,000",
-                          style: TextStyle(
-                            color: Color(0xFFE65100),
-                            fontWeight: FontWeight.w900,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 40),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+
+  Widget _buildMobileLayout(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHallHeader(),
+          const SizedBox(height: 20),
+          _buildEventDetailsCard(),
+          const SizedBox(height: 24),
+          const Text(
+            "Booking Summary",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          _buildPaymentSummaryCard(),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHallHeader() {
+    const Color primaryOrange = Color(0xFFF58529);
+    const Color textDark = Color(0xFF1F2937);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              image: const DecorationImage(
+                image: NetworkImage(
+                  "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=60",
+                ),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Al Rehman Banquet Hall",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: textDark,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on,
+                      size: 16,
+                      color: primaryOrange,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        "Model Colony, Street 12A, Karachi",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventDetailsCard() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10),
+        ],
+      ),
+      child: const Column(
+        children: [
+          _DetailRow(
+            icon: Icons.event,
+            label: "Event Name",
+            value: "Birthday Celebration",
+          ),
+          Divider(height: 32),
+          _DetailRow(
+            icon: Icons.calendar_today,
+            label: "Date",
+            value: "1 November, 2025",
+          ),
+          Divider(height: 32),
+          _DetailRow(
+            icon: Icons.access_time,
+            label: "Time Slot",
+            value: "Evening",
+          ),
+          Divider(height: 32),
+          _DetailRow(
+            icon: Icons.groups,
+            label: "Guests",
+            value: "200 - 250 People",
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentSummaryCard() {
+    const Color primaryOrange = Color(0xFFF58529);
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Payment Details",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          const _PriceRow(
+            label: "Hall Rent",
+            price: "Rs. 15,000",
+            isBold: true,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            "Add-ons",
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const _PriceRow(label: "Chicken Cheese Paratha", price: "Rs. 400"),
+          const _PriceRow(label: "White Chicken Karahi", price: "Rs. 60"),
+          const _PriceRow(label: "Premium Catering", price: "Rs. 5000"),
+          const _PriceRow(label: "Event Photography", price: "Rs. 5000"),
+
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Divider(thickness: 1, color: Colors.black12),
+          ),
+
+          const _PriceRow(
+            label: "Grand Total",
+            price: "Rs. 28,000",
+            isTotal: true,
+          ),
+          const SizedBox(height: 8),
+          const _PriceRow(
+            label: "Paid (25% Advance)",
+            price: "- Rs. 7,000",
+            color: Colors.green,
+          ),
+
+          const SizedBox(height: 24),
+
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF3E0),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: primaryOrange.withOpacity(0.3)),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Remaining Payment",
+                  style: TextStyle(
+                    color: Color(0xFFE65100),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  "Rs. 21,000",
+                  style: TextStyle(
+                    color: Color(0xFFE65100),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
-
-
 
 class _DetailRow extends StatelessWidget {
   final IconData icon;
@@ -277,12 +325,12 @@ class _DetailRow extends StatelessWidget {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 18, color: Colors.grey[600]),
+          child: Icon(icon, size: 20, color: Colors.grey[700]),
         ),
         const SizedBox(width: 16),
         Column(
@@ -296,11 +344,11 @@ class _DetailRow extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               value,
               style: const TextStyle(
-                fontSize: 15,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
               ),
@@ -330,7 +378,7 @@ class _PriceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

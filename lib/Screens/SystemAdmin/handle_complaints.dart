@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/complaint_details.dart';
-import 'package:venuemate_system/Utils/navigation.dart';
 
 class ComplaintsScreen extends StatefulWidget {
   const ComplaintsScreen({super.key});
@@ -45,27 +45,38 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredList =
-        _selectedFilter == "All"
-            ? _complaints
-            : _complaints.where((c) => c['status'] == _selectedFilter).toList();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 1100;
+    final isTablet = screenWidth >= 600 && screenWidth < 1100;
+    final isMobile = screenWidth < 600;
+
+    final filteredList = _selectedFilter == "All"
+        ? _complaints
+        : _complaints.where((c) => c['status'] == _selectedFilter).toList();
+
+    final horizontalPadding = isDesktop
+        ? screenWidth * 0.15
+        : isTablet
+        ? 40.0
+        : 20.0;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: true,
+        centerTitle: !isDesktop,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        automaticallyImplyLeading: isMobile,
+        title: Text(
           "User Complaints",
           style: TextStyle(
             color: Colors.black,
-            fontSize: 20,
+            fontSize: isDesktop ? 24 : 20,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -73,35 +84,82 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       body: Column(
         children: [
           Container(
+            width: double.infinity,
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-            child: Row(
-              children: [
-                _buildFilterChip("New", count: 2),
-                const SizedBox(width: 12),
-                _buildFilterChip("Resolved"),
-                const SizedBox(width: 12),
-                _buildFilterChip("All"),
-              ],
+            padding: EdgeInsets.symmetric(
+              vertical: 16,
+              horizontal: horizontalPadding,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1000),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: isDesktop
+                        ? MainAxisAlignment.center
+                        : MainAxisAlignment.start,
+                    children: [
+                      _buildFilterChip("New", count: 2, isDesktop: isDesktop),
+                      const SizedBox(width: 12),
+                      _buildFilterChip("Resolved", isDesktop: isDesktop),
+                      const SizedBox(width: 12),
+                      _buildFilterChip("All", isDesktop: isDesktop),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
 
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: filteredList.length,
-              itemBuilder: (context, index) {
-                final item = filteredList[index];
-                return _ComplaintCard(
-                  data: item,
-                  onComplaintTap: () {
-                    Navigation.push(
-                      context,
-                      ComplaintDetailsScreen(complaint: item),
-                    );
-                  },
-                );
-              },
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                    vertical: 20,
+                  ),
+                  child: isDesktop
+                      ? GridView.builder(
+                          itemCount: filteredList.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 24,
+                                mainAxisSpacing: 24,
+
+                                mainAxisExtent: 260,
+                              ),
+                          itemBuilder: (context, index) {
+                            return _ComplaintCard(
+                              data: filteredList[index],
+                              isDesktop: true,
+                              onComplaintTap: () => _navigateToDetails(
+                                context,
+                                filteredList[index],
+                              ),
+                            );
+                          },
+                        )
+                      : ListView.separated(
+                          itemCount: filteredList.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 16),
+                          itemBuilder: (context, index) {
+                            return _ComplaintCard(
+                              data: filteredList[index],
+                              isDesktop: false,
+                              onComplaintTap: () => _navigateToDetails(
+                                context,
+                                filteredList[index],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ),
             ),
           ),
         ],
@@ -109,37 +167,40 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, {int? count}) {
+  void _navigateToDetails(BuildContext context, Map<String, dynamic> item) {
+    AppNavigation.push(context, ComplaintDetailsScreen(complaint: item));
+  }
+
+  Widget _buildFilterChip(String label, {int? count, required bool isDesktop}) {
     bool isSelected = _selectedFilter == label;
+
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedFilter = label;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      onTap: () => setState(() => _selectedFilter = label),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFFFEA845) : Colors.grey[100],
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(30),
           border: Border.all(
             color: isSelected ? const Color(0xFFFEA845) : Colors.grey.shade300,
           ),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               label,
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.black87,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
               ),
             ),
             if (count != null && count > 0) ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: isSelected ? Colors.white : Colors.redAccent,
                   shape: BoxShape.circle,
@@ -163,9 +224,14 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
 
 class _ComplaintCard extends StatelessWidget {
   final Map<String, dynamic> data;
-  final Function()? onComplaintTap;
+  final VoidCallback onComplaintTap;
+  final bool isDesktop;
 
-  const _ComplaintCard({required this.data, required this.onComplaintTap});
+  const _ComplaintCard({
+    required this.data,
+    required this.onComplaintTap,
+    required this.isDesktop,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -184,67 +250,71 @@ class _ComplaintCard extends StatelessWidget {
     return GestureDetector(
       onTap: onComplaintTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
-              spreadRadius: 2,
-              blurRadius: 10,
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 15,
               offset: const Offset(0, 4),
             ),
           ],
           border: Border.all(color: Colors.grey.shade200),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 10,
+                      vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.blueGrey.shade50,
-                      borderRadius: BorderRadius.circular(6),
+                      color: const Color(0xFFF0F4F8),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       data['id'],
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blueGrey.shade700,
+                        color: Color(0xFF475569),
                       ),
                     ),
                   ),
                   Text(
                     data['date'],
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[500],
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
             ),
 
-            const Divider(height: 1),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
 
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
-                    backgroundColor: Colors.grey[200],
-                    child: const Icon(Icons.person, color: Colors.grey),
+                    radius: 22,
+                    backgroundColor: const Color(0xFFF1F5F9),
+                    child: const Icon(Icons.person, color: Color(0xFF94A3B8)),
                   ),
-                  const SizedBox(width: 12),
-
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,16 +324,21 @@ class _ComplaintCard extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Color(0xFF1E293B),
+                            height: 1.3,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           "${data['user']} (${data['role']})",
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 13,
-                            color: Colors.grey[600],
+                            color: Color(0xFF64748B),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -272,13 +347,14 @@ class _ComplaintCard extends StatelessWidget {
               ),
             ),
 
+            if (isDesktop) const Spacer(),
+
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(16),
                 ),
               ),
               child: Row(
@@ -287,7 +363,7 @@ class _ComplaintCard extends StatelessWidget {
                   Row(
                     children: [
                       Icon(Icons.flag, size: 16, color: priorityColor),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 6),
                       Text(
                         "${data['priority']} Priority",
                         style: TextStyle(
@@ -298,32 +374,23 @@ class _ComplaintCard extends StatelessWidget {
                       ),
                     ],
                   ),
-
-                  GestureDetector(
-                    onTap: () {
-                      Navigation.push(
-                        context,
-                        ComplaintDetailsScreen(complaint: data),
-                      );
-                    },
-                    child: Row(
-                      children: [
-                        Text(
-                          "Review Issue",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[700],
-                          ),
+                  Row(
+                    children: [
+                      Text(
+                        "Review Details",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[600],
                         ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.arrow_forward,
-                          size: 16,
-                          color: Colors.grey[700],
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_forward,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ],
                   ),
                 ],
               ),
