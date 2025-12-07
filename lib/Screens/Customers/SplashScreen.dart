@@ -78,7 +78,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             );
           } else if (role == 'venue_owner') {
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const HallAdminHomeScreen()),
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
           } else {
             Navigator.of(context).pushReplacement(

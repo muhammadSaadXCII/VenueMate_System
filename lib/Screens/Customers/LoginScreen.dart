@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:venuemate_system/Screens/Customers/SelectRoleScreen.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart';
-import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart'; // ✅ Import Admin Home
+import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
 import 'ForgotPasswordScreen.dart';
 import 'HomePageVenueScreen.dart'; 
 import 'SignUpScreen.dart';
-
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -23,6 +23,19 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _rememberMe = false;
   bool _isLoading = false; 
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAlreadyLoggedIn();
+  }
+
+  void _checkAlreadyLoggedIn() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _routeUserByRole(user.uid);
+    }
+  }
 
   @override
   void dispose() {
@@ -41,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Icon(Icons.error_outline, color: Colors.red),
               const SizedBox(width: 10),
-              Text(title, style: const TextStyle(color: Colors.red)),
+              Text(title, style: const TextStyle(color: Colors.red, fontSize: 16)),
             ],
           ),
           content: Text(message),
@@ -56,6 +69,197 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // --- HELPER FUNCTION TO ROUTE USER BASED ON ROLE ---
+  Future<void> _routeUserByRole(String uid) async {
+    try {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (userDoc.exists) {
+        Map<String, dynamic>? userData = userDoc.data() as Map<String, dynamic>?;
+        
+        // Check if role exists in database
+        if (userData == null || !userData.containsKey('role') || userData['role'] == null) {
+          // Agar user hai lekin Role nahi hai, tab bhi Popup dikhao
+          if (mounted) {
+             _handleMissingRole(uid, FirebaseAuth.instance.currentUser?.displayName ?? 'User', FirebaseAuth.instance.currentUser?.email ?? '');
+          }
+          return;
+        }
+
+        String role = userData['role']; 
+
+        if (!mounted) return;
+        
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (role == 'system_admin') {
+           Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const SystemAdminHome()),
+          );
+        } else if (role == 'venue_owner') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HallAdminHomeScreen()),
+          );
+        } else {
+          // Default to Customer Home
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        }
+      } else {
+        // Doc doesn't exist (Rare case if login succeeded but doc creation failed)
+         if (mounted) {
+             _handleMissingRole(uid, FirebaseAuth.instance.currentUser?.displayName ?? 'User', FirebaseAuth.instance.currentUser?.email ?? '');
+          }
+      }
+    } catch (e) {
+      setState(() { _isLoading = false; });
+      _showErrorDialog("Error", "Failed to fetch user role: $e");
+    }
+  }
+
+  // --- NEW: Handle Missing Role Logic ---
+  Future<void> _handleMissingRole(String uid, String name, String email) async {
+      String? role = await _showRoleDialog();
+
+      if (role == null) {
+        await FirebaseAuth.instance.signOut();
+        setState(() { _isLoading = false; });
+        return;
+      }
+
+      // Update/Set user data with selected role
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'uid': uid,
+        'name': name,
+        'email': email,
+        'phone': '',
+        'role': role,
+        'createdAt': DateTime.now(),
+        'authProvider': 'google',
+      }, SetOptions(merge: true)); // Merge ensures we don't overwrite existing fields if any
+
+      // Route again
+      if(mounted) {
+        _routeUserByRole(uid);
+      }
+  }
+
+  // --- POPUP DIALOG FOR ROLE SELECTION ---
+  Future<String?> _showRoleDialog() async {
+    String selectedRole = 'customer'; // Default selection
+
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false, // User must select or cancel
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text("Select Account Type", style: TextStyle(fontWeight: FontWeight.bold)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("Please select how you want to use VenueMate:"),
+                  const SizedBox(height: 10),
+                  
+                  RadioListTile<String>(
+                    title: const Text("Customer (Book Venues)"),
+                    value: 'customer',
+                    groupValue: selectedRole,
+                    activeColor: const Color(0xFFF47C20),
+                    onChanged: (value) {
+                      setStateDialog(() {
+                        selectedRole = value!;
+                      });
+                    },
+                  ),
+                  
+                  RadioListTile<String>(
+                    title: const Text("Venue Owner (Manage Hall)"),
+                    value: 'venue_owner',
+                    groupValue: selectedRole,
+                    activeColor: const Color(0xFFF47C20),
+                    onChanged: (value) {
+                      setStateDialog(() {
+                        selectedRole = value!;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context, null); 
+                  },
+                  child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context, selectedRole); 
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF47C20),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text("Continue", style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- UPDATED GOOGLE SIGN IN LOGIC ---
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await GoogleSignIn().signOut();
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+      if (googleUser == null) {
+        setState(() { _isLoading = false; });
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      User? user = userCredential.user;
+
+      if (user != null) {
+        // Direct routing call checks if Doc exists OR if Role is missing
+        await _routeUserByRole(user.uid);
+      }
+
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showErrorDialog("Google Sign-In Error", e.toString());
+    }
+  }
+
+  // --- EMAIL LOGIN LOGIC (UNCHANGED) ---
   void _loginUser() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -63,52 +267,12 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        // 1. Authenticate
         UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
-        // 2. Fetch Role
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .get();
-
-        if (userDoc.exists) {
-          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-          String role = userData['role'] ?? 'customer'; 
-
-          if (!mounted) return;
-          
-          setState(() {
-            _isLoading = false;
-          });
-
-          // 3. Navigate based on Role
-          if (role == 'system_admin') {
-             // ✅ Navigate to System Admin Home
-             Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const SystemAdminHome()),
-            );
-          } else if (role == 'venue_owner') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const HallAdminHomeScreen()),
-            );
-          } else {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-            );
-          }
-        } else {
-          setState(() {
-            _isLoading = false;
-          });
-          _showErrorDialog("Login Failed", "User data not found in database.");
-        }
+        _routeUserByRole(userCredential.user!.uid);
 
       } on FirebaseAuthException catch (e) {
         setState(() {
@@ -141,7 +305,6 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // ... (Keep all UI code same as provided) ...
               // Top Half - Image Section
               Container(
                 height: MediaQuery.of(context).size.height * 0.4,
@@ -404,9 +567,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _buildSocialButton(Icons.g_mobiledata, 'Google'),
-                          const SizedBox(width: 16),
-                          _buildSocialButton(Icons.facebook, 'Facebook'),
+                          _buildSocialButton(
+                            assetLogo: 'assets/images/7123025_logo_google_g_icon 1.png', 
+                            label: 'Google', 
+                            onTap: _signInWithGoogle 
+                          ),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -452,25 +617,48 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildSocialButton(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 24),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+  // --- UPDATED HELPER WIDGET ---
+  Widget _buildSocialButton({
+    IconData? icon, 
+    String? assetLogo, 
+    required String label, 
+    required VoidCallback onTap
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            if (assetLogo != null)
+              Image.asset(
+                assetLogo,
+                height: 24,
+                width: 24,
+              )
+            else
+              Icon(
+                icon, 
+                size: 28, 
+                color: label == 'Facebook' ? Colors.blue[800] : Colors.red,
+              ),
+            
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
