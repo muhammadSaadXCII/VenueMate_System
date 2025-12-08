@@ -17,7 +17,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   final List<OnboardingData> _pages = [
     OnboardingData(
-      image: 'assets/images/ob1.jpg',
+      image: 'assets/images/ob4.jpg',
       title: 'Discover\nPerfect Venues',
       description:
           'Explore stunning venues tailored to your dream events. From grand halls to intimate spaces.',
@@ -137,10 +137,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(
-                              Icons.location_city,
-                              color: Color(0xFFF47C20),
-                              size: 24,
+                            // UPDATED: Using Image.asset instead of Icon
+                            child: Image.asset(
+                              'assets/images/venuemate.png', // Make sure path is correct
+                              height: 30,
+                              width: 30,
+                              fit: BoxFit.contain,
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -178,7 +180,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ),
                 ),
 
-                /// FIX: PageView wrapped in Expanded, pages scrollable
                 Expanded(
                   child: PageView.builder(
                     controller: _pageController,
@@ -269,7 +270,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  /// FIXED: Wrapped content in SingleChildScrollView to avoid overflow
   Widget _buildPage(OnboardingData data, Size size) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -305,11 +305,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     ),
                   ),
                 ),
+                // UPDATED: Image Container Logic
                 Container(
                   height: size.height * 0.35,
-                  width: size.height * 0.35,
+                  width: double.infinity, // Use full width available
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Colors.transparent, // Removed white background
                     borderRadius: BorderRadius.circular(40),
                     boxShadow: [
                       BoxShadow(
@@ -323,7 +324,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     borderRadius: BorderRadius.circular(40),
                     child: Image.asset(
                       data.image,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.cover, // Ensures image covers the entire box
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
                           decoration: BoxDecoration(

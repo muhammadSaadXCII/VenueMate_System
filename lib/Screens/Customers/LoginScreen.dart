@@ -357,14 +357,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           bottomLeft: Radius.circular(40),
                           bottomRight: Radius.circular(40),
                         ),
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.3),
-                            const Color(0xFFF47C20).withOpacity(0.6),
-                          ],
-                        ),
+                        color: const Color(0xFFF47C20).withOpacity(0.6),
+                        // gradient: LinearGradient(
+                        //   begin: Alignment.topCenter,
+                        //   end: Alignment.bottomCenter,
+                        //   colors: [
+                        //     // Colors.black.withOpacity(0.3),
+                        //     const Color(0xFFF47C20).withOpacity(0.6),
+                        //   ],
+                        // ),
                       ),
                     ),
                     Center(
@@ -385,7 +386,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ],
                             ),
                             child: Image.asset(
-                              'assets/images/venuematelogo3.png', // Ensure this asset exists
+                              'assets/images/venuemate.png', // Ensure this asset exists
                               height: 100,
                               width: 100,
                               errorBuilder: (context, error, stackTrace) {
@@ -661,7 +662,8 @@ class _LoginScreenState extends State<LoginScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        width: 200,
+        padding: const EdgeInsets.symmetric(horizontal: 45, vertical: 12),
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey[300]!),
           borderRadius: BorderRadius.circular(12),
@@ -671,8 +673,8 @@ class _LoginScreenState extends State<LoginScreen> {
             if (assetLogo != null)
               Image.asset(
                 assetLogo,
-                height: 24,
-                width: 24,
+                height: 30,
+                width: 30,
               )
             else
               Icon(
@@ -686,7 +688,7 @@ class _LoginScreenState extends State<LoginScreen> {
               label,
               style: const TextStyle(
                 color: Colors.black,
-                fontSize: 15,
+                fontSize: 17,
                 fontWeight: FontWeight.bold,
               ),
             ),

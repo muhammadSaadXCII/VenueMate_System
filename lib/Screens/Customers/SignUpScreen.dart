@@ -835,17 +835,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ],
                       ),
 
-                      const SizedBox(height: 24),
+                      
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _buildSocialButton('assets/images/7123025_logo_google_g_icon 1.png', 'Google'),
-                          const SizedBox(width: 16),
+                          // _buildSocialButton('assets/images/7123025_logo_google_g_icon 1.png', 'Google'),
+                          const SizedBox(width: 1),
                         ],
                       ),
 
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 3),
 
                       Center(
                         child: Row(
