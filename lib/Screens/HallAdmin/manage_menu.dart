@@ -102,14 +102,14 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                               children: [
                                 Icon(
                                   Icons.add_circle_outline,
-                                  color: Color(0xFFF58529),
+                                  color: Color(0xFFF47C20),
                                   size: 26,
                                 ),
                                 SizedBox(width: 10),
                                 Text(
                                   "Add New Menu Item",
                                   style: TextStyle(
-                                    color: Color(0xFFF58529),
+                                    color: Color(0xFFF47C20),
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -275,7 +275,7 @@ class MenuItemCard extends StatelessWidget {
                 Text(
                   "Rs. $price / Serving",
                   style: const TextStyle(
-                    color: Color(0xFFF58529),
+                    color: Color(0xFFF47C20),
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),

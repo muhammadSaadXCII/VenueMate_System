@@ -148,10 +148,11 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
-            if (_currentStep > 0)
+            if (_currentStep > 0) {
               _prevStep();
-            else
+            } else {
               Navigator.pop(context);
+            }
           },
         ),
         centerTitle: true,
@@ -230,7 +231,7 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
                                         onPressed: _nextStep,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: const Color(
-                                            0xFFF58529,
+                                            0xFFF47C20,
                                           ),
                                           foregroundColor: Colors.white,
                                           elevation: 0,
@@ -857,10 +858,10 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
                 width: 24,
                 decoration: BoxDecoration(
                   color: _isConfirmed
-                      ? const Color(0xFFF58529)
+                      ? const Color(0xFFF47C20)
                       : Colors.transparent,
                   border: Border.all(
-                    color: _isConfirmed ? const Color(0xFFF58529) : Colors.grey,
+                    color: _isConfirmed ? const Color(0xFFF47C20) : Colors.grey,
                     width: 2,
                   ),
                   borderRadius: BorderRadius.circular(6),
@@ -891,16 +892,11 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
           child: ElevatedButton(
             onPressed: _isConfirmed
                 ? () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Form Submitted Successfully!"),
-                      ),
-                    );
                     AppNavigation.push(context, PendingReviewScreen());
                   }
                 : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF58529),
+              backgroundColor: const Color(0xFFF47C20),
               foregroundColor: Colors.white,
               disabledBackgroundColor: Colors.grey[300],
               disabledForegroundColor: Colors.grey[600],
@@ -1024,7 +1020,7 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
             price,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
-              color: Color(0xFFF58529),
+              color: Color(0xFFF47C20),
             ),
           ),
         ],
@@ -1219,14 +1215,14 @@ class AddNewButton extends StatelessWidget {
         children: [
           const Icon(
             Icons.add_circle_outline,
-            color: Color(0xFFF58529),
+            color: Color(0xFFF47C20),
             size: 26,
           ),
           const SizedBox(width: 10),
           Text(
             label,
             style: const TextStyle(
-              color: Color(0xFFF58529),
+              color: Color(0xFFF47C20),
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -1290,7 +1286,7 @@ class MenuItemCard extends StatelessWidget {
                       TextSpan(
                         text: "\nRs. $price/$priceUnit",
                         style: const TextStyle(
-                          color: Color(0xFFF58529),
+                          color: Color(0xFFF47C20),
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -1370,7 +1366,7 @@ class ServiceCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Color(0xFFF58529),
+              color: Color(0xFFF47C20),
             ),
           ),
         ],
@@ -1439,11 +1435,11 @@ class _ReviewCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFFF58529),
+                          color: Color(0xFFF47C20),
                         ),
                       ),
                       SizedBox(width: 4),
-                      Icon(Icons.edit, size: 12, color: Color(0xFFF58529)),
+                      Icon(Icons.edit, size: 12, color: Color(0xFFF47C20)),
                     ],
                   ),
                 ),

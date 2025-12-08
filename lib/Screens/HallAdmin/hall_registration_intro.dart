@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
-import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Widgets/common_button.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_registration.dart';
 
 class HallRegistrationIntroScreen extends StatelessWidget {
@@ -117,7 +117,7 @@ class HallRegistrationIntroScreen extends StatelessWidget {
 
                         SizedBox(
                           width: double.infinity,
-                          child: GradientButton(
+                          child: CommonButton(
                             text: "Start Hall Registration",
                             onTap: () {
                               AppNavigation.push(
@@ -149,7 +149,7 @@ class HallRegistrationIntroScreen extends StatelessWidget {
         children: [
           const Icon(
             Icons.check_circle_outline,
-            color: Color(0xFFF58529),
+            color: Color(0xFFF47C20),
             size: 20,
           ),
           const SizedBox(width: 10),

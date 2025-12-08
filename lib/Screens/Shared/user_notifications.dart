@@ -94,7 +94,7 @@ class _UserNotificationsScreenState extends State<UserNotificationsScreen> {
             child: const Text(
               "Mark all read",
               style: TextStyle(
-                color: Color(0xFFF58529),
+                color: Color(0xFFF47C20),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -221,7 +221,7 @@ class NotificationCard extends StatelessWidget {
         border:
             isUnread
                 ? Border.all(
-                  color: const Color(0xFFF58529).withOpacity(0.3),
+                  color: const Color(0xFFF47C20).withOpacity(0.3),
                   width: 1,
                 )
                 : Border.all(color: Colors.grey.shade200),
@@ -238,7 +238,7 @@ class NotificationCard extends StatelessWidget {
             ),
             child: Icon(
               _getIcon(type),
-              color: isUnread ? const Color(0xFFF58529) : Colors.grey,
+              color: isUnread ? const Color(0xFFF47C20) : Colors.grey,
               size: 24,
             ),
           ),
@@ -273,7 +273,7 @@ class NotificationCard extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                             color:
                                 isUnread
-                                    ? const Color(0xFFF58529)
+                                    ? const Color(0xFFF47C20)
                                     : Colors.grey,
                           ),
                         ),

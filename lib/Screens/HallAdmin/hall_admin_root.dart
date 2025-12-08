@@ -75,7 +75,7 @@ class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
                   children: [
                     Icon(
                       Icons.admin_panel_settings,
-                      color: Color(0xFFF58529),
+                      color: Color(0xFFF47C20),
                       size: 32,
                     ),
                     SizedBox(width: 12),
@@ -168,7 +168,7 @@ class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
                     width: 48,
                     height: 4,
                     decoration: const BoxDecoration(
-                      color: Color(0xFFF58529),
+                      color: Color(0xFFF47C20),
                       borderRadius: BorderRadius.vertical(
                         bottom: Radius.circular(4),
                       ),
@@ -195,7 +195,7 @@ class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
 
   Widget _buildMobileNavItem(int index, IconData icon, String label) {
     bool isSelected = _selectedIndex == index;
-    const Color brandOrange = Color(0xFFF58529);
+    const Color brandOrange = Color(0xFFF47C20);
     const Color inactiveGrey = Colors.black54;
 
     return Expanded(
@@ -244,7 +244,7 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color activeColor = const Color(0xFFF58529);
+    final Color activeColor = const Color(0xFFF47C20);
     final Color textColor =
         isDestructive
             ? Colors.red
@@ -307,9 +307,6 @@ class _SidebarItem extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// SAFE LOGOUT LOGIC (FIXED)
-// ---------------------------------------------------------------------------
 void _handleLogout(BuildContext context) async {
   bool confirm =
       await showDialog(
@@ -327,7 +324,6 @@ void _handleLogout(BuildContext context) async {
                   ),
                 ),
                 TextButton(
-                  // FIX 1: Use Navigator.pop(true) instead of calling recursive function
                   onPressed: () => Navigator.pop(context, true),
                   child: const Text(
                     "Logout",
@@ -341,11 +337,8 @@ void _handleLogout(BuildContext context) async {
 
   if (confirm) {
     try {
-      // 1. Always sign out from Firebase
       await FirebaseAuth.instance.signOut();
 
-      // 2. Try to handle Google Sign Out safely
-      // FIX 2: Added try-catch and isSignedIn check
       try {
         final googleSignIn = GoogleSignIn();
         if (await googleSignIn.isSignedIn()) {
@@ -353,13 +346,11 @@ void _handleLogout(BuildContext context) async {
           await googleSignIn.signOut();
         }
       } catch (e) {
-        // Just ignore google errors, so user can still logout from app
         debugPrint("Google logout error (ignored): $e");
       }
 
       if (!context.mounted) return;
 
-      // 3. Navigate to Login
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
         (Route<dynamic> route) => false,

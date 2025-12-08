@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Widgets/common_button.dart';
 
 class AddServiceSheet extends StatefulWidget {
   const AddServiceSheet({super.key});
@@ -84,7 +84,7 @@ class _AddServiceSheetState extends State<AddServiceSheet> {
 
               const SizedBox(height: 30),
 
-              GradientButton(text: "Add", onTap: () {}),
+              CommonButton(text: "Add", onTap: () {}),
 
               SizedBox(height: MediaQuery.of(context).padding.bottom + 10),
             ],
@@ -116,7 +116,7 @@ class _AddServiceSheetState extends State<AddServiceSheet> {
 
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFF58529), width: 1.5),
+        borderSide: const BorderSide(color: Color(0xFFF97316), width: 1.5),
       ),
     );
   }

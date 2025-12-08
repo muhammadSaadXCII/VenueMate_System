@@ -256,13 +256,13 @@ class _FaqTileState extends State<_FaqTile> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _isExpanded ? const Color(0xFFF58529) : Colors.grey.shade200,
+          color: _isExpanded ? const Color(0xFFF47C20) : Colors.grey.shade200,
           width: _isExpanded ? 1.5 : 1,
         ),
         boxShadow: [
           BoxShadow(
             color: _isExpanded
-                ? const Color(0xFFF58529).withOpacity(0.15)
+                ? const Color(0xFFF47C20).withOpacity(0.15)
                 : Colors.grey.withOpacity(0.05),
             blurRadius: _isExpanded ? 15 : 5,
             offset: const Offset(0, 4),
@@ -282,13 +282,13 @@ class _FaqTileState extends State<_FaqTile> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: _isExpanded
-                  ? const Color(0xFFF58529)
+                  ? const Color(0xFFF47C20)
                   : const Color(0xFFFFF3E0),
               shape: BoxShape.circle,
             ),
             child: Icon(
               _isExpanded ? Icons.remove : Icons.add,
-              color: _isExpanded ? Colors.white : const Color(0xFFF58529),
+              color: _isExpanded ? Colors.white : const Color(0xFFF47C20),
               size: 20,
             ),
           ),
@@ -297,7 +297,7 @@ class _FaqTileState extends State<_FaqTile> {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
-              color: _isExpanded ? const Color(0xFFF58529) : Colors.black87,
+              color: _isExpanded ? const Color(0xFFF47C20) : Colors.black87,
             ),
           ),
           trailing: const SizedBox.shrink(),
@@ -340,7 +340,7 @@ class _ContactTile extends StatelessWidget {
           color: const Color(0xFFFFF3E0),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: const Color(0xFFF58529), size: 22),
+        child: Icon(icon, color: const Color(0xFFF47C20), size: 22),
       ),
       title: Text(
         title,

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Widgets/common_button.dart';
 
 class ChangePasswordScreen extends StatelessWidget {
   const ChangePasswordScreen({super.key});
@@ -74,7 +74,7 @@ class ChangePasswordScreen extends StatelessWidget {
                     child: const Text(
                       "Forgot Password?",
                       style: TextStyle(
-                        color: Color(0xFFF58529),
+                        color: Color(0xFFF47C20),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -85,14 +85,10 @@ class ChangePasswordScreen extends StatelessWidget {
 
                 SizedBox(
                   width: double.infinity,
-                  child: GradientButton(
+                  child: CommonButton(
                     text: "Update Password",
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Password Updated Successfully!"),
-                        ),
-                      );
+                      Navigator.pop(context);
                     },
                   ),
                 ),
@@ -166,7 +162,7 @@ class _PasswordFieldState extends State<PasswordField> {
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(
-                  color: Color(0xFFF58529),
+                  color: Color(0xFFF47C20),
                   width: 1.5,
                 ),
               ),

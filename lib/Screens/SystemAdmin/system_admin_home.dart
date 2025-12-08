@@ -168,7 +168,8 @@ class _SystemAdminHomeState extends State<SystemAdminHome> {
                   secondaryIcon: Icons.warning,
                   isDesktop: false,
                   onTap:
-                      () => AppNavigation.push(context, const ComplaintsScreen()),
+                      () =>
+                          AppNavigation.push(context, const ComplaintsScreen()),
                 ),
                 const SizedBox(height: 32),
                 const Text(
@@ -255,7 +256,7 @@ class _SystemAdminHomeState extends State<SystemAdminHome> {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundColor: Color(0xFFFEA845),
+            backgroundColor: Color(0xFFF47C20),
             child: Icon(
               Icons.admin_panel_settings,
               color: Colors.white,
@@ -466,7 +467,7 @@ class StatCard extends StatelessWidget {
                       Text(
                         label,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 10,
                           color: Colors.grey[600],
                           fontWeight: FontWeight.w500,
                         ),
@@ -618,7 +619,7 @@ class _SidebarItem extends StatelessWidget {
         color:
             isDestructive
                 ? Colors.red
-                : (isActive ? const Color(0xFFFEA845) : Colors.grey[600]),
+                : (isActive ? const Color(0xFFF47C20) : Colors.grey[600]),
         size: 22,
       ),
       title: Text(
@@ -628,7 +629,7 @@ class _SidebarItem extends StatelessWidget {
           color:
               isDestructive
                   ? Colors.red
-                  : (isActive ? const Color(0xFFFEA845) : Colors.grey[800]),
+                  : (isActive ? const Color(0xFFF47C20) : Colors.grey[800]),
           fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
         ),
       ),
@@ -828,9 +829,9 @@ void _handleLogout(BuildContext context) async {
     } catch (e) {
       // Only show snackbar if Firebase auth fails or critical navigation error
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error logging out: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error logging out: $e")));
       }
     }
   }

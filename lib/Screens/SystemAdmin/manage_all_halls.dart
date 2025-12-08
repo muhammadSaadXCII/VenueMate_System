@@ -156,7 +156,7 @@ class _ManageAllHallsScreenState extends State<ManageAllHallsScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFFEA845) : Colors.grey[100],
+          color: isActive ? const Color(0xFFF47C20) : Colors.grey[100],
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
             color: isActive ? Colors.transparent : Colors.grey.shade300,
@@ -164,7 +164,7 @@ class _ManageAllHallsScreenState extends State<ManageAllHallsScreen> {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: const Color(0xFFFEA845).withOpacity(0.4),
+                    color: const Color(0xFFF47C20).withOpacity(0.4),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),

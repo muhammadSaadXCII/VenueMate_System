@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Widgets/common_button.dart';
 
 class AddMenuItemSheet extends StatefulWidget {
   const AddMenuItemSheet({super.key});
@@ -172,12 +172,13 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
                           value: _selectedUnit,
                           icon: const Icon(Icons.keyboard_arrow_down),
                           decoration: _inputDecoration(""),
-                          items: _units.map((String unit) {
-                            return DropdownMenuItem<String>(
-                              value: unit,
-                              child: Text(unit),
-                            );
-                          }).toList(),
+                          items:
+                              _units.map((String unit) {
+                                return DropdownMenuItem<String>(
+                                  value: unit,
+                                  child: Text(unit),
+                                );
+                              }).toList(),
                           onChanged: (newValue) {
                             setState(() {
                               _selectedUnit = newValue;
@@ -192,7 +193,7 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
 
               const SizedBox(height: 30),
 
-              GradientButton(text: "Add", onTap: () {}),
+              CommonButton(text: "Add", onTap: () {}),
 
               SizedBox(height: MediaQuery.of(context).padding.bottom + 20),
             ],
@@ -221,7 +222,7 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFFF58529), width: 1.5),
+        borderSide: const BorderSide(color: Color(0xFFF97316), width: 1.5),
       ),
     );
   }

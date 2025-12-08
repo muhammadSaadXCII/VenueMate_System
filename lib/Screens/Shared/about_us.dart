@@ -40,13 +40,13 @@ class AboutUsScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFFB8C00), Color(0xFFFFCC80)],
+                        colors: [Color(0xFFF47C20), Color(0xFFFFCC80)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.orange.withOpacity(0.3),
+                          color: Color(0xFFF47C20).withOpacity(0.3),
                           blurRadius: 15,
                           offset: const Offset(0, 5),
                         ),
@@ -147,7 +147,7 @@ class AboutUsScreen extends StatelessWidget {
   Widget _contactRow(IconData icon, String text) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: const Color(0xFFF58529)),
+        Icon(icon, size: 18, color: const Color(0xFFF47C20)),
         const SizedBox(width: 10),
         Text(text, style: const TextStyle(fontSize: 14, color: Colors.black87)),
       ],

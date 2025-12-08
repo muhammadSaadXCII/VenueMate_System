@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Widgets/common_button.dart';
 
 class ResolveComplaintSheet extends StatelessWidget {
   const ResolveComplaintSheet({super.key});
@@ -76,19 +76,12 @@ class ResolveComplaintSheet extends StatelessWidget {
 
             const SizedBox(height: 25),
 
-            GradientButton(
+            CommonButton(
               text: "Confirm Resolution",
               onTap: () {
                 Navigator.pop(context);
 
                 Navigator.pop(context);
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Complaint Marked as Resolved"),
-                    backgroundColor: Colors.green,
-                  ),
-                );
               },
             ),
             const SizedBox(height: 10),

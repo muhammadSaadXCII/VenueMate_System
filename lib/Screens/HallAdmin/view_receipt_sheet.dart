@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Widgets/common_button.dart';
 import 'package:venuemate_system/Screens/HallAdmin/reject_payment.dart';
 
 class ViewReceiptSheet extends StatelessWidget {
@@ -56,11 +56,12 @@ class ViewReceiptSheet extends StatelessWidget {
                       height: 80,
                       width: 80,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: 80,
-                        width: 80,
-                        color: Colors.grey[300],
-                      ),
+                      errorBuilder:
+                          (context, error, stackTrace) => Container(
+                            height: 80,
+                            width: 80,
+                            color: Colors.grey[300],
+                          ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -89,7 +90,7 @@ class ViewReceiptSheet extends StatelessWidget {
                                 Icon(
                                   Icons.calendar_today,
                                   size: 14,
-                                  color: Colors.orange[800],
+                                  color: Color(0xFFF47C20),
                                 ),
                                 const SizedBox(width: 4),
                                 const Text(
@@ -236,7 +237,7 @@ class ViewReceiptSheet extends StatelessWidget {
                   const SizedBox(width: 16),
 
                   Expanded(
-                    child: GradientButton(
+                    child: CommonButton(
                       text: "Confirm Payment",
                       onTap: () {
                         Navigator.pop(context);

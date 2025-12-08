@@ -1,9 +1,9 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:venuemate_system/Screens/Customers/LoginScreen.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'package:venuemate_system/Screens/Shared/settings.dart';
+import 'package:venuemate_system/Screens/Customers/LoginScreen.dart';
 import 'package:venuemate_system/Screens/HallAdmin/edit_profile.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_feedbacks.dart';
 import 'package:venuemate_system/Screens/Shared/user_notifications.dart';
@@ -37,7 +37,7 @@ class HallAdminProfileScreen extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [Color(0xFFFB8C00), Color(0xFFFFCC80)],
+                        colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
                       ),
                     ),
                     child: Column(
@@ -130,7 +130,10 @@ class HallAdminProfileScreen extends StatelessWidget {
                           icon: Icons.notifications_outlined,
                           label: "Notifications",
                           onTap: () {
-                            AppNavigation.push(context, UserNotificationsScreen());
+                            AppNavigation.push(
+                              context,
+                              UserNotificationsScreen(),
+                            );
                           },
                         ),
                       ],
@@ -304,9 +307,6 @@ class _ProfileMenuTile extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// SAFE LOGOUT LOGIC (FIXED)
-// ---------------------------------------------------------------------------
 void _handleLogout(BuildContext context) async {
   bool confirm =
       await showDialog(
@@ -337,11 +337,8 @@ void _handleLogout(BuildContext context) async {
 
   if (confirm) {
     try {
-      // 1. Always sign out from Firebase
       await FirebaseAuth.instance.signOut();
 
-      // 2. Try to handle Google Sign Out safely
-      // Added try-catch and isSignedIn check to prevent PlatformException
       try {
         final googleSignIn = GoogleSignIn();
         if (await googleSignIn.isSignedIn()) {
@@ -349,13 +346,11 @@ void _handleLogout(BuildContext context) async {
           await googleSignIn.signOut();
         }
       } catch (e) {
-        // Just ignore google errors, so user can still logout from app
         debugPrint("Google logout error (ignored): $e");
       }
 
       if (!context.mounted) return;
 
-      // 3. Navigate to Login
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
         (Route<dynamic> route) => false,

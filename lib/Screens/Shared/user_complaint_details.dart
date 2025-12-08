@@ -7,7 +7,7 @@ class UserComplaintDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color statusColor = const Color(0xFFF58529);
+    Color statusColor = const Color(0xFFF47C20);
     Color statusBg = const Color(0xFFFFF3E0);
 
     if (ticketData['status'] == 'Resolved') {
@@ -152,7 +152,7 @@ class UserComplaintDetailsScreen extends StatelessWidget {
                   children: [
                     const CircleAvatar(
                       radius: 20,
-                      backgroundColor: Colors.orange,
+                      backgroundColor: Color(0xFFF47C20),
                       child: Icon(Icons.support_agent, color: Colors.white),
                     ),
                     const SizedBox(width: 12),
