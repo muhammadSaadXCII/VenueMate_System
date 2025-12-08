@@ -53,8 +53,8 @@ class CommonButton extends StatelessWidget {
             Text(
               text,
               style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
                 color: foregroundColorToUse,
               ),
             ),
