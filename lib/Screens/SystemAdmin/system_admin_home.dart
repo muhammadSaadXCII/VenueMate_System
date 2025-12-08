@@ -769,9 +769,6 @@ class _AdminHeaderMobile extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// SAFE LOGOUT LOGIC (Fixed to avoid PlatformException)
-// ---------------------------------------------------------------------------
 void _handleLogout(BuildContext context) async {
   bool confirm =
       await showDialog(
@@ -802,24 +799,19 @@ void _handleLogout(BuildContext context) async {
 
   if (confirm) {
     try {
-      // 1. Always sign out from Firebase
       await FirebaseAuth.instance.signOut();
 
-      // 2. Try to handle Google Sign Out safely
       try {
         final googleSignIn = GoogleSignIn();
-        // IMPORTANT: Check if actually signed in to avoid "Failed to disconnect"
+
         if (await googleSignIn.isSignedIn()) {
           await googleSignIn.disconnect();
           await googleSignIn.signOut();
         }
       } catch (e) {
-        // If Google sign out fails (e.g. not logged in with Google), just ignore it
-        // so the user can still leave the app.
         debugPrint("Google logout error (ignored): $e");
       }
 
-      // 3. Navigation (Always happens)
       if (!context.mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(
@@ -827,7 +819,6 @@ void _handleLogout(BuildContext context) async {
         (Route<dynamic> route) => false,
       );
     } catch (e) {
-      // Only show snackbar if Firebase auth fails or critical navigation error
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
