@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart'; // ✅ Import Admin Home
+import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart';
 
-// Screens Imports
+// ✅ Imports for all Role Screens
+import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
+import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart'; // Make sure this import is correct
+import 'HomePageVenueScreen.dart'; // Customer Home
 import 'OnBoardingScreen.dart'; 
-import 'HomePageVenueScreen.dart'; 
-
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -48,9 +49,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _checkLoginStatus();
   }
 
-  // --- AUTO LOGIN LOGIC ---
+  // --- AUTO LOGIN LOGIC WITH ROLE CHECK ---
   void _checkLoginStatus() async {
-    await Future.delayed(const Duration(seconds: 4));
+    // 3 Seconds delay for splash animation
+    await Future.delayed(const Duration(seconds: 3));
 
     if (!mounted) return;
 
@@ -58,6 +60,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     if (user != null) {
       try {
+        // Fetch User Role from Firestore
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -71,20 +74,23 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
           // --- ROLE BASED REDIRECTION ---
           if (role == 'system_admin') {
-             // ✅ Go to System Admin Home
+             // 1. System Admin
              Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (context) => const SystemAdminHome()),
             );
           } else if (role == 'venue_owner') {
+            // 2. Venue Owner (Hall Admin)
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              MaterialPageRoute(builder: (context) => const HallAdminRootLayout()),
             );
           } else {
+            // 3. Customer (Default)
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
           }
         } else {
+          // If user exists in Auth but not in Firestore
           _navigateToOnboarding();
         }
       } catch (e) {
@@ -92,6 +98,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         _navigateToOnboarding();
       }
     } else {
+      // User is not logged in
       _navigateToOnboarding();
     }
   }

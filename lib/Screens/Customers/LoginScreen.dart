@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:venuemate_system/Screens/Customers/SelectRoleScreen.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart';
+import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart';
 // Note: Ensure this import points to your actual Hall Admin Root if it exists, otherwise use Home
 // import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart'; 
 import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
@@ -116,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Navigator.pushReplacement(
             context,
             // Replace with HallAdminRootLayout if using the bottom nav setup
-            MaterialPageRoute(builder: (context) => const HallAdminHomeScreen()), 
+            MaterialPageRoute(builder: (context) => const HallAdminRootLayout()), 
           );
         } else {
           // Default to Customer Home
