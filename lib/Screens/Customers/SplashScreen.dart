@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart';
-
-// ✅ Imports for all Role Screens
+import 'package:venuemate_system/Screens/HallAdmin/hall_registration_intro.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
-import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart'; // Make sure this import is correct
-import 'HomePageVenueScreen.dart'; // Customer Home
 import 'OnBoardingScreen.dart'; 
+import 'HomePageVenueScreen.dart'; 
+
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -49,10 +47,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _checkLoginStatus();
   }
 
-  // --- AUTO LOGIN LOGIC WITH ROLE CHECK ---
+  // --- AUTO LOGIN LOGIC ---
   void _checkLoginStatus() async {
-    // 3 Seconds delay for splash animation
-    await Future.delayed(const Duration(seconds: 3));
+    // Kept duration same as your logic
+    await Future.delayed(const Duration(seconds: 4));
 
     if (!mounted) return;
 
@@ -60,7 +58,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     if (user != null) {
       try {
-        // Fetch User Role from Firestore
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -68,42 +65,39 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
         if (userDoc.exists) {
           Map<String, dynamic>? data = userDoc.data() as Map<String, dynamic>?;
-          String role = data?['role'] ?? 'customer'; 
+          String role = data?['role'] ?? 'customer';
 
           if (!mounted) return;
 
           // --- ROLE BASED REDIRECTION ---
           if (role == 'system_admin') {
-             // 1. System Admin
-             Navigator.of(context).pushReplacement(
+            Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (context) => const SystemAdminHome()),
             );
           } else if (role == 'venue_owner') {
-            // 2. Venue Owner (Hall Admin)
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const HallAdminRootLayout()),
+              MaterialPageRoute(builder: (context) => const HallRegistrationIntroScreen()),
             );
           } else {
-            // 3. Customer (Default)
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
+             _navigateToOnboarding(); // Fallback for now if home isn't ready
           }
         } else {
-          // If user exists in Auth but not in Firestore
           _navigateToOnboarding();
         }
       } catch (e) {
-        print("Error fetching user data: $e");
+        debugPrint("Error fetching user data: $e");
         _navigateToOnboarding();
       }
     } else {
-      // User is not logged in
       _navigateToOnboarding();
     }
   }
 
   void _navigateToOnboarding() {
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const OnboardingScreen()),
     );
@@ -119,64 +113,90 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF47C20),
-      body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // Breakpoint logic: > 600 width is typically tablet/desktop
+          final bool isDesktop = constraints.maxWidth > 600;
+
+          // Responsive Sizes
+          final double logoSize = isDesktop ? 200.0 : 120.0;
+          final double titleSize = isDesktop ? 48.0 : 32.0;
+          final double subtitleSize = isDesktop ? 24.0 : 16.0;
+          final double iconSize = isDesktop ? 80.0 : 50.0;
+          final double verticalSpacing = isDesktop ? 40.0 : 20.0;
+
+          return Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: ScaleTransition(
+                  scale: _scaleAnimation,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // --- LOGO CONTAINER ---
+                      Container(
+                        width: logoSize,
+                        height: logoSize,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(isDesktop ? 40 : 30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 15,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        padding: EdgeInsets.all(isDesktop ? 30 : 20),
+                        child: Image.asset(
+                          'assets/images/venuematelogo3.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              Icons.account_balance,
+                              size: iconSize,
+                              color: const Color(0xFFF47C20),
+                            );
+                          },
+                        ),
+                      ),
+                      
+                      SizedBox(height: verticalSpacing),
+                      
+                      // --- TITLE ---
+                      Text(
+                        'VenueMate',
+                        style: TextStyle(
+                          fontSize: titleSize,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 1.0,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      
+                      SizedBox(height: verticalSpacing / 2), // Half spacing
+                      
+                      // --- SUBTITLE ---
+                      Text(
+                        'Find Your Perfect Venue',
+                        style: TextStyle(
+                          fontSize: subtitleSize,
+                          color: Colors.white.withOpacity(0.9),
+                          letterSpacing: 0.5,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
-                  padding: const EdgeInsets.all(20),
-                  child: Image.asset(
-                    'assets/images/venuemate.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(
-                        Icons.account_balance,
-                        size: 50,
-                        color: Color(0xFFF47C20),
-                      );
-                    },
-                  ),
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'VenueMate',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Find Your Perfect Venue',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white.withOpacity(0.9),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
