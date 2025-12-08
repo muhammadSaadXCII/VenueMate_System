@@ -94,12 +94,10 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
               children: [
                 _buildBookingList(
                   status: "Paid",
-                  primaryButtonLabel: "Chat with Customer",
+                  primaryButtonLabel: "Message",
                   showTwoButtons: true,
                   secondaryButtonLabel: "View Details",
-                  onPrimaryTap: () {
-                    debugPrint("Chat with Customer clicked");
-                  },
+                  onPrimaryTap: () {},
                   onSecondaryTap: () => _navigateToDetails(context),
                 ),
 
@@ -182,7 +180,6 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
           showTwoButtons: showTwoButtons,
           isCompleted: isCompleted,
           isCancelled: isCancelled,
-
           onPrimaryButtonTap: onPrimaryTap,
           onSecondaryButtonTap: onSecondaryTap,
         );
@@ -259,12 +256,8 @@ class _BookingCard extends StatelessWidget {
                   height: 80,
                   width: 80,
                   fit: BoxFit.cover,
-                  errorBuilder:
-                      (context, error, stackTrace) => Container(
-                        height: 80,
-                        width: 80,
-                        color: Colors.grey[300],
-                      ),
+                  errorBuilder: (context, error, stackTrace) =>
+                      Container(height: 80, width: 80, color: Colors.grey[300]),
                 ),
               ),
               const SizedBox(width: 12),
