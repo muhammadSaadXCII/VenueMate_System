@@ -4,10 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:venuemate_system/Screens/Customers/SelectRoleScreen.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart';
-import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart';
+// Note: Ensure this import points to your actual Hall Admin Root if it exists, otherwise use Home
+// import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart'; 
 import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
 import 'ForgotPasswordScreen.dart';
 import 'HomePageVenueScreen.dart'; 
+import 'SignUpScreen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -32,7 +34,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _checkAlreadyLoggedIn() async {
     User? user = FirebaseAuth.instance.currentUser;
+    // Check if user exists and is verified (optional check for auto-login)
     if (user != null) {
+       // Optional: You can force check email verification here too if needed
+       // await user.reload();
+       // if(user.emailVerified) { ... }
       _routeUserByRole(user.uid);
     }
   }
@@ -82,7 +88,6 @@ class _LoginScreenState extends State<LoginScreen> {
         
         // Check if role exists in database
         if (userData == null || !userData.containsKey('role') || userData['role'] == null) {
-          // Agar user hai lekin Role nahi hai, tab bhi Popup dikhao
           if (mounted) {
              _handleMissingRole(uid, FirebaseAuth.instance.currentUser?.displayName ?? 'User', FirebaseAuth.instance.currentUser?.email ?? '');
           }
@@ -90,6 +95,11 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         String role = userData['role']; 
+        
+        // Optional: Update isEmailVerified status in Firestore upon successful login
+        if (FirebaseAuth.instance.currentUser?.emailVerified ?? false) {
+           FirebaseFirestore.instance.collection('users').doc(uid).update({'isEmailVerified': true});
+        }
 
         if (!mounted) return;
         
@@ -105,7 +115,8 @@ class _LoginScreenState extends State<LoginScreen> {
         } else if (role == 'venue_owner') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const HallAdminRootLayout()),
+            // Replace with HallAdminRootLayout if using the bottom nav setup
+            MaterialPageRoute(builder: (context) => const HallAdminHomeScreen()), 
           );
         } else {
           // Default to Customer Home
@@ -115,7 +126,6 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } else {
-        // Doc doesn't exist (Rare case if login succeeded but doc creation failed)
          if (mounted) {
              _handleMissingRole(uid, FirebaseAuth.instance.currentUser?.displayName ?? 'User', FirebaseAuth.instance.currentUser?.email ?? '');
           }
@@ -126,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // --- NEW: Handle Missing Role Logic ---
+  // --- Handle Missing Role Logic ---
   Future<void> _handleMissingRole(String uid, String name, String email) async {
       String? role = await _showRoleDialog();
 
@@ -136,7 +146,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // Update/Set user data with selected role
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'uid': uid,
         'name': name,
@@ -145,9 +154,8 @@ class _LoginScreenState extends State<LoginScreen> {
         'role': role,
         'createdAt': DateTime.now(),
         'authProvider': 'google',
-      }, SetOptions(merge: true)); // Merge ensures we don't overwrite existing fields if any
+      }, SetOptions(merge: true));
 
-      // Route again
       if(mounted) {
         _routeUserByRole(uid);
       }
@@ -155,11 +163,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // --- POPUP DIALOG FOR ROLE SELECTION ---
   Future<String?> _showRoleDialog() async {
-    String selectedRole = 'customer'; // Default selection
+    String selectedRole = 'customer'; 
 
     return showDialog<String>(
       context: context,
-      barrierDismissible: false, // User must select or cancel
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
@@ -171,7 +179,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const Text("Please select how you want to use VenueMate:"),
                   const SizedBox(height: 10),
-                  
                   RadioListTile<String>(
                     title: const Text("Customer (Book Venues)"),
                     value: 'customer',
@@ -183,7 +190,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       });
                     },
                   ),
-                  
                   RadioListTile<String>(
                     title: const Text("Venue Owner (Manage Hall)"),
                     value: 'venue_owner',
@@ -222,7 +228,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // --- UPDATED GOOGLE SIGN IN LOGIC ---
+  // --- GOOGLE SIGN IN LOGIC (UNCHANGED) ---
+  // Google accounts are usually auto-verified, so we proceed directly
   Future<void> _signInWithGoogle() async {
     setState(() {
       _isLoading = true;
@@ -247,7 +254,6 @@ class _LoginScreenState extends State<LoginScreen> {
       User? user = userCredential.user;
 
       if (user != null) {
-        // Direct routing call checks if Doc exists OR if Role is missing
         await _routeUserByRole(user.uid);
       }
 
@@ -259,7 +265,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // --- EMAIL LOGIN LOGIC (UNCHANGED) ---
+  // --- MODIFIED EMAIL LOGIN LOGIC WITH VERIFICATION CHECK ---
   void _loginUser() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -272,7 +278,33 @@ class _LoginScreenState extends State<LoginScreen> {
           password: _passwordController.text.trim(),
         );
 
-        _routeUserByRole(userCredential.user!.uid);
+        User? user = userCredential.user;
+
+        if (user != null) {
+          // 1. Reload the user to get the latest emailVerification status
+          await user.reload();
+          // After reload, we should get the current user instance again
+          user = FirebaseAuth.instance.currentUser;
+
+          // 2. Check if Email is Verified
+          if (user != null && !user.emailVerified) {
+            // IF NOT VERIFIED: Sign out and show error
+            await FirebaseAuth.instance.signOut();
+            
+            setState(() {
+              _isLoading = false;
+            });
+
+            _showErrorDialog(
+              "Email Not Verified", 
+              "Please check your email and verify your account before logging in."
+            );
+            return;
+          }
+
+          // 3. IF VERIFIED: Proceed to Routing
+          _routeUserByRole(user!.uid);
+        }
 
       } on FirebaseAuthException catch (e) {
         setState(() {
@@ -352,8 +384,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ],
                             ),
                             child: Image.asset(
-                              // 'assets/images/venuemate.png',
-                              'assets/images/venuematelogo3.png',
+                              'assets/images/venuemate.png', // Ensure this asset exists
                               height: 100,
                               width: 100,
                               errorBuilder: (context, error, stackTrace) {

@@ -41,7 +41,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   // 1. Strict Structural Validation (RFC 5322) with Domain Extension Check
   bool _isValidEmailStructure(String email) {
-    // Check basic email format with proper domain extension (2-6 letters)
     final emailRegex = RegExp(
       r"^[a-zA-Z0-9.!#$%&'*+\-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,6}$",
     );
@@ -50,16 +49,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return false;
     }
     
-    // Additional check: ensure domain has valid extension
     String domain = email.split('@').last.toLowerCase();
     List<String> domainParts = domain.split('.');
     
-    // Must have at least domain name and extension
     if (domainParts.length < 2) {
       return false;
     }
     
-    // Extension must be 2-6 characters
     String extension = domainParts.last;
     if (extension.length < 2 || extension.length > 6) {
       return false;
@@ -73,7 +69,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!email.contains('@')) return null;
     String domain = email.split('@').last.toLowerCase();
 
-    // Gmail typos
     if (domain == 'gmil.com' ||
         domain == 'gmal.com' ||
         domain == 'gmai.com' ||
@@ -85,7 +80,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return 'Did you mean @gmail.com?';
     }
 
-    // Hotmail typos
     if (domain == 'hotmal.com' || 
         domain == 'hotmil.com' || 
         domain == 'hotmail.co' ||
@@ -93,7 +87,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return 'Did you mean @hotmail.com?';
     }
 
-    // Yahoo typos
     if (domain == 'yaho.com' || 
         domain == 'yahooo.com' || 
         domain == 'yahoo.co' ||
@@ -101,7 +94,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return 'Did you mean @yahoo.com?';
     }
 
-    // Outlook typos
     if (domain == 'outlok.com' || 
         domain == 'outlock.com' || 
         domain == 'outlook.co') {
@@ -197,99 +189,65 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void _handleSignUp() {
     String emailInput = _emailController.text.trim();
 
-    // 1. Name Validation
     if (_nameController.text.trim().isEmpty) {
       _showValidationError('Name Required', 'Please enter your full name.');
       return;
     }
     if (_nameController.text.trim().length < 3) {
-      _showValidationError(
-        'Invalid Name',
-        'Name must be at least 3 characters long.',
-      );
+      _showValidationError('Invalid Name', 'Name must be at least 3 characters long.');
       return;
     }
 
-    // 2. Phone Validation
     if (_phoneController.text.trim().isEmpty) {
       _showValidationError('Phone Required', 'Please enter your phone number.');
       return;
     }
     if (!_isValidPhone(_phoneController.text.trim())) {
-      _showValidationError(
-        'Invalid Phone',
-        'Please enter exactly 11 digits for your phone number.',
-      );
+      _showValidationError('Invalid Phone', 'Please enter exactly 11 digits for your phone number.');
       return;
     }
 
-    // 3. Email Validation
     if (emailInput.isEmpty) {
-      _showValidationError(
-        'Email Required',
-        'Please enter your email address.',
-      );
+      _showValidationError('Email Required', 'Please enter your email address.');
       return;
     }
 
     if (!_isValidEmailStructure(emailInput)) {
-      _showValidationError(
-        'Invalid Email Format',
-        'Please enter a valid email address with a proper domain (e.g. name@example.com).',
-      );
+      _showValidationError('Invalid Email Format', 'Please enter a valid email address with a proper domain.');
       return;
     }
 
     String? typoError = _checkEmailTypos(emailInput);
     if (typoError != null) {
-      _showValidationError(
-        'Invalid Email Provider',
-        '$typoError\nPlease check your spelling.',
-      );
+      _showValidationError('Invalid Email Provider', '$typoError\nPlease check your spelling.');
       return;
     }
 
-    // 4. Password Validation
     if (_passwordController.text.isEmpty) {
       _showValidationError('Password Required', 'Please enter a password.');
       return;
     }
 
     if (!_isValidPassword(_passwordController.text)) {
-      _showValidationError(
-        'Weak Password',
-        'Password must be at least 8 characters long.',
-      );
+      _showValidationError('Weak Password', 'Password must be at least 8 characters long.');
       return;
     }
 
-    // 5. Confirm Password Validation
     if (_confirmPasswordController.text.isEmpty) {
-      _showValidationError(
-        'Confirmation Required',
-        'Please confirm your password.',
-      );
+      _showValidationError('Confirmation Required', 'Please confirm your password.');
       return;
     }
 
     if (_passwordController.text != _confirmPasswordController.text) {
-      _showValidationError(
-        'Password Mismatch',
-        'Passwords do not match. Please check and try again.',
-      );
+      _showValidationError('Password Mismatch', 'Passwords do not match. Please check and try again.');
       return;
     }
 
-    // 6. Terms Validation
     if (!_agreeToTerms) {
-      _showValidationError(
-        'Terms Required',
-        'Please agree to the Terms & Conditions to continue.',
-      );
+      _showValidationError('Terms Required', 'Please agree to the Terms & Conditions to continue.');
       return;
     }
 
-    // Proceed to Backend
     if (_formKey.currentState!.validate()) {
       Signupuser(
         emailInput,
@@ -301,7 +259,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  // --- BACKEND LOGIC ---
+  // --- BACKEND LOGIC WITH EMAIL VERIFICATION ---
   Signupuser(
     String email,
     String pass,
@@ -318,7 +276,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: pass);
 
-      // 2. Store User Details in Firestore
+      // 2. SEND EMAIL VERIFICATION
+      if (userCredential.user != null && !userCredential.user!.emailVerified) {
+        await userCredential.user!.sendEmailVerification();
+      }
+
+      // 3. Store User Details in Firestore
+      // Note: Hum data abhi store kar rahe hain taake jab user verify karke login kare 
+      // to uska Name aur Role database mein majood ho.
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
@@ -327,18 +292,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
         'name': name,
         'email': email,
         'phone': phone,
-        'role': role, // Saves 'venue_owner' or 'customer'
+        'role': role,
         'createdAt': DateTime.now(),
-        // Note: Avoid saving password in Firestore in production for security
-        'password': pass, 
+        'isEmailVerified': false, // Initial status
+        'password': pass, // Not recommended for production security, kept as per request
       });
 
-      // 3. --- CRITICAL FIX FOR ROLE ROUTING ---
-      // Firebase by default logs in the user after signup.
-      // We immediately sign them out here. 
-      // This ensures that when they click "Login Now", they are NOT logged in,
-      // forcing them to enter credentials on LoginScreen.
-      await FirebaseAuth.instance.signOut(); 
+      // 4. Sign out immediately so user cannot access app without verifying
+      await FirebaseAuth.instance.signOut();
 
       if (!mounted) return;
 
@@ -346,7 +307,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         _isLoading = false;
       });
 
-      // 4. Show Success Popup
+      // 5. Show Verification Success Popup
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -367,14 +328,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    Icons.check_circle,
+                    Icons.mark_email_read, // Changed icon to represent email
                     color: Color(0xFFF47C20),
                     size: 50,
                   ),
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Success!',
+                  'Verify Your Email',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -383,7 +344,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Account created successfully as ${role == 'venue_owner' ? 'Venue Owner' : 'Customer'}!',
+                  'A verification link has been sent to $email.\n\nPlease check your inbox and verify your email before logging in.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
@@ -394,9 +355,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     onPressed: () {
                       Navigator.of(context).pop(); // Close Dialog
                       
-                      // 5. Navigate explicitly to Login Screen
-                      // Because we signed out above, LoginScreen will show the form
-                      // instead of auto-routing to Home.
+                      // Navigate to Login Screen
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -410,7 +369,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ),
                     child: const Text(
-                      'Login Now',
+                      'Go to Login',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -432,16 +391,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
       String errorMessage = 'An error occurred during signup.';
 
       if (e.code == 'email-already-in-use') {
-        errorMessage =
-            'This email is already registered. Please use a different email or login.';
+        errorMessage = 'This email is already registered. Please login.';
       } else if (e.code == 'weak-password') {
-        errorMessage =
-            'The password is too weak. Please use a stronger password.';
+        errorMessage = 'The password is too weak.';
       } else if (e.code == 'invalid-email') {
-        errorMessage =
-            'The email address is invalid. Please enter a valid email.';
+        errorMessage = 'The email address is invalid.';
       } else if (e.code == 'network-request-failed') {
-        errorMessage = 'Network error. Please check your internet connection.';
+        errorMessage = 'Network error. Check internet connection.';
       } else {
         errorMessage = e.message ?? 'Unknown error occurred.';
       }
