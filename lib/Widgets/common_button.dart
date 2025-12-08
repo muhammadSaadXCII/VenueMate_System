@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 class CommonButton extends StatelessWidget {
   final String text;
   final VoidCallback onTap;
-
   final IconData? icon;
   final Color? backgroundColor;
   final Color? foregroundColor;
@@ -53,8 +52,8 @@ class CommonButton extends StatelessWidget {
             Text(
               text,
               style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
                 color: foregroundColorToUse,
               ),
             ),
