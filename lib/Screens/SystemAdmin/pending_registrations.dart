@@ -66,7 +66,7 @@ class PendingRegistrationsScreen extends StatelessWidget {
                 crossAxisCount: isDesktop ? 2 : 1,
                 crossAxisSpacing: 24,
                 mainAxisSpacing: 24,
-                mainAxisExtent: 170,
+                mainAxisExtent: 155,
               ),
               itemBuilder: (context, index) {
                 return RegistrationCard(
@@ -78,7 +78,10 @@ class PendingRegistrationsScreen extends StatelessWidget {
                   imagePath: "assets/images/cardimage 2.png",
                   isDesktop: isDesktop,
                   onTap: () {
-                    AppNavigation.push(context, const ReviewRegistrationScreen());
+                    AppNavigation.push(
+                      context,
+                      const ReviewRegistrationScreen(),
+                    );
                   },
                 );
               },
@@ -134,12 +137,12 @@ class RegistrationCard extends StatelessWidget {
               child: Image.asset(
                 imagePath,
                 width: 120,
-                height: double.infinity,
+                height: 120,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     width: 120,
-                    height: double.infinity,
+                    height: 120,
                     color: Colors.grey[200],
                     child: const Icon(Icons.image, color: Colors.grey),
                   );
@@ -151,6 +154,7 @@ class RegistrationCard extends StatelessWidget {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     hallName,
@@ -204,7 +208,7 @@ class RegistrationCard extends StatelessWidget {
                     ],
                   ),
 
-                  const Spacer(),
+                  const SizedBox(height: 8),
 
                   Align(
                     alignment: Alignment.bottomRight,
