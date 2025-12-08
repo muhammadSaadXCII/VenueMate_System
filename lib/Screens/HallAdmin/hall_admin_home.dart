@@ -313,7 +313,7 @@ class HallAdminHomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 36, color: const Color(0xFF1D1D1D)),
+            Icon(icon, size: 40, color: const Color(0xFF1D1D1D)),
             const SizedBox(height: 8),
             Text(
               title,

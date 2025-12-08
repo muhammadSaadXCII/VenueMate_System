@@ -55,28 +55,24 @@ class _SystemAdminHomeState extends State<SystemAdminHome> {
                       children: [
                         _buildSidebarHeader(),
                         const SizedBox(height: 20),
-
                         _SidebarItem(
                           icon: Icons.dashboard_outlined,
                           label: "Dashboard",
                           isActive: _selectedIndex == 0,
                           onTap: () => setState(() => _selectedIndex = 0),
                         ),
-
                         _SidebarItem(
                           icon: Icons.account_balance_outlined,
                           label: "Manage Halls",
                           isActive: _selectedIndex == 1,
                           onTap: () => setState(() => _selectedIndex = 1),
                         ),
-
                         _SidebarItem(
                           icon: Icons.people_outline,
                           label: "Manage Users",
                           isActive: _selectedIndex == 2,
                           onTap: () => setState(() => _selectedIndex = 2),
                         ),
-
                         _SidebarItem(
                           icon: Icons.notifications_outlined,
                           label: "Notifications",
@@ -84,9 +80,7 @@ class _SystemAdminHomeState extends State<SystemAdminHome> {
                           showBadge: true,
                           onTap: () => setState(() => _selectedIndex = 3),
                         ),
-
                         const Expanded(child: SizedBox(height: 40)),
-
                         _SidebarItem(
                           icon: Icons.logout,
                           label: "Logout",
@@ -102,7 +96,6 @@ class _SystemAdminHomeState extends State<SystemAdminHome> {
             },
           ),
         ),
-
         Expanded(child: _getSelectedScreen()),
       ],
     );
@@ -147,29 +140,27 @@ class _SystemAdminHomeState extends State<SystemAdminHome> {
                 ActionCard(
                   title: "4 Pending Registrations",
                   subtitle: "Review submissions",
-                  icon: Icons.description_outlined,
+                  imagePath: 'assets/images/pendingLogo.png',
                   iconColor: Colors.amber,
                   borderColor: Colors.amber,
                   secondaryIcon: Icons.access_time_filled,
                   isDesktop: false,
-                  onTap:
-                      () => AppNavigation.push(
-                        context,
-                        const PendingRegistrationsScreen(),
-                      ),
+                  onTap: () => AppNavigation.push(
+                    context,
+                    const PendingRegistrationsScreen(),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 ActionCard(
                   title: "2 New Complaints",
                   subtitle: "Resolve issues",
-                  icon: Icons.assignment_late_outlined,
+                  imagePath: 'assets/images/complaintsLogo.png',
                   iconColor: Colors.redAccent,
                   borderColor: Colors.redAccent,
                   secondaryIcon: Icons.warning,
                   isDesktop: false,
-                  onTap:
-                      () =>
-                          AppNavigation.push(context, const ComplaintsScreen()),
+                  onTap: () =>
+                      AppNavigation.push(context, const ComplaintsScreen()),
                 ),
                 const SizedBox(height: 32),
                 const Text(
@@ -188,28 +179,28 @@ class _SystemAdminHomeState extends State<SystemAdminHome> {
                     StatCard(
                       count: "150",
                       label: "Total Halls",
-                      icon: Icons.store,
+                      imagePath: 'assets/images/hallpic.png',
                       color: Colors.blue,
                       isDesktop: false,
                     ),
                     StatCard(
                       count: "500",
                       label: "Total Users",
-                      icon: Icons.group,
+                      imagePath: 'assets/images/users.png',
                       color: Colors.purple,
                       isDesktop: false,
                     ),
                     StatCard(
                       count: "320",
                       label: "Bookings",
-                      icon: Icons.calendar_today,
+                      imagePath: 'assets/images/bookcalendar.png',
                       color: Colors.orange,
                       isDesktop: false,
                     ),
                     StatCard(
                       count: "15",
                       label: "Cancelled",
-                      icon: Icons.cancel,
+                      imagePath: 'assets/images/cancelfile.png',
                       color: Colors.red,
                       isDesktop: false,
                     ),
@@ -221,25 +212,23 @@ class _SystemAdminHomeState extends State<SystemAdminHome> {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
+
                 _MobileManagementTile(
                   title: "Manage All Halls",
-                  icon: Icons.account_balance,
-                  onTap:
-                      () => AppNavigation.push(
-                        context,
-                        const ManageAllHallsScreen(),
-                      ),
+                  imagePath: 'assets/images/hallpic.png',
+                  onTap: () =>
+                      AppNavigation.push(context, const ManageAllHallsScreen()),
                 ),
+
                 const SizedBox(height: 12),
+
                 _MobileManagementTile(
                   title: "Manage All Users",
-                  icon: Icons.people,
-                  onTap:
-                      () => AppNavigation.push(
-                        context,
-                        const ManageAllUsersScreen(),
-                      ),
+                  imagePath: 'assets/images/users.png',
+                  onTap: () =>
+                      AppNavigation.push(context, const ManageAllUsersScreen()),
                 ),
+
                 const SizedBox(height: 40),
               ],
             ),
@@ -301,7 +290,7 @@ class _DashboardContent extends StatelessWidget {
                     child: ActionCard(
                       title: "4 Pending",
                       subtitle: "Registrations",
-                      icon: Icons.description_outlined,
+                      imagePath: 'assets/images/pendingLogo.png',
                       iconColor: Colors.amber,
                       borderColor: Colors.amber,
                       secondaryIcon: Icons.access_time_filled,
@@ -314,7 +303,7 @@ class _DashboardContent extends StatelessWidget {
                     child: ActionCard(
                       title: "2 Complaints",
                       subtitle: "Need Review",
-                      icon: Icons.assignment_late_outlined,
+                      imagePath: 'assets/images/complaintsLogo.png',
                       iconColor: Colors.redAccent,
                       borderColor: Colors.redAccent,
                       secondaryIcon: Icons.warning,
@@ -345,25 +334,25 @@ class _DashboardContent extends StatelessWidget {
                     {
                       'count': "150",
                       'label': "Total Halls",
-                      'icon': Icons.store,
+                      'imagePath': 'assets/images/hallpic.png',
                       'color': Colors.blue,
                     },
                     {
                       'count': "500",
                       'label': "Active Users",
-                      'icon': Icons.group,
+                      'imagePath': 'assets/images/users.png',
                       'color': Colors.purple,
                     },
                     {
                       'count': "320",
                       'label': "Bookings",
-                      'icon': Icons.calendar_today,
+                      'imagePath': 'assets/images/bookcalendar.png',
                       'color': Colors.orange,
                     },
                     {
                       'count': "12",
                       'label': "Cancelled",
-                      'icon': Icons.cancel_presentation,
+                      'imagePath': 'assets/images/cancelfile.png',
                       'color': Colors.red,
                     },
                   ];
@@ -371,7 +360,7 @@ class _DashboardContent extends StatelessWidget {
                   return StatCard(
                     count: stat['count'] as String,
                     label: stat['label'] as String,
-                    icon: stat['icon'] as IconData,
+                    imagePath: stat['imagePath'] as String,
                     color: stat['color'] as Color,
                     isDesktop: true,
                   );
@@ -409,7 +398,7 @@ class _DashboardContent extends StatelessWidget {
 class StatCard extends StatelessWidget {
   final String count;
   final String label;
-  final IconData icon;
+  final String imagePath;
   final Color color;
   final bool isDesktop;
 
@@ -417,7 +406,7 @@ class StatCard extends StatelessWidget {
     super.key,
     required this.count,
     required this.label,
-    required this.icon,
+    required this.imagePath,
     required this.color,
     required this.isDesktop,
   });
@@ -437,78 +426,88 @@ class StatCard extends StatelessWidget {
           ),
         ],
       ),
-      child:
-          isDesktop
-              ? Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
+      child: isDesktop
+          ? Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Image.asset(
+                    imagePath,
+                    width: 25,
+                    height: 25,
+                    color: color,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      count,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1D1D1D),
+                        height: 1.0,
+                      ),
                     ),
-                    child: Icon(icon, size: 24, color: color),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        count,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1D1D1D),
-                          height: 1.0,
-                        ),
+                    const SizedBox(height: 2),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              )
-              : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(icon, size: 28, color: color),
+                  ],
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        count,
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF1D1D1D),
-                          height: 1.0,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        label,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                    ],
+                  child: Image.asset(
+                    imagePath,
+                    width: 28,
+                    height: 28,
+                    color: color,
                   ),
-                ],
-              ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      count,
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1D1D1D),
+                        height: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      label,
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }
@@ -516,7 +515,7 @@ class StatCard extends StatelessWidget {
 class ActionCard extends StatelessWidget {
   final String title;
   final String subtitle;
-  final IconData icon;
+  final String imagePath;
   final Color iconColor;
   final Color borderColor;
   final IconData secondaryIcon;
@@ -527,7 +526,7 @@ class ActionCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.subtitle,
-    required this.icon,
+    required this.imagePath,
     required this.iconColor,
     required this.borderColor,
     required this.secondaryIcon,
@@ -562,7 +561,12 @@ class ActionCard extends StatelessWidget {
                 color: iconColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: iconColor, size: 28),
+              child: Image.asset(
+                imagePath,
+                width: 45,
+                height: 45,
+                fit: BoxFit.contain,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -616,33 +620,30 @@ class _SidebarItem extends StatelessWidget {
       onTap: onTap,
       leading: Icon(
         icon,
-        color:
-            isDestructive
-                ? Colors.red
-                : (isActive ? const Color(0xFFF47C20) : Colors.grey[600]),
+        color: isDestructive
+            ? Colors.red
+            : (isActive ? const Color(0xFFF47C20) : Colors.grey[600]),
         size: 22,
       ),
       title: Text(
         label,
         style: TextStyle(
           fontSize: 14,
-          color:
-              isDestructive
-                  ? Colors.red
-                  : (isActive ? const Color(0xFFF47C20) : Colors.grey[800]),
+          color: isDestructive
+              ? Colors.red
+              : (isActive ? const Color(0xFFF47C20) : Colors.grey[800]),
           fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
         ),
       ),
-      trailing:
-          showBadge
-              ? badges.Badge(
-                badgeContent: const Text(
-                  '3',
-                  style: TextStyle(color: Colors.white, fontSize: 10),
-                ),
-                badgeStyle: const badges.BadgeStyle(badgeColor: Colors.red),
-              )
-              : null,
+      trailing: showBadge
+          ? badges.Badge(
+              badgeContent: const Text(
+                '3',
+                style: TextStyle(color: Colors.white, fontSize: 10),
+              ),
+              badgeStyle: const badges.BadgeStyle(badgeColor: Colors.red),
+            )
+          : null,
       contentPadding: const EdgeInsets.symmetric(horizontal: 24),
       selected: isActive,
       selectedTileColor: const Color(0xFFFEA845).withOpacity(0.1),
@@ -652,12 +653,13 @@ class _SidebarItem extends StatelessWidget {
 
 class _MobileManagementTile extends StatelessWidget {
   final String title;
-  final IconData icon;
+
+  final String imagePath;
   final VoidCallback onTap;
 
   const _MobileManagementTile({
     required this.title,
-    required this.icon,
+    required this.imagePath,
     required this.onTap,
   });
 
@@ -671,11 +673,16 @@ class _MobileManagementTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: Colors.grey.shade300),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 28, color: Colors.grey[700]),
+            Image.asset(
+              imagePath,
+              width: 30,
+              height: 30,
+              color: Colors.grey[700],
+            ),
             const SizedBox(width: 16),
             Text(
               title,
@@ -724,11 +731,10 @@ class _AdminHeaderMobile extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               GestureDetector(
-                onTap:
-                    () => AppNavigation.push(
-                      context,
-                      const UserNotificationsScreen(),
-                    ),
+                onTap: () => AppNavigation.push(
+                  context,
+                  const UserNotificationsScreen(),
+                ),
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: const BoxDecoration(
