@@ -147,10 +147,10 @@ class _RejectPaymentScreenState extends State<RejectPaymentScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFFEA845), width: 1.5),
+                border: Border.all(color: const Color(0xFFF47C20), width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFFEA845).withOpacity(0.1),
+                    color: const Color(0xFFF47C20).withOpacity(0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -190,7 +190,7 @@ class _RejectPaymentScreenState extends State<RejectPaymentScreen> {
           color: isSelected ? const Color(0xFFFFF8EC) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFEA845) : Colors.grey.shade200,
+            color: isSelected ? const Color(0xFFF47C20) : Colors.grey.shade200,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -202,11 +202,11 @@ class _RejectPaymentScreenState extends State<RejectPaymentScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isSelected
-                    ? const Color(0xFFFEA845)
+                    ? const Color(0xFFF47C20)
                     : Colors.transparent,
                 border: Border.all(
                   color: isSelected
-                      ? const Color(0xFFFEA845)
+                      ? const Color(0xFFF47C20)
                       : Colors.grey.shade400,
                   width: 2,
                 ),
@@ -249,7 +249,7 @@ class _RejectPaymentScreenState extends State<RejectPaymentScreen> {
         }
       },
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFFEA845),
+        backgroundColor: const Color(0xFFF47C20),
         foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 2,

@@ -217,7 +217,7 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
                                   child: ElevatedButton(
                                     onPressed: _nextStep,
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFF58529),
+                                      backgroundColor: const Color(0xFFF47C20),
                                       foregroundColor: Colors.white,
                                       elevation: 0,
                                       shape: RoundedRectangleBorder(
@@ -528,14 +528,7 @@ class _ItemsServicesStepState extends State<ItemsServicesStep> {
             height: 35,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              gradient: isAdded
-                  ? null
-                  : const LinearGradient(
-                      colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-              color: isAdded ? Colors.redAccent : null,
+              color: isAdded ? Colors.redAccent : Color(0xFFF47C20),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -613,7 +606,7 @@ class ReviewSaveStep extends StatelessWidget {
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF58529),
+              backgroundColor: const Color(0xFFF47C20),
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -645,7 +638,7 @@ class ReviewSaveStep extends StatelessWidget {
           icon: Icons.monetization_on_outlined,
           label: "Total Price",
           value: "Rs. 30,000",
-          valueColor: Color(0xFFF58529),
+          valueColor: Color(0xFFF47C20),
         ),
         _ReviewRow(
           icon: Icons.description_outlined,
@@ -760,7 +753,7 @@ class ReviewSaveStep extends StatelessWidget {
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,
-              color: Color(0xFFF58529),
+              color: Color(0xFFF47C20),
             ),
           ),
         ],
@@ -906,11 +899,11 @@ class _ReviewCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFFF58529),
+                          color: Color(0xFFF47C20),
                         ),
                       ),
                       SizedBox(width: 4),
-                      Icon(Icons.edit, size: 12, color: Color(0xFFF58529)),
+                      Icon(Icons.edit, size: 12, color: Color(0xFFF47C20)),
                     ],
                   ),
                 ),

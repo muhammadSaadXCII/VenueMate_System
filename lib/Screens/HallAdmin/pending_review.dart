@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart';
+import 'package:venuemate_system/Widgets/common_button.dart';
 
 class PendingReviewScreen extends StatelessWidget {
   const PendingReviewScreen({super.key});
@@ -19,46 +20,11 @@ class PendingReviewScreen extends StatelessWidget {
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(30.0),
-        child: GestureDetector(
-          onTap: () {
-            AppNavigation.push(context, HallAdminRootLayout());
-          },
-          child: Container(
-            width: double.infinity,
-            height: 55,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
-              ),
-              borderRadius: BorderRadius.circular(25),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.orange.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.refresh, color: Colors.white),
-                SizedBox(width: 8),
-                Text(
-                  "Refresh Status",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        child: CommonButton(
+          onTap: ()=> AppNavigation.push(context, HallAdminRootLayout()),
+          text: "Refresh Status",
+          icon: Icons.refresh_outlined,
+        )
       ),
       body: Center(
         child: Padding(

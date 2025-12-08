@@ -15,7 +15,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _pushNotifications = true;
   bool _isDarkMode = false;
-  final Color _activeThemeColor = const Color(0xFFF58529);
+  final Color _activeThemeColor = const Color(0xFFF47C20);
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +78,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                             child: const Icon(
                               Icons.palette_outlined,
-                              color: Color(0xFFF58529),
+                              color: Color(0xFFF47C20),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -322,7 +322,7 @@ class _SettingsTile extends StatelessWidget {
           color: const Color(0xFFFFF3E0),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: const Color(0xFFF58529), size: 22),
+        child: Icon(icon, color: const Color(0xFFF47C20), size: 22),
       ),
       title: Text(
         title,
@@ -358,14 +358,14 @@ class _SwitchTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return SwitchListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      activeColor: const Color(0xFFF58529),
+      activeColor: const Color(0xFFF47C20),
       secondary: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: const Color(0xFFFFF3E0),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: const Color(0xFFF58529), size: 22),
+        child: Icon(icon, color: const Color(0xFFF47C20), size: 22),
       ),
       title: Text(
         title,

@@ -13,11 +13,20 @@ class ManageHallDetailsScreen extends StatefulWidget {
 class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
   int _currentImageIndex = 0;
 
+  late String _hallStatus;
+
   final List<String> _hallImages = [
     "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
     "https://images.unsplash.com/photo-1519741497674-611481863552?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
     "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
   ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _hallStatus = widget.hall['status'] ?? "Approved";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -255,9 +264,7 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
   }
 
   Widget _buildStatusBadge() {
-    bool isApproved = widget.hall['status'] == "Approved";
-
-    isApproved = true;
+    final isApproved = _hallStatus == "Approved";
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -336,7 +343,7 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.grey.shade200),
             ),
-            child: Icon(icon, color: Colors.orange, size: 20),
+            child: Icon(icon, color: Color(0xFFF47C20), size: 20),
           ),
           const SizedBox(width: 16),
           Column(
@@ -370,7 +377,7 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
       ),
       child: Column(
         children: [
-          Icon(icon, color: Colors.orange, size: 24),
+          Icon(icon, color: Color(0xFFF47C20), size: 24),
           const SizedBox(height: 8),
           Text(
             value,
@@ -405,7 +412,7 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
             child: const Text(
               "RH",
               style: TextStyle(
-                color: Colors.orange,
+                color: Color(0xFFF47C20),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -491,7 +498,7 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
               Text(
                 "PK35 MEZN **** **** 1234",
                 style: TextStyle(
-                  fontSize:13 ,
+                  fontSize: 13,
                   fontFamily: 'monospace',
                   color: Colors.grey[600],
                 ),
@@ -504,15 +511,27 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
   }
 
   Widget _buildActionButtons({required bool isDesktop}) {
+    final bool isDisabled = _hallStatus == "Disabled";
+
+    final IconData icon = isDisabled ? Icons.check_circle_outline : Icons.block;
+    final String label = isDisabled ? "Activate Hall" : "Disable Hall";
+    final Color color = isDisabled ? Color(0xFFF47C20) : Color(0xFFD92D20);
+
+    void onButtonPressed() {
+      setState(() {
+        _hallStatus = isDisabled ? "Approved" : "Disabled";
+      });
+    }
+
     return SizedBox(
       width: double.infinity,
       height: 54,
       child: ElevatedButton.icon(
-        onPressed: () {},
-        icon: const Icon(Icons.block),
-        label: const Text("Disable Hall"),
+        onPressed: onButtonPressed,
+        icon: Icon(icon),
+        label: Text(label),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.redAccent,
+          backgroundColor: color,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(

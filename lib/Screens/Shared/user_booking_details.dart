@@ -95,7 +95,7 @@ class UserBookingDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildHallHeader() {
-    const Color primaryOrange = Color(0xFFF58529);
+    const Color primaryOrange = Color(0xFFF47C20);
     const Color textDark = Color(0xFF1F2937);
 
     return Container(
@@ -212,7 +212,7 @@ class UserBookingDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildPaymentSummaryCard() {
-    const Color primaryOrange = Color(0xFFF58529);
+    const Color primaryOrange = Color(0xFFF47C20);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -288,14 +288,14 @@ class UserBookingDetailsScreen extends StatelessWidget {
                 Text(
                   "Remaining Payment",
                   style: TextStyle(
-                    color: Color(0xFFE65100),
+                    color: Color(0xFFF47C20),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
                   "Rs. 21,000",
                   style: TextStyle(
-                    color: Color(0xFFE65100),
+                    color: Color(0xFFF47C20),
                     fontWeight: FontWeight.w900,
                     fontSize: 18,
                   ),

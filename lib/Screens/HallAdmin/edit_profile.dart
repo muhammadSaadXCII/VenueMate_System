@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Widgets/common_button.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -78,14 +78,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                 SizedBox(
                   width: isDesktop ? 400 : double.infinity,
-                  child: GradientButton(
+                  child: CommonButton(
                     text: "Save Changes",
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Profile Updated Successfully!"),
-                        ),
-                      );
+                      Navigator.pop(context);
                     },
                   ),
                 ),
@@ -107,7 +103,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
-                colors: [Color(0xFFFB8C00), Color(0xFFFFCC80)],
+                colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -142,7 +138,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 child: const Icon(
                   Icons.camera_alt_outlined,
-                  color: Color(0xFFF58529),
+                  color: Color(0xFFF47C20),
                   size: 22,
                 ),
               ),
@@ -282,7 +278,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(
-                  color: Color(0xFFF58529),
+                  color: Color(0xFFF97316),
                   width: 1.5,
                 ),
               ),

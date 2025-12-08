@@ -154,7 +154,7 @@ class ChatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color badgeColor = Color(0xFFEF8628);
+    const Color badgeColor = Color(0xFFF47C20);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
@@ -360,7 +360,7 @@ class _ChattingScreenState extends State<ChattingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryOrange = Color(0xFFF59E54);
+    const Color primaryOrange = Color(0xFFF47C20);
 
     return Scaffold(
       backgroundColor: Colors.white,

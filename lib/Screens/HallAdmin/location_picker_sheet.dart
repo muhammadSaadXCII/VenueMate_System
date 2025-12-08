@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Widgets/common_button.dart';
 
 class LocationPickerSheet extends StatefulWidget {
   const LocationPickerSheet({super.key});
@@ -105,18 +105,19 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                           ),
                         ],
                       ),
-                      child: _isLoading
-                          ? const Padding(
-                              padding: EdgeInsets.all(12.0),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFFF58529),
+                      child:
+                          _isLoading
+                              ? const Padding(
+                                padding: EdgeInsets.all(12.0),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFFF47C20),
+                                ),
+                              )
+                              : const Icon(
+                                Icons.my_location,
+                                color: Color(0xFFF47C20),
                               ),
-                            )
-                          : const Icon(
-                              Icons.my_location,
-                              color: Color(0xFFF58529),
-                            ),
                     ),
                   ),
                 ),
@@ -152,7 +153,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                   children: [
                     const Icon(
                       Icons.location_on_outlined,
-                      color: Color(0xFFF58529),
+                      color: Color(0xFFF47C20),
                       size: 20,
                     ),
                     const SizedBox(width: 8),
@@ -177,7 +178,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                 ),
                 const SizedBox(height: 20),
 
-                GradientButton(
+                CommonButton(
                   text: "Confirm Location",
                   onTap: () {
                     Navigator.pop(context, {

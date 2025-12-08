@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
-import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Widgets/common_button.dart';
 import 'package:venuemate_system/Screens/Shared/user_booking_details.dart';
 import 'package:venuemate_system/Screens/HallAdmin/view_receipt_sheet.dart';
 import 'package:venuemate_system/Screens/HallAdmin/manage_refund_sheet.dart';
@@ -62,11 +62,7 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
               indicatorSize: TabBarIndicatorSize.tab,
               dividerColor: Colors.transparent,
               indicator: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+                color: Color(0xFFF47C20),
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
@@ -295,7 +291,7 @@ class _BookingCard extends StatelessWidget {
                             Icon(
                               Icons.calendar_today,
                               size: 12,
-                              color: Colors.orange[800],
+                              color: Color(0xFFF47C20),
                             ),
                             const SizedBox(width: 4),
                             const Text(
@@ -380,7 +376,7 @@ class _BookingCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: GradientButton(
+                  child: CommonButton(
                     text: primaryButtonLabel,
                     onTap: onPrimaryButtonTap,
                   ),

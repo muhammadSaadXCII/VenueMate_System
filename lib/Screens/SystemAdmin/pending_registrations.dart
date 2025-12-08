@@ -16,8 +16,8 @@ class PendingRegistrationsScreen extends StatelessWidget {
     final horizontalPadding = isDesktop
         ? screenWidth * 0.15
         : isTablet
-            ? 40.0
-            : 20.0;
+        ? 40.0
+        : 20.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -41,7 +41,7 @@ class PendingRegistrationsScreen extends StatelessWidget {
                 text: "$pendingCount ",
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFF58529),
+                  color: Color(0xFFF47C20),
                 ),
               ),
               const TextSpan(
@@ -75,8 +75,7 @@ class PendingRegistrationsScreen extends StatelessWidget {
                       : "Akbar Marquee & Marriage Hall",
                   submittedBy: "Rehman Hussain",
                   date: "31 Oct, 2025",
-                  // Yahan apna asset path dein
-                  imagePath: "assets/images/cardimage 2.png", 
+                  imagePath: "assets/images/cardimage 2.png",
                   isDesktop: isDesktop,
                   onTap: () {
                     AppNavigation.push(context, const ReviewRegistrationScreen());
@@ -95,7 +94,7 @@ class RegistrationCard extends StatelessWidget {
   final String hallName;
   final String submittedBy;
   final String date;
-  final String imagePath; // Renamed from imageUrl
+  final String imagePath;
   final bool isDesktop;
   final VoidCallback onTap;
 
@@ -104,7 +103,7 @@ class RegistrationCard extends StatelessWidget {
     required this.hallName,
     required this.submittedBy,
     required this.date,
-    required this.imagePath, // Renamed
+    required this.imagePath,
     required this.isDesktop,
     required this.onTap,
   });
@@ -132,7 +131,6 @@ class RegistrationCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              // CHANGED: Image.network -> Image.asset
               child: Image.asset(
                 imagePath,
                 width: 120,
@@ -216,7 +214,7 @@ class RegistrationCard extends StatelessWidget {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF58529).withOpacity(0.1),
+                        color: const Color(0xFFF47C20).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: const Color(0xFFF58529).withOpacity(0.3),
@@ -230,14 +228,14 @@ class RegistrationCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFFF58529),
+                              color: Color(0xFFF47C20),
                             ),
                           ),
                           SizedBox(width: 4),
                           Icon(
                             Icons.arrow_forward,
                             size: 16,
-                            color: Color(0xFFF58529),
+                            color: Color(0xFFF47C20),
                           ),
                         ],
                       ),

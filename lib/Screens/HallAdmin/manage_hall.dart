@@ -407,12 +407,12 @@ class _ManageHallScreenState extends State<ManageHallScreen> {
             padding: EdgeInsets.all(8.0),
             child: Row(
               children: [
-                Icon(Icons.edit, size: 16, color: Color(0xFFF58529)),
+                Icon(Icons.edit, size: 16, color: Color(0xFFF47C20)),
                 SizedBox(width: 4),
                 Text(
                   "Edit",
                   style: TextStyle(
-                    color: Color(0xFFF58529),
+                    color: Color(0xFFF47C20),
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),

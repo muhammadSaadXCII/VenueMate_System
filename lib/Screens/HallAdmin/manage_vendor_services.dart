@@ -95,14 +95,14 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
                               children: [
                                 Icon(
                                   Icons.add_circle_outline,
-                                  color: Color(0xFFF58529),
+                                  color: Color(0xFFF47C20),
                                   size: 26,
                                 ),
                                 SizedBox(width: 10),
                                 Text(
                                   "Add New Service",
                                   style: TextStyle(
-                                    color: Color(0xFFF58529),
+                                    color: Color(0xFFF47C20),
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -265,7 +265,7 @@ class ServiceCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Color(0xFFF58529),
+              color: Color(0xFFF47C20),
             ),
           ),
         ],

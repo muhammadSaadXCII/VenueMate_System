@@ -79,7 +79,7 @@ class ComplaintDetailsScreen extends StatelessWidget {
                         child: ElevatedButton(
                           onPressed: () => _openResolveSheet(context),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFEA845),
+                            backgroundColor: const Color(0xFFF47C20),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -149,7 +149,7 @@ class ComplaintDetailsScreen extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () => _openResolveSheet(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFEA845),
+                  backgroundColor: const Color(0xFFF47C20),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

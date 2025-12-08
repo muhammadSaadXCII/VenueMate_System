@@ -295,7 +295,7 @@ class ReviewRegistrationScreen extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       decoration: _cardDecoration().copyWith(
         border: Border.all(
-          color: const Color(0xFFFEA845).withOpacity(0.3),
+          color: const Color(0xFFF47C20).withOpacity(0.3),
           width: 1.5,
         ),
         color: const Color(0xFFFFF8F0),
@@ -322,11 +322,11 @@ class ReviewRegistrationScreen extends StatelessWidget {
                   },
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: const BorderSide(color: Colors.redAccent),
+                    side: const BorderSide(color: Color(0xFFD92D20)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    foregroundColor: Colors.redAccent,
+                    foregroundColor: Color(0xFFD92D20),
                   ),
                   child: const Text(
                     "Reject",
@@ -340,7 +340,7 @@ class ReviewRegistrationScreen extends StatelessWidget {
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0xFFFEA845),
+                    backgroundColor: const Color(0xFFF47C20),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -383,11 +383,11 @@ class ReviewRegistrationScreen extends StatelessWidget {
                   AppNavigation.push(context, RejectRegistrationScreen());
                 },
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.redAccent),
+                  side: const BorderSide(color: Color(0xFFD92D20)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  foregroundColor: Colors.redAccent,
+                  foregroundColor: Color(0xFFD92D20),
                 ),
                 child: const Text(
                   "Reject",
@@ -403,7 +403,7 @@ class ReviewRegistrationScreen extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFEA845),
+                  backgroundColor: const Color(0xFFF47C20),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

@@ -1,8 +1,30 @@
 import 'package:flutter/material.dart';
 
-class ManageUserDetailsScreen extends StatelessWidget {
+class ManageUserDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> user;
   const ManageUserDetailsScreen({super.key, required this.user});
+
+  @override
+  State<ManageUserDetailsScreen> createState() =>
+      _ManageUserDetailsScreenState();
+}
+
+class _ManageUserDetailsScreenState extends State<ManageUserDetailsScreen> {
+  late bool _isUserActive;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _isUserActive =
+        widget.user['status'] == 'Active' || widget.user['status'] == null;
+  }
+
+  void _toggleUserStatus() {
+    setState(() {
+      _isUserActive = !_isUserActive;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,16 +73,18 @@ class ManageUserDetailsScreen extends StatelessWidget {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      _ProfileCard(isDesktop: true, user: user),
+                      _ProfileCard(
+                        isDesktop: true,
+                        user: widget.user,
+                        isActive: _isUserActive,
+                      ),
                       const SizedBox(height: 24),
-                      _ContactSection(isDesktop: true, user: user),
+                      _ContactSection(isDesktop: true, user: widget.user),
                     ],
                   ),
                 ),
               ),
-
               const SizedBox(width: 32),
-
               Expanded(
                 flex: 6,
                 child: SingleChildScrollView(
@@ -68,7 +92,6 @@ class ManageUserDetailsScreen extends StatelessWidget {
                     children: [
                       _StatsCard(isDesktop: true),
                       const SizedBox(height: 24),
-
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: _cardDecoration(),
@@ -84,7 +107,9 @@ class ManageUserDetailsScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              "Deactivating this account will prevent the user from logging in or making new bookings. Existing bookings will remain active.",
+                              _isUserActive
+                                  ? "Deactivating this account will prevent the user from logging in or making new bookings. Existing bookings will remain active."
+                                  : "Activating this account will restore the user's login access and ability to make new bookings.",
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey[600],
@@ -94,11 +119,17 @@ class ManageUserDetailsScreen extends StatelessWidget {
                             const SizedBox(height: 24),
                             SizedBox(
                               width: double.infinity,
-                              child: _GradientButton(
-                                text: "Deactivate Account",
-                                icon: Icons.block,
+                              child: _ActionButton(
+                                text: _isUserActive
+                                    ? "Deactivate Account"
+                                    : "Activate Account",
+                                icon: _isUserActive
+                                    ? Icons.block
+                                    : Icons.check_circle_outline,
                                 isDesktop: true,
-                                onTap: () {},
+
+                                isDeactivateButton: _isUserActive,
+                                onTap: _toggleUserStatus,
                               ),
                             ),
                           ],
@@ -123,15 +154,18 @@ class ManageUserDetailsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ProfileCard(isDesktop: false, user: user),
+              _ProfileCard(
+                isDesktop: false,
+                user: widget.user,
+                isActive: _isUserActive,
+              ),
               const SizedBox(height: 24),
-              _ContactSection(isDesktop: false, user: user),
+              _ContactSection(isDesktop: false, user: widget.user),
               const SizedBox(height: 24),
               _StatsCard(isDesktop: false),
             ],
           ),
         ),
-
         Positioned(
           left: 0,
           right: 0,
@@ -148,11 +182,13 @@ class ManageUserDetailsScreen extends StatelessWidget {
                 ),
               ],
             ),
-            child: _GradientButton(
-              text: "Deactivate Account",
-              icon: Icons.block,
+            child: _ActionButton(
+              text: _isUserActive ? "Deactivate Account" : "Activate Account",
+              icon: _isUserActive ? Icons.block : Icons.check_circle_outline,
               isDesktop: false,
-              onTap: () {},
+
+              isDeactivateButton: _isUserActive,
+              onTap: _toggleUserStatus,
             ),
           ),
         ),
@@ -161,14 +197,80 @@ class ManageUserDetailsScreen extends StatelessWidget {
   }
 }
 
-class _ProfileCard extends StatelessWidget {
+class _ActionButton extends StatelessWidget {
+  final String text;
+  final IconData icon;
   final bool isDesktop;
-  final Map<String, dynamic> user;
 
-  const _ProfileCard({required this.isDesktop, required this.user});
+  final bool isDeactivateButton;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.text,
+    required this.icon,
+    required this.isDesktop,
+    required this.isDeactivateButton,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final Color buttonColor = isDeactivateButton
+        ? Color(0xFFD92D20)
+        : Color(0xFFF47C20);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 56,
+        decoration: BoxDecoration(
+          color: buttonColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: buttonColor.withOpacity(0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 22),
+            const SizedBox(width: 8),
+            Text(
+              text,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileCard extends StatelessWidget {
+  final bool isDesktop;
+  final Map<String, dynamic> user;
+  final bool isActive;
+
+  const _ProfileCard({
+    required this.isDesktop,
+    required this.user,
+    required this.isActive,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final String statusText = isActive ? "● Active" : "● Deactivated";
+    final Color statusColor = isActive ? Color(0xFFF47C20) : Colors.redAccent;
+
     return Center(
       child: Container(
         padding: EdgeInsets.all(isDesktop ? 32 : 24),
@@ -180,7 +282,7 @@ class _ProfileCard extends StatelessWidget {
               height: isDesktop ? 120 : 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFFEA845), width: 3),
+                border: Border.all(color: statusColor, width: 3),
               ),
               child: ClipOval(
                 child: Image.network(
@@ -211,19 +313,20 @@ class _ProfileCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
+
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: statusColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.green.withOpacity(0.2)),
+                border: Border.all(color: statusColor.withOpacity(0.2)),
               ),
-              child: const Text(
-                "● Active",
+              child: Text(
+                statusText,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: Colors.green,
+                  color: statusColor,
                 ),
               ),
             ),
@@ -312,7 +415,7 @@ class _StatsCard extends StatelessWidget {
                   _StatItem(
                     count: "1",
                     label: "Upcoming",
-                    color: const Color(0xFFFEA845),
+                    color: const Color(0xFFF47C20),
                     icon: Icons.calendar_today,
                   ),
                   _StatItem(
@@ -376,7 +479,7 @@ class _ContactTile extends StatelessWidget {
             color: Colors.black87,
           ),
         ),
-        trailing: Icon(actionIcon, color: const Color(0xFFFEA845), size: 20),
+        trailing: Icon(actionIcon, color: const Color(0xFFF47C20), size: 20),
       ),
     );
   }
@@ -415,59 +518,6 @@ class _StatItem extends StatelessWidget {
           ),
           Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
-      ),
-    );
-  }
-}
-
-class _GradientButton extends StatelessWidget {
-  final String text;
-  final IconData icon;
-  final bool isDesktop;
-  final VoidCallback onTap;
-
-  const _GradientButton({
-    required this.text,
-    required this.icon,
-    required this.isDesktop,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 56,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
-          ),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFFEA845).withOpacity(0.4),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 22),
-            const SizedBox(width: 8),
-            Text(
-              text,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Widgets/common_button.dart';
 import 'package:venuemate_system/Screens/Shared/file_complaint.dart';
 import 'package:venuemate_system/Screens/Shared/user_complaint_details.dart';
 
@@ -113,36 +113,35 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
         },
       ),
 
-      bottomNavigationBar: MediaQuery.of(context).size.width < 700
-          ? Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
-              ),
-              child: GradientButton(
-                text: "File New Complaint",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => FileComplaintScreen(),
-                    ),
-                  );
-                },
-              ),
-            )
-          : null,
+      bottomNavigationBar:
+          MediaQuery.of(context).size.width < 700
+              ? Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+                ),
+                child: CommonButton(
+                  text: "File New Complaint",
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FileComplaintScreen(),
+                      ),
+                    );
+                  },
+                ),
+              )
+              : null,
     );
   }
 
   Widget _buildDesktopLayout() {
-    final pendingTickets = _allTickets
-        .where((t) => t['status'] != 'Resolved')
-        .toList();
-    final resolvedTickets = _allTickets
-        .where((t) => t['status'] == 'Resolved')
-        .toList();
+    final pendingTickets =
+        _allTickets.where((t) => t['status'] != 'Resolved').toList();
+    final resolvedTickets =
+        _allTickets.where((t) => t['status'] == 'Resolved').toList();
 
     return Row(
       children: [
@@ -177,10 +176,7 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
-                  tabs: const [
-                    Tab(text: "Pending"),
-                    Tab(text: "Resolved"),
-                  ],
+                  tabs: const [Tab(text: "Pending"), Tab(text: "Resolved")],
                 ),
               ),
               const SizedBox(height: 20),
@@ -197,7 +193,7 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
 
               Padding(
                 padding: const EdgeInsets.all(20.0),
-                child: GradientButton(
+                child: CommonButton(
                   text: "File New Complaint",
                   onTap: () {
                     Navigator.push(
@@ -214,37 +210,36 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
         ),
 
         Expanded(
-          child: _selectedTicket == null
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.touch_app_outlined,
-                        size: 60,
-                        color: Colors.grey,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        "Select a complaint to view details",
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                )
-              : UserComplaintDetailsScreen(ticketData: _selectedTicket!),
+          child:
+              _selectedTicket == null
+                  ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.touch_app_outlined,
+                          size: 60,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          "Select a complaint to view details",
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  )
+                  : UserComplaintDetailsScreen(ticketData: _selectedTicket!),
         ),
       ],
     );
   }
 
   Widget _buildMobileLayout(bool isDesktop) {
-    final pendingTickets = _allTickets
-        .where((t) => t['status'] != 'Resolved')
-        .toList();
-    final resolvedTickets = _allTickets
-        .where((t) => t['status'] == 'Resolved')
-        .toList();
+    final pendingTickets =
+        _allTickets.where((t) => t['status'] != 'Resolved').toList();
+    final resolvedTickets =
+        _allTickets.where((t) => t['status'] == 'Resolved').toList();
 
     return Column(
       children: [
@@ -262,11 +257,11 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
             indicatorSize: TabBarIndicatorSize.tab,
             dividerColor: Colors.transparent,
             indicator: BoxDecoration(
-             color: Color(0xFFF47C20),
+              color: Color(0xFFF47C20),
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.orange.withOpacity(0.3),
+                  color: Color(0xFFF47C20).withOpacity(0.3),
                   blurRadius: 5,
                   offset: const Offset(0, 2),
                 ),
@@ -278,10 +273,7 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
               fontWeight: FontWeight.bold,
               fontSize: 14,
             ),
-            tabs: const [
-              Tab(text: "Pending"),
-              Tab(text: "Resolved"),
-            ],
+            tabs: const [Tab(text: "Pending"), Tab(text: "Resolved")],
           ),
         ),
         const SizedBox(height: 20),
@@ -357,7 +349,7 @@ class _TicketCard extends StatelessWidget {
         statusBg = Colors.green.shade50;
         break;
       default:
-        statusColor = const Color(0xFFF58529);
+        statusColor = const Color(0xFFF47C20);
         statusBg = const Color(0xFFFFF3E0);
     }
 
@@ -379,7 +371,7 @@ class _TicketCard extends StatelessWidget {
             ),
           ],
           border: Border.all(
-            color: isSelected ? Colors.orange : Colors.grey.shade200,
+            color: isSelected ? Color(0xFFF47C20) : Colors.grey.shade200,
             width: isSelected ? 1.5 : 1,
           ),
         ),

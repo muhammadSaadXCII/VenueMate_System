@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Widgets/gradient_button.dart';
+import 'package:venuemate_system/Widgets/common_button.dart';
 
 class FileComplaintScreen extends StatefulWidget {
   const FileComplaintScreen({super.key});
@@ -115,7 +115,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                       SizedBox(
                         width: double.infinity,
                         height: 50,
-                        child: GradientButton(
+                        child: CommonButton(
                           text: "Submit Complaint",
                           onTap: _submitComplaint,
                         ),
@@ -138,7 +138,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                 color: Colors.white,
                 border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
               ),
-              child: GradientButton(
+              child: CommonButton(
                 text: "Submit Complaint",
                 onTap: _submitComplaint,
               ),
@@ -225,7 +225,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFF58529)),
+            borderSide: const BorderSide(color: Color(0xFFF47C20)),
           ),
           contentPadding: const EdgeInsets.all(16),
         ),

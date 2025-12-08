@@ -103,14 +103,14 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
                                 children: [
                                   Icon(
                                     Icons.add_circle_outline,
-                                    color: Color(0xFFF58529),
+                                    color: Color(0xFFF47C20),
                                     size: 24,
                                   ),
                                   SizedBox(width: 10),
                                   Text(
                                     "Add New Package",
                                     style: TextStyle(
-                                      color: Color(0xFFF58529),
+                                      color: Color(0xFFF47C20),
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -287,7 +287,7 @@ class PackageCard extends StatelessWidget {
                   child: Switch(
                     value: isActive,
                     onChanged: onToggle,
-                    activeColor: const Color(0xFFF58529),
+                    activeColor: const Color(0xFFF47C20),
                     inactiveThumbColor: Colors.grey.shade400,
                     inactiveTrackColor: Colors.grey.shade200,
                     trackOutlineColor: MaterialStateProperty.all(
@@ -320,7 +320,7 @@ class PackageCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w900,
-              color: Color(0xFFF58529),
+              color: Color(0xFFF47C20),
             ),
           ),
 

@@ -100,7 +100,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                         ? MainAxisAlignment.center
                         : MainAxisAlignment.start,
                     children: [
-                      _buildFilterChip("New", count: 2, isDesktop: isDesktop),
+                      _buildFilterChip("New", isDesktop: isDesktop),
                       const SizedBox(width: 12),
                       _buildFilterChip("Resolved", isDesktop: isDesktop),
                       const SizedBox(width: 12),
@@ -180,10 +180,10 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFEA845) : Colors.grey[100],
+          color: isSelected ? const Color(0xFFF47C20) : Colors.grey[100],
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFEA845) : Colors.grey.shade300,
+            color: isSelected ? const Color(0xFFF47C20) : Colors.grey.shade300,
           ),
         ),
         child: Row(

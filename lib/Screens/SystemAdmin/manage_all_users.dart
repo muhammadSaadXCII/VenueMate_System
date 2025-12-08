@@ -62,18 +62,19 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
     final isTablet = screenWidth >= 600 && screenWidth < 1200;
     final isMobile = screenWidth < 600;
 
-    final horizontalPadding = isDesktop
-        ? screenWidth * 0.1
-        : isTablet
+    final horizontalPadding =
+        isDesktop
+            ? screenWidth * 0.1
+            : isTablet
             ? 40.0
             : 20.0;
 
     final crossAxisCount = isDesktop ? 2 : 1;
-    
-    // UPDATED: Changed 4.5 to 3.8 for Desktop to allow more height
-    final childAspectRatio = isDesktop
-        ? 3.8 
-        : isTablet
+
+    final childAspectRatio =
+        isDesktop
+            ? 3.8
+            : isTablet
             ? 5.0
             : 3.5;
 
@@ -89,9 +90,10 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
           "Manage All Users",
           style: TextStyle(
             color: Colors.black,
-            fontSize: isDesktop
-                ? 24
-                : isTablet
+            fontSize:
+                isDesktop
+                    ? 24
+                    : isTablet
                     ? 22
                     : 20,
             fontWeight: FontWeight.bold,
@@ -103,9 +105,10 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
           Container(
             padding: EdgeInsets.symmetric(
               horizontal: horizontalPadding,
-              vertical: isDesktop
-                  ? 20
-                  : isTablet
+              vertical:
+                  isDesktop
+                      ? 20
+                      : isTablet
                       ? 16
                       : 10,
             ),
@@ -151,17 +154,19 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    mainAxisAlignment: isDesktop || isTablet
-                        ? MainAxisAlignment.center
-                        : MainAxisAlignment.start,
-                    children: _filters.map((filter) {
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          right: isDesktop ? 12.0 : 10.0,
-                        ),
-                        child: _buildFilterTab(filter, isDesktop, isTablet),
-                      );
-                    }).toList(),
+                    mainAxisAlignment:
+                        isDesktop || isTablet
+                            ? MainAxisAlignment.center
+                            : MainAxisAlignment.start,
+                    children:
+                        _filters.map((filter) {
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              right: isDesktop ? 12.0 : 10.0,
+                            ),
+                            child: _buildFilterTab(filter, isDesktop, isTablet),
+                          );
+                        }).toList(),
                   ),
                 ),
               ],
@@ -169,53 +174,23 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
           ),
 
           Expanded(
-            child: isDesktop
-                ? GridView.builder(
-                    // UPDATED: Removed top padding to reduce space between tabs and cards on Web
-                    padding: EdgeInsets.symmetric(
-                      horizontal: horizontalPadding, 
-                      vertical: 10
-                    ),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: 24,
-                      mainAxisSpacing: 24,
-                      childAspectRatio: childAspectRatio,
-                    ),
-                    itemCount: _users.length,
-                    itemBuilder: (context, index) {
-                      final user = _users[index];
-                      return UserManagementCard(
-                        name: user['name'],
-                        role: user['role'],
-                        email: user['email'],
-                        status: user['status'],
-                        imageUrl: user['image'],
-                        isDesktop: isDesktop,
-                        isTablet: isTablet,
-                        onManageTap: () {
-                          AppNavigation.push(
-                            context,
-                            ManageUserDetailsScreen(user: user),
-                          );
-                        },
-                      );
-                    },
-                  )
-                : ListView.builder(
-                    // UPDATED: Also updated here for consistency
-                    padding: EdgeInsets.symmetric(
-                      horizontal: horizontalPadding, 
-                      vertical: 10
-                    ),
-                    itemCount: _users.length,
-                    itemBuilder: (context, index) {
-                      final user = _users[index];
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom: isTablet ? 20.0 : 16.0,
-                        ),
-                        child: UserManagementCard(
+            child:
+                isDesktop
+                    ? GridView.builder(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                        vertical: 10,
+                      ),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 24,
+                        mainAxisSpacing: 24,
+                        childAspectRatio: childAspectRatio,
+                      ),
+                      itemCount: _users.length,
+                      itemBuilder: (context, index) {
+                        final user = _users[index];
+                        return UserManagementCard(
                           name: user['name'],
                           role: user['role'],
                           email: user['email'],
@@ -229,10 +204,39 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
                               ManageUserDetailsScreen(user: user),
                             );
                           },
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                    )
+                    : ListView.builder(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                        vertical: 10,
+                      ),
+                      itemCount: _users.length,
+                      itemBuilder: (context, index) {
+                        final user = _users[index];
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            bottom: isTablet ? 20.0 : 16.0,
+                          ),
+                          child: UserManagementCard(
+                            name: user['name'],
+                            role: user['role'],
+                            email: user['email'],
+                            status: user['status'],
+                            imageUrl: user['image'],
+                            isDesktop: isDesktop,
+                            isTablet: isTablet,
+                            onManageTap: () {
+                              AppNavigation.push(
+                                context,
+                                ManageUserDetailsScreen(user: user),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
           ),
         ],
       ),
@@ -257,17 +261,18 @@ class _ManageAllUsersScreenState extends State<ManageAllUsersScreen> {
           vertical: verticalPadding,
         ),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFFEA845) : Colors.grey[300],
+          color: isActive ? const Color(0xFFF47C20) : Colors.grey[300],
           borderRadius: BorderRadius.circular(20),
-          boxShadow: isActive && (isDesktop || isTablet)
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFFEA845).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : [],
+          boxShadow:
+              isActive && (isDesktop || isTablet)
+                  ? [
+                    BoxShadow(
+                      color: const Color(0xFFF47C20).withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                  : [],
         ),
         child: Text(
           text,
@@ -308,53 +313,61 @@ class UserManagementCard extends StatelessWidget {
   Widget build(BuildContext context) {
     bool isActive = status == "Active";
 
-    // UPDATED: Increased height for Desktop from 110.0 to 130.0 to fix overflow
-    final cardHeight = isDesktop
-        ? 130.0 
-        : isTablet
+    final cardHeight =
+        isDesktop
+            ? 130.0
+            : isTablet
             ? 105.0
             : 95.0;
-            
-    final avatarSize = isDesktop
-        ? 70.0
-        : isTablet
+
+    final avatarSize =
+        isDesktop
+            ? 70.0
+            : isTablet
             ? 65.0
             : 60.0;
     final borderRadius = isDesktop ? 20.0 : 16.0;
-    final cardPadding = isDesktop
-        ? 16.0
-        : isTablet
+    final cardPadding =
+        isDesktop
+            ? 16.0
+            : isTablet
             ? 14.0
             : 10.0;
 
-    final nameFontSize = isDesktop
-        ? 16.0
-        : isTablet
+    final nameFontSize =
+        isDesktop
+            ? 16.0
+            : isTablet
             ? 15.0
             : 14.0;
-    final roleFontSize = isDesktop
-        ? 14.0
-        : isTablet
+    final roleFontSize =
+        isDesktop
+            ? 14.0
+            : isTablet
             ? 13.0
             : 12.0;
-    final emailFontSize = isDesktop
-        ? 14.0
-        : isTablet
+    final emailFontSize =
+        isDesktop
+            ? 14.0
+            : isTablet
             ? 13.0
             : 12.0;
-    final statusFontSize = isDesktop
-        ? 12.0
-        : isTablet
+    final statusFontSize =
+        isDesktop
+            ? 12.0
+            : isTablet
             ? 11.0
             : 10.0;
-    final manageFontSize = isDesktop
-        ? 15.0
-        : isTablet
+    final manageFontSize =
+        isDesktop
+            ? 15.0
+            : isTablet
             ? 14.0
             : 13.0;
-    final iconSize = isDesktop
-        ? 14.0
-        : isTablet
+    final iconSize =
+        isDesktop
+            ? 14.0
+            : isTablet
             ? 13.0
             : 11.0;
 
@@ -393,14 +406,15 @@ class UserManagementCard extends StatelessWidget {
                   child: Image.network(
                     imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.grey[200],
-                      child: Icon(
-                        Icons.person,
-                        color: Colors.grey[400],
-                        size: avatarSize * 0.5,
-                      ),
-                    ),
+                    errorBuilder:
+                        (context, error, stackTrace) => Container(
+                          color: Colors.grey[200],
+                          child: Icon(
+                            Icons.person,
+                            color: Colors.grey[400],
+                            size: avatarSize * 0.5,
+                          ),
+                        ),
                   ),
                 ),
               ),
@@ -451,9 +465,10 @@ class UserManagementCard extends StatelessWidget {
               ),
 
               SizedBox(
-                width: isDesktop
-                    ? 16
-                    : isTablet
+                width:
+                    isDesktop
+                        ? 16
+                        : isTablet
                         ? 12
                         : 8,
               ),
@@ -464,17 +479,19 @@ class UserManagementCard extends StatelessWidget {
                 children: [
                   Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: isDesktop
-                          ? 14
-                          : isTablet
+                      horizontal:
+                          isDesktop
+                              ? 14
+                              : isTablet
                               ? 12
                               : 10,
                       vertical: isDesktop ? 6 : 4,
                     ),
                     decoration: BoxDecoration(
-                      color: isActive
-                          ? const Color(0xFFD8F3DC)
-                          : const Color(0xFFFFD8D8),
+                      color:
+                          isActive
+                              ? const Color(0xFFD8F3DC)
+                              : const Color(0xFFFFD8D8),
                       borderRadius: BorderRadius.circular(isDesktop ? 10 : 8),
                     ),
                     child: Text(
@@ -495,13 +512,15 @@ class UserManagementCard extends StatelessWidget {
                         vertical: isDesktop ? 6 : 4,
                       ),
                       decoration: BoxDecoration(
-                        color: isDesktop || isTablet
-                            ? Colors.grey[100]
-                            : Colors.transparent,
+                        color:
+                            isDesktop || isTablet
+                                ? Colors.grey[100]
+                                : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
-                        border: isDesktop || isTablet
-                            ? Border.all(color: Colors.grey.shade300)
-                            : null,
+                        border:
+                            isDesktop || isTablet
+                                ? Border.all(color: Colors.grey.shade300)
+                                : null,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,

@@ -299,12 +299,12 @@ class HallAdminHomeScreen extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFFFEA845), Color(0xFFFFCE85)],
+            colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
           ),
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.orange.withOpacity(0.3),
+              color: Color(0xFFF47C20).withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
