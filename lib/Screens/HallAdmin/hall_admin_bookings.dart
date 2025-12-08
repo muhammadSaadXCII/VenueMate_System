@@ -75,8 +75,8 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
               labelColor: Colors.white,
               unselectedLabelColor: Colors.grey.shade700,
               labelStyle: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                fontSize: 9,
               ),
               padding: EdgeInsets.zero,
               tabs: const [
