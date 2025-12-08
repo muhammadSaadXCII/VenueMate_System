@@ -223,7 +223,7 @@ class ManageRefundSheet extends StatelessWidget {
 
                   Expanded(
                     child: CommonButton(
-                      text: "Submit Refund Receipt",
+                      text: "Submit Receipt",
                       onTap: () {
                         Navigator.pop(context);
                       },
