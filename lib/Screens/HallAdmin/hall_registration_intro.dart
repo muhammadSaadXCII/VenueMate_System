@@ -12,13 +12,7 @@ class HallRegistrationIntroScreen extends StatelessWidget {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/BGimage (1).png',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(color: Colors.grey[200]);
-              },
-            ),
+            child: Image.asset('assets/images/BGimage (1).png', fit: BoxFit.cover),
           ),
 
           Positioned.fill(
@@ -31,31 +25,22 @@ class HallRegistrationIntroScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo and Title Row - Made more flexible
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 10,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Image.asset(
-                        'assets/images/venuemate.png', // Fixed: consistent naming
+                        'assets/images/veneumatelogo.png',
                         height: 65,
                         width: 65,
-                        errorBuilder: (context, error, stackTrace) {
-                          // Fallback icon if image fails to load
-                          return const Icon(
-                            Icons.business,
-                            size: 65,
-                            color: Color(0xFFF47C20),
-                          );
-                        },
                       ),
+                      const SizedBox(width: 10),
                       const Text(
                         "VenueMate",
                         style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w800,
                           color: Colors.black,
+
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -66,6 +51,7 @@ class HallRegistrationIntroScreen extends StatelessWidget {
 
                   Container(
                     width: double.infinity,
+
                     constraints: const BoxConstraints(maxWidth: 500),
                     padding: const EdgeInsets.symmetric(
                       vertical: 40,
@@ -111,23 +97,19 @@ class HallRegistrationIntroScreen extends StatelessWidget {
 
                         const SizedBox(height: 30),
 
-                        // Steps list - wrapped in flexible container
-                        Flexible(
-                          fit: FlexFit.loose,
-                          child: Container(
-                            alignment: Alignment.centerLeft,
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildStepText("1. Basic Details"),
-                                _buildStepText("2. Hall Details"),
-                                _buildStepText("3. Uploads & Payouts"),
-                                _buildStepText("4. Menu & Services"),
-                                _buildStepText("5. Review & Submit"),
-                              ],
-                            ),
+                        Container(
+                          alignment: Alignment.centerLeft,
+
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildStepText("1. Basic Details"),
+                              _buildStepText("2. Hall Details"),
+                              _buildStepText("3. Uploads & Payouts"),
+                              _buildStepText("4. Menu & Services"),
+                              _buildStepText("5. Review & Submit"),
+                            ],
                           ),
                         ),
 
@@ -163,7 +145,7 @@ class HallRegistrationIntroScreen extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
-        mainAxisSize: MainAxisSize.min, // Prevents overflow
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(
             Icons.check_circle_outline,
@@ -171,15 +153,12 @@ class HallRegistrationIntroScreen extends StatelessWidget {
             size: 20,
           ),
           const SizedBox(width: 10),
-          Flexible(
-            // Makes text wrap if needed
-            child: Text(
-              text,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
             ),
           ),
         ],

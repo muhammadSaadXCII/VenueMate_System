@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:venuemate_system/Screens/Customers/HomePageVenueScreen.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_registration_intro.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
 
@@ -82,9 +81,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               MaterialPageRoute(builder: (context) => const HallRegistrationIntroScreen()),
             );
           } else {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-            );
+            // Navigator.of(context).pushReplacement(
+            //   MaterialPageRoute(builder: (context) => const HomeScreen()),
+            // );
           }
         } else {
           _navigateToOnboarding();

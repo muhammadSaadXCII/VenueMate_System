@@ -63,7 +63,7 @@ class HallAdminProfileScreen extends StatelessWidget {
                               child: const CircleAvatar(
                                 radius: 40,
                                 backgroundImage: NetworkImage(
-                                  "https://cdn-icons-png.flaticon.com/512/4537/4537028.png",
+                                  "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg",
                                 ),
                               ),
                             ),
