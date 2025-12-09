@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 class CommonButton extends StatelessWidget {
   final String text;
   final VoidCallback onTap;
-
   final IconData? icon;
   final Color? backgroundColor;
   final Color? foregroundColor;
