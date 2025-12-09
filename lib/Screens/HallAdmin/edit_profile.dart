@@ -112,7 +112,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               radius: 60,
               backgroundColor: Colors.white,
               backgroundImage: NetworkImage(
-                "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg",
+                "https://cdn-icons-png.flaticon.com/512/4537/4537028.png",
               ),
             ),
           ),
