@@ -12,7 +12,7 @@ class HallRegistrationIntroScreen extends StatelessWidget {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset('assets/images/BGimage.png', fit: BoxFit.cover),
+            child: Image.asset('assets/images/BGimage (1).png', fit: BoxFit.cover),
           ),
 
           Positioned.fill(
