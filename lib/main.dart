@@ -12,7 +12,8 @@ Future<void> main() async {
   if (kIsWeb) {
     // Web Firebase configuration
     firebaseOptions = const FirebaseOptions(
-      apiKey: "AIzaSyCBhqiCr1HZCyEV6HqfKS1ijxAP-GDQbpM", // Yahan apni asli Web API Key likhna na bhulein
+      apiKey:
+          "AIzaSyCBhqiCr1HZCyEV6HqfKS1ijxAP-GDQbpM", // Yahan apni asli Web API Key likhna na bhulein
       authDomain: "venuemate-system.firebaseapp.com",
       projectId: "venuemate-system",
       storageBucket: "venuemate-system.appspot.com",
@@ -46,7 +47,6 @@ Future<void> main() async {
     // Yeh line confirm karegi ke waqai connection ban gaya hai
     print("🚀 Connected to Project ID: ${Firebase.app().options.projectId}");
     // ------------------------
-
   } on FirebaseException catch (e) {
     // Agar duplicate app ka error aaye, to use ignore karein
     if (e.code == 'duplicate-app') {
@@ -56,7 +56,7 @@ Future<void> main() async {
     } else {
       // Agar koi aur error hai to print karein
       print("❌ Firebase Init Error: $e");
-      rethrow; 
+      rethrow;
     }
   }
   // ------------------------

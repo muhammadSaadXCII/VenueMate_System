@@ -56,8 +56,7 @@ class _ManageAllHallsScreenState extends State<ManageAllHallsScreen> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final isDesktop = constraints.maxWidth >= 1100;
-          final padding = isDesktop ? 40.0 : 16.0;
+          final padding = 16.0;
 
           return Column(
             children: [
@@ -66,9 +65,9 @@ class _ManageAllHallsScreenState extends State<ManageAllHallsScreen> {
                 padding: EdgeInsets.fromLTRB(padding, 10, padding, 20),
                 child: Column(
                   children: [
-                    _buildSearchBar(isDesktop),
+                    _buildSearchBar(),
                     const SizedBox(height: 20),
-                    _buildFilterSection(isDesktop),
+                    _buildFilterSection(),
                   ],
                 ),
               ),
@@ -80,8 +79,7 @@ class _ManageAllHallsScreenState extends State<ManageAllHallsScreen> {
                     maxCrossAxisExtent: 500,
                     crossAxisSpacing: 20,
                     mainAxisSpacing: 20,
-
-                    childAspectRatio: constraints.maxWidth < 600 ? 2.6 : 3.0,
+                    childAspectRatio: 2.6,
                     mainAxisExtent: 140,
                   ),
                   itemCount: _halls.length,
@@ -109,7 +107,7 @@ class _ManageAllHallsScreenState extends State<ManageAllHallsScreen> {
     );
   }
 
-  Widget _buildSearchBar(bool isDesktop) {
+  Widget _buildSearchBar() {
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 600),
@@ -138,7 +136,7 @@ class _ManageAllHallsScreenState extends State<ManageAllHallsScreen> {
     );
   }
 
-  Widget _buildFilterSection(bool isDesktop) {
+  Widget _buildFilterSection() {
     final filters = ["All", "Approved", "Disabled"];
     return Wrap(
       spacing: 12,
@@ -161,15 +159,16 @@ class _ManageAllHallsScreenState extends State<ManageAllHallsScreen> {
           border: Border.all(
             color: isActive ? Colors.transparent : Colors.grey.shade300,
           ),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFF47C20).withOpacity(0.4),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : [],
+          boxShadow:
+              isActive
+                  ? [
+                    BoxShadow(
+                      color: const Color(0xFFF47C20).withOpacity(0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                  : [],
         ),
         child: Text(
           text,
@@ -234,10 +233,11 @@ class HallManagementCard extends StatelessWidget {
                   child: Image.network(
                     imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.image, color: Colors.grey),
-                    ),
+                    errorBuilder:
+                        (_, __, ___) => Container(
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.image, color: Colors.grey),
+                        ),
                   ),
                 ),
 
@@ -286,17 +286,19 @@ class HallManagementCard extends StatelessWidget {
                                   vertical: 5,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isApproved
-                                      ? const Color(0xFFE6F7ED)
-                                      : const Color(0xFFFFF0F1),
+                                  color:
+                                      isApproved
+                                          ? const Color(0xFFE6F7ED)
+                                          : const Color(0xFFFFF0F1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   status,
                                   style: TextStyle(
-                                    color: isApproved
-                                        ? const Color(0xFF00B85E)
-                                        : const Color(0xFFD92D20),
+                                    color:
+                                        isApproved
+                                            ? const Color(0xFF00B85E)
+                                            : const Color(0xFFD92D20),
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                   ),

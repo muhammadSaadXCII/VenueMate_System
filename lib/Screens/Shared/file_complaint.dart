@@ -24,8 +24,6 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
@@ -81,8 +79,8 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                       hint: "Select Category",
                       value: _selectedCategory,
                       items: _categories,
-                      onChanged: (val) =>
-                          setState(() => _selectedCategory = val),
+                      onChanged:
+                          (val) => setState(() => _selectedCategory = val),
                     ),
 
                     const SizedBox(height: 20),
@@ -92,8 +90,8 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
                       hint: "Select Priority",
                       value: _selectedPriority,
                       items: _priorities,
-                      onChanged: (val) =>
-                          setState(() => _selectedPriority = val),
+                      onChanged:
+                          (val) => setState(() => _selectedPriority = val),
                     ),
 
                     const SizedBox(height: 20),
@@ -111,17 +109,7 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
 
                     const SizedBox(height: 12),
 
-                    if (isDesktop)
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: CommonButton(
-                          text: "Submit Complaint",
-                          onTap: _submitComplaint,
-                        ),
-                      ),
-
-                    if (!isDesktop) const SizedBox(height: 80),
+                    const SizedBox(height: 80),
                   ],
                 ),
               );
@@ -130,19 +118,14 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
         ),
       ),
 
-      bottomNavigationBar: isDesktop
-          ? null
-          : Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
-              ),
-              child: CommonButton(
-                text: "Submit Complaint",
-                onTap: _submitComplaint,
-              ),
-            ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+        ),
+        child: CommonButton(text: "Submit Complaint", onTap: _submitComplaint),
+      ),
     );
   }
 
@@ -262,9 +245,10 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
           ),
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-          items: items.map((String val) {
-            return DropdownMenuItem(value: val, child: Text(val));
-          }).toList(),
+          items:
+              items.map((String val) {
+                return DropdownMenuItem(value: val, child: Text(val));
+              }).toList(),
           onChanged: onChanged,
         ),
       ),

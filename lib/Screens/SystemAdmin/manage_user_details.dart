@@ -47,102 +47,7 @@ class _ManageUserDetailsScreenState extends State<ManageUserDetailsScreen> {
           ),
         ),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth >= 900) {
-            return _buildDesktopLayout(context);
-          } else {
-            return _buildMobileLayout(context);
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _buildDesktopLayout(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1200),
-        child: Padding(
-          padding: const EdgeInsets.all(40.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 4,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _ProfileCard(
-                        isDesktop: true,
-                        user: widget.user,
-                        isActive: _isUserActive,
-                      ),
-                      const SizedBox(height: 24),
-                      _ContactSection(isDesktop: true, user: widget.user),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 32),
-              Expanded(
-                flex: 6,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _StatsCard(isDesktop: true),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: _cardDecoration(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Account Actions",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _isUserActive
-                                  ? "Deactivating this account will prevent the user from logging in or making new bookings. Existing bookings will remain active."
-                                  : "Activating this account will restore the user's login access and ability to make new bookings.",
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                                height: 1.5,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              width: double.infinity,
-                              child: _ActionButton(
-                                text: _isUserActive
-                                    ? "Deactivate Account"
-                                    : "Activate Account",
-                                icon: _isUserActive
-                                    ? Icons.block
-                                    : Icons.check_circle_outline,
-                                isDesktop: true,
-
-                                isDeactivateButton: _isUserActive,
-                                onTap: _toggleUserStatus,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      body: _buildMobileLayout(context),
     );
   }
 
@@ -154,15 +59,11 @@ class _ManageUserDetailsScreenState extends State<ManageUserDetailsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ProfileCard(
-                isDesktop: false,
-                user: widget.user,
-                isActive: _isUserActive,
-              ),
+              _ProfileCard(user: widget.user, isActive: _isUserActive),
               const SizedBox(height: 24),
-              _ContactSection(isDesktop: false, user: widget.user),
+              _ContactSection(user: widget.user),
               const SizedBox(height: 24),
-              _StatsCard(isDesktop: false),
+              _StatsCard(),
             ],
           ),
         ),
@@ -185,7 +86,6 @@ class _ManageUserDetailsScreenState extends State<ManageUserDetailsScreen> {
             child: _ActionButton(
               text: _isUserActive ? "Deactivate Account" : "Activate Account",
               icon: _isUserActive ? Icons.block : Icons.check_circle_outline,
-              isDesktop: false,
 
               isDeactivateButton: _isUserActive,
               onTap: _toggleUserStatus,
@@ -200,7 +100,6 @@ class _ManageUserDetailsScreenState extends State<ManageUserDetailsScreen> {
 class _ActionButton extends StatelessWidget {
   final String text;
   final IconData icon;
-  final bool isDesktop;
 
   final bool isDeactivateButton;
   final VoidCallback onTap;
@@ -208,16 +107,14 @@ class _ActionButton extends StatelessWidget {
   const _ActionButton({
     required this.text,
     required this.icon,
-    required this.isDesktop,
     required this.isDeactivateButton,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final Color buttonColor = isDeactivateButton
-        ? Color(0xFFD92D20)
-        : Color(0xFFF47C20);
+    final Color buttonColor =
+        isDeactivateButton ? Color(0xFFD92D20) : Color(0xFFF47C20);
 
     return InkWell(
       onTap: onTap,
@@ -256,15 +153,10 @@ class _ActionButton extends StatelessWidget {
 }
 
 class _ProfileCard extends StatelessWidget {
-  final bool isDesktop;
   final Map<String, dynamic> user;
   final bool isActive;
 
-  const _ProfileCard({
-    required this.isDesktop,
-    required this.user,
-    required this.isActive,
-  });
+  const _ProfileCard({required this.user, required this.isActive});
 
   @override
   Widget build(BuildContext context) {
@@ -273,13 +165,13 @@ class _ProfileCard extends StatelessWidget {
 
     return Center(
       child: Container(
-        padding: EdgeInsets.all(isDesktop ? 32 : 24),
+        padding: EdgeInsets.all(24),
         decoration: _cardDecoration(),
         child: Column(
           children: [
             Container(
-              width: isDesktop ? 120 : 100,
-              height: isDesktop ? 120 : 100,
+              width: 100,
+              height: 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: statusColor, width: 3),
@@ -288,8 +180,12 @@ class _ProfileCard extends StatelessWidget {
                 child: Image.network(
                   "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg",
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
-                      const Icon(Icons.person, size: 50, color: Colors.grey),
+                  errorBuilder:
+                      (_, __, ___) => const Icon(
+                        Icons.person,
+                        size: 50,
+                        color: Colors.grey,
+                      ),
                 ),
               ),
             ),
@@ -338,10 +234,9 @@ class _ProfileCard extends StatelessWidget {
 }
 
 class _ContactSection extends StatelessWidget {
-  final bool isDesktop;
   final Map<String, dynamic> user;
 
-  const _ContactSection({required this.isDesktop, required this.user});
+  const _ContactSection({required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -370,9 +265,7 @@ class _ContactSection extends StatelessWidget {
 }
 
 class _StatsCard extends StatelessWidget {
-  final bool isDesktop;
-
-  const _StatsCard({required this.isDesktop});
+  const _StatsCard();
 
   @override
   Widget build(BuildContext context) {
@@ -381,7 +274,7 @@ class _StatsCard extends StatelessWidget {
       children: [
         _SectionHeader(title: "Booking Performance"),
         Container(
-          padding: EdgeInsets.all(isDesktop ? 32 : 24),
+          padding: EdgeInsets.all(24),
           decoration: _cardDecoration(),
           child: Column(
             children: [

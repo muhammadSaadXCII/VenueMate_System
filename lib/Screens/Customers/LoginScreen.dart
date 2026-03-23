@@ -2,22 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-// import 'package:myapp/customer/ForgotPasswordScreen.dart';
-// import 'package:myapp/customer/SelectRoleScreen.dart';
-// import 'package:myapp/hall_admin/hall_registration_intro.dart';
-// import 'package:myapp/system_admin/system_admin_home.dart';
 import 'package:venuemate_system/Screens/Customers/ForgotPasswordScreen.dart';
+import 'package:venuemate_system/Screens/Customers/HomePageVenueScreen.dart';
 import 'package:venuemate_system/Screens/Customers/SelectRoleScreen.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_registration_intro.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
-// import 'package:venuemate_system/Screens/Customers/SelectRoleScreen.dart';
-// import 'package:venuemate_system/Screens/HallAdmin/hall_registration_intro.dart';
-// Note: Ensure this import points to your actual Hall Admin Root if it exists, otherwise use Home
-// import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart';
-// import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
-// import 'ForgotPasswordScreen.dart';
-// import 'HomePageVenueScreen.dart';
-import 'SignUpScreen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -145,10 +134,10 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         } else {
           // Default to Customer Home
-          // Navigator.pushReplacement(
-          //   context,
-          //   MaterialPageRoute(builder: (context) => const HomeScreen()),
-          // );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
         }
       } else {
         if (mounted) {
@@ -433,7 +422,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ],
                             ),
                             child: Image.asset(
-                              'assets/images/venuematelogo3.png', // Ensure this asset exists
+                              'assets/images/venuemate.png', // Ensure this asset exists
                               height: 100,
                               width: 100,
                               errorBuilder: (context, error, stackTrace) {

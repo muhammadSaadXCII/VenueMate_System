@@ -70,9 +70,6 @@ class _UserNotificationsScreenState extends State<UserNotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 900;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
@@ -99,7 +96,7 @@ class _UserNotificationsScreenState extends State<UserNotificationsScreen> {
               ),
             ),
           ),
-          SizedBox(width: isDesktop ? 40 : 16),
+          SizedBox(width: 16),
         ],
       ),
       body: Center(
@@ -109,54 +106,38 @@ class _UserNotificationsScreenState extends State<UserNotificationsScreen> {
               _notifications.isEmpty
                   ? _buildEmptyState()
                   : ListView.builder(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isDesktop ? 0 : 20,
-                      vertical: 20,
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                     itemCount: _notifications.length,
                     itemBuilder: (context, index) {
                       final notif = _notifications[index];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 16),
 
-                        child:
-                            isDesktop
-                                ? NotificationCard(
-                                  title: notif['title'],
-                                  description: notif['description'],
-                                  time: notif['time'],
-                                  isUnread: notif['isUnread'],
-                                  type: notif['type'],
-
-                                  onDelete: () => _deleteNotification(index),
-                                  isDesktop: true,
-                                )
-                                : Slidable(
-                                  key: ValueKey(notif['id']),
-                                  endActionPane: ActionPane(
-                                    motion: const ScrollMotion(),
-                                    extentRatio: 0.25,
-                                    children: [
-                                      SlidableAction(
-                                        onPressed:
-                                            (context) =>
-                                                _deleteNotification(index),
-                                        backgroundColor: Colors.red.shade50,
-                                        foregroundColor: Colors.red,
-                                        icon: Icons.delete_outline,
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ],
-                                  ),
-                                  child: NotificationCard(
-                                    title: notif['title'],
-                                    description: notif['description'],
-                                    time: notif['time'],
-                                    isUnread: notif['isUnread'],
-                                    type: notif['type'],
-                                    isDesktop: false,
-                                  ),
-                                ),
+                        child: Slidable(
+                          key: ValueKey(notif['id']),
+                          endActionPane: ActionPane(
+                            motion: const ScrollMotion(),
+                            extentRatio: 0.25,
+                            children: [
+                              SlidableAction(
+                                onPressed:
+                                    (context) => _deleteNotification(index),
+                                backgroundColor: Colors.red.shade50,
+                                foregroundColor: Colors.red,
+                                icon: Icons.delete_outline,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ],
+                          ),
+                          child: NotificationCard(
+                            title: notif['title'],
+                            description: notif['description'],
+                            time: notif['time'],
+                            isUnread: notif['isUnread'],
+                            type: notif['type'],
+                            isDesktop: false,
+                          ),
+                        ),
                       );
                     },
                   ),

@@ -30,51 +30,41 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenWidth = constraints.maxWidth;
-        final isDesktop = screenWidth >= 1000;
-        final isTablet = screenWidth >= 600 && screenWidth < 1000;
-
-        return Scaffold(
-          backgroundColor: const Color(0xFFF5F7FA),
-          body: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1400),
-              child: isDesktop
-                  ? _buildDesktopLayout(context)
-                  : _buildMobileLayout(context, isTablet),
-            ),
-          ),
-        );
-      },
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1400),
+          child: _buildMobileLayout(context),
+        ),
+      ),
     );
   }
 
-  Widget _buildMobileLayout(BuildContext context, bool isTablet) {
+  Widget _buildMobileLayout(BuildContext context) {
     return Stack(
       children: [
         CustomScrollView(
           slivers: [
-            _buildSliverAppBar(isDesktop: false),
+            _buildSliverAppBar(),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHeaderSection(isDesktop: false),
+                    _buildHeaderSection(),
                     const SizedBox(height: 24),
-                    _buildStatsRow(isDesktop: false),
+                    _buildStatsRow(),
                     const SizedBox(height: 32),
                     _SectionTitle(title: "Owner Details"),
-                    _buildOwnerCard(isDesktop: false),
+                    _buildOwnerCard(),
                     const SizedBox(height: 32),
                     _SectionTitle(title: "Description"),
                     _buildDescriptionCard(),
                     const SizedBox(height: 32),
                     _SectionTitle(title: "Payout Information"),
-                    _buildPayoutCard(isDesktop: false),
+                    _buildPayoutCard(),
                   ],
                 ),
               ),
@@ -92,71 +82,9 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
     );
   }
 
-  Widget _buildDesktopLayout(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 6,
-          child: CustomScrollView(
-            slivers: [
-              _buildSliverAppBar(isDesktop: true),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(40.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeaderSection(isDesktop: true),
-                      const SizedBox(height: 40),
-                      _SectionTitle(title: "Description"),
-                      _buildDescriptionCard(),
-                      const SizedBox(height: 40),
-                      _SectionTitle(title: "Payout Information"),
-                      _buildPayoutCard(isDesktop: true),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        Expanded(
-          flex: 4,
-          child: Container(
-            height: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(left: BorderSide(color: Colors.grey.shade200)),
-            ),
-            padding: const EdgeInsets.all(40),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 20),
-                  _SectionTitle(title: "Hall Statistics"),
-                  _buildStatsRow(isDesktop: true),
-                  const SizedBox(height: 40),
-                  _SectionTitle(title: "Owner Details"),
-                  _buildOwnerCard(isDesktop: true),
-                  const SizedBox(height: 40),
-                  const Divider(),
-                  const SizedBox(height: 20),
-                  _buildActionButtons(isDesktop: true),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSliverAppBar({required bool isDesktop}) {
+  Widget _buildSliverAppBar() {
     return SliverAppBar(
-      expandedHeight: isDesktop ? 400 : 300,
+      expandedHeight: 300,
       pinned: true,
       backgroundColor: Colors.white,
       elevation: 0,
@@ -183,9 +111,10 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
                   setState(() => _currentImageIndex = index);
                 },
               ),
-              items: _hallImages
-                  .map((img) => Image.network(img, fit: BoxFit.cover))
-                  .toList(),
+              items:
+                  _hallImages
+                      .map((img) => Image.network(img, fit: BoxFit.cover))
+                      .toList(),
             ),
 
             Container(
@@ -225,7 +154,7 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
     );
   }
 
-  Widget _buildHeaderSection({required bool isDesktop}) {
+  Widget _buildHeaderSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -237,14 +166,15 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
               child: Text(
                 widget.hall['name'] ?? "Grand Palace Hall",
                 style: TextStyle(
-                  fontSize: isDesktop ? 32 : 24,
+                  fontSize: 24,
                   fontWeight: FontWeight.w800,
                   height: 1.2,
                   color: const Color(0xFF2D3436),
                 ),
               ),
             ),
-            if (!isDesktop) ...[const SizedBox(width: 10), _buildStatusBadge()],
+            const SizedBox(width: 10),
+            _buildStatusBadge(),
           ],
         ),
         const SizedBox(height: 12),
@@ -256,7 +186,6 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
               "Model Colony, Street 12A, Karachi",
               style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
-            if (isDesktop) ...[const Spacer(), _buildStatusBadge()],
           ],
         ),
       ],
@@ -278,9 +207,8 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
           Icon(
             isApproved ? Icons.check_circle : Icons.cancel,
             size: 16,
-            color: isApproved
-                ? const Color(0xFF00B85E)
-                : const Color(0xFFD92D20),
+            color:
+                isApproved ? const Color(0xFF00B85E) : const Color(0xFFD92D20),
           ),
           const SizedBox(width: 6),
           Text(
@@ -288,9 +216,10 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 12,
-              color: isApproved
-                  ? const Color(0xFF00B85E)
-                  : const Color(0xFFD92D20),
+              color:
+                  isApproved
+                      ? const Color(0xFF00B85E)
+                      : const Color(0xFFD92D20),
             ),
           ),
         ],
@@ -298,23 +227,7 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
     );
   }
 
-  Widget _buildStatsRow({required bool isDesktop}) {
-    if (isDesktop) {
-      return Column(
-        children: [
-          _buildStatItem(Icons.people_outline, "Capacity", "300 - 800 Guests"),
-          const SizedBox(height: 16),
-          _buildStatItem(Icons.star_outline, "Rating", "4.8 (120 Reviews)"),
-          const SizedBox(height: 16),
-          _buildStatItem(
-            Icons.calendar_today_outlined,
-            "Bookings",
-            "25 this month",
-          ),
-        ],
-      );
-    }
-
+  Widget _buildStatsRow() {
     return Row(
       children: [
         Expanded(child: _buildMobileStatCard(Icons.people, "800", "Capacity")),
@@ -323,47 +236,6 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
         const SizedBox(width: 12),
         Expanded(child: _buildMobileStatCard(Icons.event, "25", "Bookings")),
       ],
-    );
-  }
-
-  Widget _buildStatItem(IconData icon, String label, String value) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Icon(icon, color: Color(0xFFF47C20), size: 20),
-          ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -389,7 +261,7 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
     );
   }
 
-  Widget _buildOwnerCard({required bool isDesktop}) {
+  Widget _buildOwnerCard() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -463,7 +335,7 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
     );
   }
 
-  Widget _buildPayoutCard({required bool isDesktop}) {
+  Widget _buildPayoutCard() {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(

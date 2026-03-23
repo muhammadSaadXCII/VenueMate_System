@@ -63,108 +63,84 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
           ),
         ),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isDesktop = constraints.maxWidth >= 1100;
-          final isTablet =
-              constraints.maxWidth >= 700 && constraints.maxWidth < 1100;
-          int crossAxisCount = isDesktop ? 3 : (isTablet ? 2 : 1);
-
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 600),
-                        child: GestureDetector(
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) => const AddMenuItemSheet(),
-                            );
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            height: 55,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFE0C2),
-                              borderRadius: BorderRadius.circular(30),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: GestureDetector(
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => const AddMenuItemSheet(),
+                        );
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        height: 55,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFE0C2),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_circle_outline,
+                              color: Color(0xFFF47C20),
+                              size: 26,
                             ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_circle_outline,
-                                  color: Color(0xFFF47C20),
-                                  size: 26,
-                                ),
-                                SizedBox(width: 10),
-                                Text(
-                                  "Add New Menu Item",
-                                  style: TextStyle(
-                                    color: Color(0xFFF47C20),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                            SizedBox(width: 10),
+                            Text(
+                              "Add New Menu Item",
+                              style: TextStyle(
+                                color: Color(0xFFF47C20),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 30),
-
-                    const Text(
-                      "Menu Items",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    Expanded(
-                      child: isDesktop || isTablet
-                          ? GridView.builder(
-                              itemCount: _menuItems.length,
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: crossAxisCount,
-                                    crossAxisSpacing: 20,
-                                    mainAxisSpacing: 20,
-
-                                    mainAxisExtent: 110,
-                                  ),
-                              itemBuilder: (context, index) {
-                                return _buildMenuItem(index);
-                              },
-                            )
-                          : ListView.separated(
-                              itemCount: _menuItems.length,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 16),
-                              itemBuilder: (context, index) {
-                                return _buildMenuItem(index);
-                              },
-                            ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+
+                const SizedBox(height: 30),
+
+                const Text(
+                  "Menu Items",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: _menuItems.length,
+                    separatorBuilder:
+                        (context, index) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      return _buildMenuItem(index);
+                    },
+                  ),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
@@ -185,7 +161,7 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
               foregroundColor: Colors.blue,
               icon: Icons.edit,
               label: 'Edit',
-              borderRadius: BorderRadius.circular(12)
+              borderRadius: BorderRadius.circular(12),
             ),
             SlidableAction(
               onPressed: (context) {},
@@ -193,7 +169,7 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
               foregroundColor: Colors.red,
               icon: Icons.delete,
               label: 'Delete',
-              borderRadius: BorderRadius.circular(12)
+              borderRadius: BorderRadius.circular(12),
             ),
           ],
         ),
@@ -249,8 +225,9 @@ class MenuItemCard extends StatelessWidget {
               width: 80,
               height: 80,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  Container(width: 80, height: 80, color: Colors.grey[200]),
+              errorBuilder:
+                  (context, error, stackTrace) =>
+                      Container(width: 80, height: 80, color: Colors.grey[200]),
             ),
           ),
 
