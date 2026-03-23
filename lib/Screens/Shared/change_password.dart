@@ -6,8 +6,6 @@ class ChangePasswordScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 600;
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -30,7 +28,7 @@ class ChangePasswordScreen extends StatelessWidget {
           child: SingleChildScrollView(
             padding: EdgeInsets.symmetric(
               horizontal: 20,
-              vertical: isDesktop ? 40 : 20,
+              vertical: 20,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

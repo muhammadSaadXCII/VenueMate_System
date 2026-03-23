@@ -9,15 +9,7 @@ class PendingRegistrationsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 1100;
-    final isTablet = screenWidth >= 600 && screenWidth < 1100;
-
-    final horizontalPadding = isDesktop
-        ? screenWidth * 0.15
-        : isTablet
-        ? 40.0
-        : 20.0;
+    final horizontalPadding = 20.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -25,17 +17,14 @@ class PendingRegistrationsScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: !isDesktop,
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
         title: RichText(
           text: TextSpan(
-            style: TextStyle(
-              fontSize: isDesktop ? 24 : 20,
-              color: Colors.black,
-            ),
+            style: TextStyle(fontSize: 20, color: Colors.black),
             children: [
               TextSpan(
                 text: "$pendingCount ",
@@ -63,20 +52,20 @@ class PendingRegistrationsScreen extends StatelessWidget {
             child: GridView.builder(
               itemCount: pendingCount,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: isDesktop ? 2 : 1,
+                crossAxisCount: 1,
                 crossAxisSpacing: 24,
                 mainAxisSpacing: 24,
                 mainAxisExtent: 155,
               ),
               itemBuilder: (context, index) {
                 return RegistrationCard(
-                  hallName: index.isEven
-                      ? "Al Rehman Banquet Hall"
-                      : "Akbar Marquee & Marriage Hall",
+                  hallName:
+                      index.isEven
+                          ? "Al Rehman Banquet Hall"
+                          : "Akbar Marquee & Marriage Hall",
                   submittedBy: "Rehman Hussain",
                   date: "31 Oct, 2025",
                   imagePath: "assets/images/cardimage 2.png",
-                  isDesktop: isDesktop,
                   onTap: () {
                     AppNavigation.push(
                       context,
@@ -98,7 +87,6 @@ class RegistrationCard extends StatelessWidget {
   final String submittedBy;
   final String date;
   final String imagePath;
-  final bool isDesktop;
   final VoidCallback onTap;
 
   const RegistrationCard({
@@ -107,7 +95,6 @@ class RegistrationCard extends StatelessWidget {
     required this.submittedBy,
     required this.date,
     required this.imagePath,
-    required this.isDesktop,
     required this.onTap,
   });
 

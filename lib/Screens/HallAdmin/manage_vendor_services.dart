@@ -55,109 +55,84 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
           ),
         ),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isDesktop = constraints.maxWidth >= 1100;
-          final isTablet =
-              constraints.maxWidth >= 700 && constraints.maxWidth < 1100;
-
-          int crossAxisCount = isDesktop ? 3 : (isTablet ? 2 : 1);
-
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 600),
-                        child: GestureDetector(
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) => const AddServiceSheet(),
-                            );
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            height: 55,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFE0C2),
-                              borderRadius: BorderRadius.circular(30),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: GestureDetector(
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => const AddServiceSheet(),
+                        );
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        height: 55,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFE0C2),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_circle_outline,
+                              color: Color(0xFFF47C20),
+                              size: 26,
                             ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_circle_outline,
-                                  color: Color(0xFFF47C20),
-                                  size: 26,
-                                ),
-                                SizedBox(width: 10),
-                                Text(
-                                  "Add New Service",
-                                  style: TextStyle(
-                                    color: Color(0xFFF47C20),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                            SizedBox(width: 10),
+                            Text(
+                              "Add New Service",
+                              style: TextStyle(
+                                color: Color(0xFFF47C20),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 30),
-
-                    const Text(
-                      "Additional Services",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    Expanded(
-                      child: isDesktop || isTablet
-                          ? GridView.builder(
-                              itemCount: _services.length,
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: crossAxisCount,
-                                    crossAxisSpacing: 20,
-                                    mainAxisSpacing: 20,
-
-                                    mainAxisExtent: 100,
-                                  ),
-                              itemBuilder: (context, index) {
-                                return _buildServiceItem(index);
-                              },
-                            )
-                          : ListView.separated(
-                              itemCount: _services.length,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 16),
-                              itemBuilder: (context, index) {
-                                return _buildServiceItem(index);
-                              },
-                            ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+
+                const SizedBox(height: 30),
+
+                const Text(
+                  "Additional Services",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: _services.length,
+                    separatorBuilder:
+                        (context, index) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      return _buildServiceItem(index);
+                    },
+                  ),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

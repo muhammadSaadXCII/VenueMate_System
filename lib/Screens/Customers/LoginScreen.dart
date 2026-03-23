@@ -422,7 +422,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ],
                             ),
                             child: Image.asset(
-                              'assets/images/venuematelogo3.png', // Ensure this asset exists
+                              'assets/images/venuemate.png', // Ensure this asset exists
                               height: 100,
                               width: 100,
                               errorBuilder: (context, error, stackTrace) {

@@ -13,10 +13,6 @@ class PendingReviewScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.logout, color: Colors.black),
-          onPressed: () {},
-        ),
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(30.0),

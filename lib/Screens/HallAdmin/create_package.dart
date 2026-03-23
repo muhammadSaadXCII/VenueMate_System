@@ -37,27 +37,27 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
               child: Row(
-                children: _stepData.asMap().entries.map((entry) {
-                  int idx = entry.key;
-                  Map<String, dynamic> step = entry.value;
-                  final isActive = idx == _currentStep;
+                children:
+                    _stepData.asMap().entries.map((entry) {
+                      int idx = entry.key;
+                      Map<String, dynamic> step = entry.value;
+                      final isActive = idx == _currentStep;
 
-                  return Expanded(
-                    child: Center(
-                      child: Text(
-                        step['title'] as String,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isActive
-                              ? FontWeight.w700
-                              : FontWeight.w400,
-                          color: isActive ? Colors.black : Colors.grey[400],
+                      return Expanded(
+                        child: Center(
+                          child: Text(
+                            step['title'] as String,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight:
+                                  isActive ? FontWeight.w700 : FontWeight.w400,
+                              color: isActive ? Colors.black : Colors.grey[400],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  );
-                }).toList(),
+                      );
+                    }).toList(),
               ),
             ),
             Container(
@@ -77,9 +77,10 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
                             right: index < _stepData.length - 1 ? 4 : 0,
                           ),
                           decoration: BoxDecoration(
-                            color: isActive || isCompleted
-                                ? const Color(0xFFF97316)
-                                : const Color(0xFFE5E7EB),
+                            color:
+                                isActive || isCompleted
+                                    ? const Color(0xFFF97316)
+                                    : const Color(0xFFE5E7EB),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -88,30 +89,33 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
                           width: 24,
                           height: 24,
                           decoration: BoxDecoration(
-                            color: isCompleted
-                                ? const Color(0xFF10B981)
-                                : isActive
-                                ? const Color(0xFFF97316)
-                                : Colors.grey[300],
+                            color:
+                                isCompleted
+                                    ? const Color(0xFF10B981)
+                                    : isActive
+                                    ? const Color(0xFFF97316)
+                                    : Colors.grey[300],
                             shape: BoxShape.circle,
                           ),
                           child: Center(
-                            child: isCompleted
-                                ? const Icon(
-                                    Icons.check,
-                                    color: Colors.white,
-                                    size: 14,
-                                  )
-                                : Text(
-                                    '$stepNumber',
-                                    style: TextStyle(
-                                      color: isActive
-                                          ? Colors.white
-                                          : Colors.grey[600],
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
+                            child:
+                                isCompleted
+                                    ? const Icon(
+                                      Icons.check,
+                                      color: Colors.white,
+                                      size: 14,
+                                    )
+                                    : Text(
+                                      '$stepNumber',
+                                      style: TextStyle(
+                                        color:
+                                            isActive
+                                                ? Colors.white
+                                                : Colors.grey[600],
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                  ),
                           ),
                         ),
                       ],
@@ -129,12 +133,10 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 700;
-
     final List<Widget> steps = [
-      PackageDetailsStep(isDesktop: isDesktop),
+      PackageDetailsStep(),
       const ItemsServicesStep(),
-      ReviewSaveStep(onEdit: _goToStep, isDesktop: isDesktop),
+      ReviewSaveStep(onEdit: _goToStep),
     ];
 
     return Scaffold(
@@ -251,8 +253,7 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
 }
 
 class PackageDetailsStep extends StatelessWidget {
-  final bool isDesktop;
-  const PackageDetailsStep({super.key, required this.isDesktop});
+  const PackageDetailsStep({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -384,12 +385,10 @@ class _ItemsServicesStepState extends State<ItemsServicesStep> {
 
   @override
   Widget build(BuildContext context) {
-    final visibleMenuItems = _isMenuExpanded
-        ? _allMenuItems
-        : _allMenuItems.take(2).toList();
-    final visibleServices = _isServicesExpanded
-        ? _allServices
-        : _allServices.take(2).toList();
+    final visibleMenuItems =
+        _isMenuExpanded ? _allMenuItems : _allMenuItems.take(2).toList();
+    final visibleServices =
+        _isServicesExpanded ? _allServices : _allServices.take(2).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,11 +416,10 @@ class _ItemsServicesStepState extends State<ItemsServicesStep> {
         _buildSelectionContainer(
           items: visibleMenuItems,
           isExpanded: _isMenuExpanded,
-          onToggleExpand: () =>
-              setState(() => _isMenuExpanded = !_isMenuExpanded),
-          expandLabel: _isMenuExpanded
-              ? "View Less Items"
-              : "View more Items...",
+          onToggleExpand:
+              () => setState(() => _isMenuExpanded = !_isMenuExpanded),
+          expandLabel:
+              _isMenuExpanded ? "View Less Items" : "View more Items...",
         ),
 
         const SizedBox(height: 25),
@@ -434,11 +432,12 @@ class _ItemsServicesStepState extends State<ItemsServicesStep> {
         _buildSelectionContainer(
           items: visibleServices,
           isExpanded: _isServicesExpanded,
-          onToggleExpand: () =>
-              setState(() => _isServicesExpanded = !_isServicesExpanded),
-          expandLabel: _isServicesExpanded
-              ? "View Less Services"
-              : "View more Services...",
+          onToggleExpand:
+              () => setState(() => _isServicesExpanded = !_isServicesExpanded),
+          expandLabel:
+              _isServicesExpanded
+                  ? "View Less Services"
+                  : "View more Services...",
           isService: true,
         ),
       ],
@@ -548,12 +547,7 @@ class _ItemsServicesStepState extends State<ItemsServicesStep> {
 
 class ReviewSaveStep extends StatelessWidget {
   final Function(int) onEdit;
-  final bool isDesktop;
-  const ReviewSaveStep({
-    super.key,
-    required this.onEdit,
-    required this.isDesktop,
-  });
+  const ReviewSaveStep({super.key, required this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -575,23 +569,13 @@ class ReviewSaveStep extends StatelessWidget {
         ),
         const SizedBox(height: 25),
 
-        if (isDesktop)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _buildSummaryCard()),
-              const SizedBox(width: 20),
-              Expanded(child: _buildIncludesCard()),
-            ],
-          )
-        else
-          Column(
-            children: [
-              _buildSummaryCard(),
-              const SizedBox(height: 20),
-              _buildIncludesCard(),
-            ],
-          ),
+        Column(
+          children: [
+            _buildSummaryCard(),
+            const SizedBox(height: 20),
+            _buildIncludesCard(),
+          ],
+        ),
 
         const SizedBox(height: 40),
 

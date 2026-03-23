@@ -64,19 +64,13 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
     super.dispose();
   }
 
-  void _onTicketTap(Map<String, dynamic> ticket, bool isDesktop) {
-    if (isDesktop) {
-      setState(() {
-        _selectedTicket = ticket;
-      });
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => UserComplaintDetailsScreen(ticketData: ticket),
-        ),
-      );
-    }
+  void _onTicketTap(Map<String, dynamic> ticket) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UserComplaintDetailsScreen(ticketData: ticket),
+      ),
+    );
   }
 
   @override
@@ -103,139 +97,30 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final isDesktop = constraints.maxWidth >= 700;
-
-          if (isDesktop) {
-            return _buildDesktopLayout();
-          } else {
-            return _buildMobileLayout(isDesktop);
-          }
+          return _buildMobileLayout();
         },
       ),
 
-      bottomNavigationBar:
-          MediaQuery.of(context).size.width < 700
-              ? Container(
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
-                ),
-                child: CommonButton(
-                  text: "File New Complaint",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FileComplaintScreen(),
-                      ),
-                    );
-                  },
-                ),
-              )
-              : null,
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+        ),
+        child: CommonButton(
+          text: "File New Complaint",
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => FileComplaintScreen()),
+            );
+          },
+        ),
+      ),
     );
   }
 
-  Widget _buildDesktopLayout() {
-    final pendingTickets =
-        _allTickets.where((t) => t['status'] != 'Resolved').toList();
-    final resolvedTickets =
-        _allTickets.where((t) => t['status'] == 'Resolved').toList();
-
-    return Row(
-      children: [
-        Container(
-          width: 400,
-          decoration: BoxDecoration(
-            border: Border(right: BorderSide(color: Colors.grey.shade300)),
-            color: Colors.white,
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                height: 45,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  dividerColor: Colors.transparent,
-                  indicator: BoxDecoration(
-                    color: Color(0xFFF47C20),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.grey,
-                  labelStyle: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                  tabs: const [Tab(text: "Pending"), Tab(text: "Resolved")],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildTicketList(pendingTickets, isDesktop: true),
-                    _buildTicketList(resolvedTickets, isDesktop: true),
-                  ],
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: CommonButton(
-                  text: "File New Complaint",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FileComplaintScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        Expanded(
-          child:
-              _selectedTicket == null
-                  ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.touch_app_outlined,
-                          size: 60,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          "Select a complaint to view details",
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  )
-                  : UserComplaintDetailsScreen(ticketData: _selectedTicket!),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMobileLayout(bool isDesktop) {
+  Widget _buildMobileLayout() {
     final pendingTickets =
         _allTickets.where((t) => t['status'] != 'Resolved').toList();
     final resolvedTickets =
@@ -281,8 +166,8 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildTicketList(pendingTickets, isDesktop: isDesktop),
-              _buildTicketList(resolvedTickets, isDesktop: isDesktop),
+              _buildTicketList(pendingTickets),
+              _buildTicketList(resolvedTickets),
             ],
           ),
         ),
@@ -290,10 +175,7 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
     );
   }
 
-  Widget _buildTicketList(
-    List<Map<String, dynamic>> tickets, {
-    required bool isDesktop,
-  }) {
+  Widget _buildTicketList(List<Map<String, dynamic>> tickets) {
     if (tickets.isEmpty) {
       return Center(
         child: Column(
@@ -315,12 +197,12 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
       itemCount: tickets.length,
       itemBuilder: (context, index) {
         final ticket = tickets[index];
-        final bool isSelected = isDesktop && _selectedTicket == ticket;
+        final bool isSelected = _selectedTicket == ticket;
 
         return _TicketCard(
           data: ticket,
           isSelected: isSelected,
-          onTap: () => _onTicketTap(ticket, isDesktop),
+          onTap: () => _onTicketTap(ticket),
         );
       },
     );

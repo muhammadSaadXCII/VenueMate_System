@@ -6,6 +6,10 @@ import 'package:venuemate_system/Screens/HallAdmin/add_menu_item_sheet.dart';
 import 'package:venuemate_system/Screens/HallAdmin/location_picker_sheet.dart';
 import 'package:venuemate_system/Screens/HallAdmin/add_vendor_service_sheet.dart';
 
+import '../../Widgets/add_new_button.dart';
+import '../../Widgets/menu_item_card.dart';
+import '../../Widgets/service_card.dart';
+
 class HallRegistrationScreen extends StatefulWidget {
   const HallRegistrationScreen({super.key});
 
@@ -36,7 +40,7 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
     setState(() => _currentStep = stepIndex);
   }
 
-  Widget _buildStepIndicatorWithTabs(bool isDesktop) {
+  Widget _buildStepIndicatorWithTabs() {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
@@ -45,29 +49,29 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
               child: Row(
-                children: _stepData.asMap().entries.map((entry) {
-                  int idx = entry.key;
-                  Map<String, dynamic> step = entry.value;
-                  final isActive = idx == _currentStep;
+                children:
+                    _stepData.asMap().entries.map((entry) {
+                      int idx = entry.key;
+                      Map<String, dynamic> step = entry.value;
+                      final isActive = idx == _currentStep;
 
-                  return Expanded(
-                    child: Center(
-                      child: Text(
-                        step['title'] as String,
-                        style: TextStyle(
-                          fontSize: isDesktop ? 14 : 11,
-                          fontWeight: isActive
-                              ? FontWeight.w700
-                              : FontWeight.w400,
-                          color: isActive ? Colors.black : Colors.grey[400],
+                      return Expanded(
+                        child: Center(
+                          child: Text(
+                            step['title'] as String,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight:
+                                  isActive ? FontWeight.w700 : FontWeight.w400,
+                              color: isActive ? Colors.black : Colors.grey[400],
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  );
-                }).toList(),
+                      );
+                    }).toList(),
               ),
             ),
             Container(
@@ -87,41 +91,45 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
                             right: index < _stepData.length - 1 ? 4 : 0,
                           ),
                           decoration: BoxDecoration(
-                            color: isActive || isCompleted
-                                ? const Color(0xFFF97316)
-                                : const Color(0xFFE5E7EB),
+                            color:
+                                isActive || isCompleted
+                                    ? const Color(0xFFF97316)
+                                    : const Color(0xFFE5E7EB),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          width: isDesktop ? 28 : 24,
-                          height: isDesktop ? 28 : 24,
+                          width: 24,
+                          height: 24,
                           decoration: BoxDecoration(
-                            color: isCompleted
-                                ? const Color(0xFF10B981)
-                                : isActive
-                                ? const Color(0xFFF97316)
-                                : Colors.grey[300],
+                            color:
+                                isCompleted
+                                    ? const Color(0xFF10B981)
+                                    : isActive
+                                    ? const Color(0xFFF97316)
+                                    : Colors.grey[300],
                             shape: BoxShape.circle,
                           ),
                           child: Center(
-                            child: isCompleted
-                                ? Icon(
-                                    Icons.check,
-                                    color: Colors.white,
-                                    size: isDesktop ? 18 : 14,
-                                  )
-                                : Text(
-                                    '$stepNumber',
-                                    style: TextStyle(
-                                      color: isActive
-                                          ? Colors.white
-                                          : Colors.grey[600],
-                                      fontSize: isDesktop ? 14 : 12,
-                                      fontWeight: FontWeight.bold,
+                            child:
+                                isCompleted
+                                    ? Icon(
+                                      Icons.check,
+                                      color: Colors.white,
+                                      size: 14,
+                                    )
+                                    : Text(
+                                      '$stepNumber',
+                                      style: TextStyle(
+                                        color:
+                                            isActive
+                                                ? Colors.white
+                                                : Colors.grey[600],
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                  ),
                           ),
                         ),
                       ],
@@ -163,19 +171,17 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final isDesktop = constraints.maxWidth >= 700;
-
           final List<Widget> stepsContent = [
-            BasicDetailsStep(isDesktop: isDesktop),
-            HallDetailsStep(isDesktop: isDesktop),
-            UploadsPayoutsStep(isDesktop: isDesktop),
-            MenuServicesStep(isDesktop: isDesktop),
-            ReviewSubmitStep(isDesktop: isDesktop, onEditStep: _jumpToStep),
+            BasicDetailsStep(),
+            HallDetailsStep(),
+            UploadsPayoutsStep(),
+            MenuServicesStep(),
+            ReviewSubmitStep(onEditStep: _jumpToStep),
           ];
 
           return Column(
             children: [
-              _buildStepIndicatorWithTabs(isDesktop),
+              _buildStepIndicatorWithTabs(),
 
               Expanded(
                 child: SingleChildScrollView(
@@ -270,8 +276,7 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
 }
 
 class BasicDetailsStep extends StatelessWidget {
-  final bool isDesktop;
-  const BasicDetailsStep({super.key, required this.isDesktop});
+  const BasicDetailsStep({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -283,8 +288,7 @@ class BasicDetailsStep extends StatelessWidget {
           subtitle: "Please fill in your contact Details.",
         ),
         const SizedBox(height: 24),
-        ResponsiveGridRow(
-          isDesktop: isDesktop,
+        GridRow(
           children: const [
             RegistrationTextField(
               label: "Full Name",
@@ -297,8 +301,7 @@ class BasicDetailsStep extends StatelessWidget {
             ),
           ],
         ),
-        ResponsiveGridRow(
-          isDesktop: isDesktop,
+        GridRow(
           children: const [
             RegistrationTextField(
               label: "Email",
@@ -335,8 +338,7 @@ class BasicDetailsStep extends StatelessWidget {
 }
 
 class HallDetailsStep extends StatelessWidget {
-  final bool isDesktop;
-  const HallDetailsStep({super.key, required this.isDesktop});
+  const HallDetailsStep({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -348,8 +350,7 @@ class HallDetailsStep extends StatelessWidget {
           subtitle: "Please fill in Details for your Hall",
         ),
         const SizedBox(height: 24),
-        ResponsiveGridRow(
-          isDesktop: isDesktop,
+        GridRow(
           children: const [
             RegistrationTextField(
               label: "Hall Name",
@@ -485,8 +486,7 @@ class HallDetailsStep extends StatelessWidget {
 }
 
 class UploadsPayoutsStep extends StatefulWidget {
-  final bool isDesktop;
-  const UploadsPayoutsStep({super.key, required this.isDesktop});
+  const UploadsPayoutsStep({super.key});
 
   @override
   State<UploadsPayoutsStep> createState() => _UploadsPayoutsStepState();
@@ -501,8 +501,8 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
 
   @override
   Widget build(BuildContext context) {
-    double boxWidth = widget.isDesktop ? 160 : 140;
-    double boxHeight = widget.isDesktop ? 120 : 100;
+    double boxWidth = 140;
+    double boxHeight = 100;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -580,8 +580,7 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
           subtitle: "(This information will only be displayed to Customer...)",
         ),
         const SizedBox(height: 16),
-        ResponsiveGridRow(
-          isDesktop: widget.isDesktop,
+        GridRow(
           children: const [
             RegistrationTextField(
               label: "Bank Name",
@@ -613,8 +612,7 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
 }
 
 class MenuServicesStep extends StatefulWidget {
-  final bool isDesktop;
-  const MenuServicesStep({super.key, required this.isDesktop});
+  const MenuServicesStep({super.key});
 
   @override
   State<MenuServicesStep> createState() => _MenuServicesStepState();
@@ -695,8 +693,10 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
           );
         }),
         const SizedBox(height: 15),
-        GestureDetector(
+        AddNewButton(
+          label: "Add New Menu Item",
           onTap: () {
+            print("Menu Sheet");
             showModalBottomSheet(
               context: context,
               isScrollControlled: true,
@@ -704,7 +704,6 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
               builder: (context) => const AddMenuItemSheet(),
             );
           },
-          child: const AddNewButton(label: "Add New Menu Item"),
         ),
         const SizedBox(height: 32),
         RichText(
@@ -761,8 +760,10 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
           );
         }),
         const SizedBox(height: 15),
-        GestureDetector(
+        AddNewButton(
+          label: "Add New Service",
           onTap: () {
+            print("Service Sheet");
             showModalBottomSheet(
               context: context,
               isScrollControlled: true,
@@ -770,7 +771,6 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
               builder: (context) => const AddServiceSheet(),
             );
           },
-          child: const AddNewButton(label: "Add New Service"),
         ),
       ],
     );
@@ -778,13 +778,8 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
 }
 
 class ReviewSubmitStep extends StatefulWidget {
-  final bool isDesktop;
   final Function(int) onEditStep;
-  const ReviewSubmitStep({
-    super.key,
-    required this.onEditStep,
-    required this.isDesktop,
-  });
+  const ReviewSubmitStep({super.key, required this.onEditStep});
 
   @override
   State<ReviewSubmitStep> createState() => _ReviewSubmitStepState();
@@ -804,43 +799,17 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
         ),
         const SizedBox(height: 24),
 
-        if (widget.isDesktop)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  children: [
-                    _buildBasicDetailsCard(),
-                    const SizedBox(height: 20),
-                    _buildUploadsCard(),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  children: [
-                    _buildHallDetailsCard(),
-                    const SizedBox(height: 20),
-                    _buildMenuCard(),
-                  ],
-                ),
-              ),
-            ],
-          )
-        else
-          Column(
-            children: [
-              _buildBasicDetailsCard(),
-              const SizedBox(height: 16),
-              _buildHallDetailsCard(),
-              const SizedBox(height: 16),
-              _buildUploadsCard(),
-              const SizedBox(height: 16),
-              _buildMenuCard(),
-            ],
-          ),
+        Column(
+          children: [
+            _buildBasicDetailsCard(),
+            const SizedBox(height: 16),
+            _buildHallDetailsCard(),
+            const SizedBox(height: 16),
+            _buildUploadsCard(),
+            const SizedBox(height: 16),
+            _buildMenuCard(),
+          ],
+        ),
 
         const SizedBox(height: 40),
 
@@ -857,18 +826,20 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
                 height: 24,
                 width: 24,
                 decoration: BoxDecoration(
-                  color: _isConfirmed
-                      ? const Color(0xFFF47C20)
-                      : Colors.transparent,
+                  color:
+                      _isConfirmed
+                          ? const Color(0xFFF47C20)
+                          : Colors.transparent,
                   border: Border.all(
                     color: _isConfirmed ? const Color(0xFFF47C20) : Colors.grey,
                     width: 2,
                   ),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: _isConfirmed
-                    ? const Icon(Icons.check, size: 16, color: Colors.white)
-                    : null,
+                child:
+                    _isConfirmed
+                        ? const Icon(Icons.check, size: 16, color: Colors.white)
+                        : null,
               ),
               const SizedBox(width: 12),
               const Expanded(
@@ -890,11 +861,12 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed: _isConfirmed
-                ? () {
-                    AppNavigation.push(context, PendingReviewScreen());
-                  }
-                : null,
+            onPressed:
+                _isConfirmed
+                    ? () {
+                      AppNavigation.push(context, PendingReviewScreen());
+                    }
+                    : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFF47C20),
               foregroundColor: Colors.white,
@@ -1029,33 +1001,13 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
   }
 }
 
-class ResponsiveGridRow extends StatelessWidget {
-  final bool isDesktop;
+class GridRow extends StatelessWidget {
   final List<Widget> children;
-  const ResponsiveGridRow({
-    super.key,
-    required this.isDesktop,
-    required this.children,
-  });
+  const GridRow({super.key, required this.children});
 
   @override
   Widget build(BuildContext context) {
-    if (!isDesktop) return Column(children: children);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children.asMap().entries.map((entry) {
-        int index = entry.key;
-        Widget child = entry.value;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(
-              right: index < children.length - 1 ? 20.0 : 0.0,
-            ),
-            child: child,
-          ),
-        );
-      }).toList(),
-    );
+    return Column(children: children);
   }
 }
 
@@ -1190,197 +1142,6 @@ class UploadBox extends StatelessWidget {
               fontSize: 10,
               color: Colors.black54,
               fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class AddNewButton extends StatelessWidget {
-  final String label;
-  const AddNewButton({super.key, required this.label});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 55,
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFE0C2),
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.add_circle_outline,
-            color: Color(0xFFF47C20),
-            size: 26,
-          ),
-          const SizedBox(width: 10),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFFF47C20),
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class MenuItemCard extends StatelessWidget {
-  final String name;
-  final String price;
-  final String priceUnit;
-  final String description;
-  final String imageUrl;
-  const MenuItemCard({
-    super.key,
-    required this.name,
-    required this.price,
-    required this.description,
-    required this.imageUrl,
-    required this.priceUnit,
-  });
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              imageUrl,
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  Container(width: 60, height: 60, color: Colors.grey[200]),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                RichText(
-                  text: TextSpan(
-                    style: const TextStyle(fontSize: 14, color: Colors.black),
-                    children: [
-                      TextSpan(
-                        text: "$name ",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      TextSpan(
-                        text: "\nRs. $price/$priceUnit",
-                        style: const TextStyle(
-                          color: Color(0xFFF47C20),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[400],
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class ServiceCard extends StatelessWidget {
-  final String name;
-  final String price;
-  final String description;
-  const ServiceCard({
-    super.key,
-    required this.name,
-    required this.price,
-    required this.description,
-  });
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[400],
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          Text(
-            "Rs. $price",
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFF47C20),
             ),
           ),
         ],

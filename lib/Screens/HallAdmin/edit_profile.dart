@@ -34,10 +34,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 700;
-
-    final contentPadding = isDesktop ? 40.0 : 20.0;
+    final contentPadding = 20.0;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -70,14 +67,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 10),
                 _buildProfileImageSection(),
 
-                SizedBox(height: isDesktop ? 50 : 40),
+                SizedBox(height: 40),
 
-                if (isDesktop) _buildDesktopLayout() else _buildMobileLayout(),
+                _buildMobileLayout(),
 
                 const SizedBox(height: 50),
 
                 SizedBox(
-                  width: isDesktop ? 400 : double.infinity,
+                  width: double.infinity,
                   child: CommonButton(
                     text: "Save Changes",
                     onTap: () {
@@ -146,56 +143,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDesktopLayout() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildFieldGroup(
-                "Full Name",
-                _nameController,
-                "Enter your full name",
-                Icons.person_outline,
-              ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              child: _buildFieldGroup(
-                "Email Address",
-                _emailController,
-                "Enter your email",
-                Icons.email_outlined,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(
-              child: _buildFieldGroup(
-                "Phone Number",
-                _phoneController,
-                "Enter phone number",
-                Icons.phone_outlined,
-              ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              child: _buildFieldGroup(
-                "CNIC",
-                _cnicController,
-                "Enter CNIC number",
-                Icons.badge_outlined,
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 

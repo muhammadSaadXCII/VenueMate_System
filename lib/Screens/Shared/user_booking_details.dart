@@ -25,50 +25,7 @@ class UserBookingDetailsScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth >= 700) {
-            return _buildDesktopLayout(context);
-          } else {
-            return _buildMobileLayout(context);
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _buildDesktopLayout(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1100),
-        child: Padding(
-          padding: const EdgeInsets.all(40.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 6,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildHallHeader(),
-                      const SizedBox(height: 24),
-                      _buildEventDetailsCard(),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 40),
-
-              Expanded(
-                flex: 4,
-                child: SingleChildScrollView(child: _buildPaymentSummaryCard()),
-              ),
-            ],
-          ),
-        ),
-      ),
+      body: _buildMobileLayout(context),
     );
   }
 

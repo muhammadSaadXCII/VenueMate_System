@@ -27,74 +27,7 @@ class ReviewRegistrationScreen extends StatelessWidget {
         ),
       ),
 
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth >= 1000) {
-            return _buildDesktopLayout(context);
-          } else {
-            return _buildMobileLayout(context);
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _buildDesktopLayout(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1200),
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 6,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(right: 32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SectionHeader(title: "Applicant Info"),
-                      _buildApplicantInfoCard(isDesktop: true),
-                      const SizedBox(height: 32),
-                      _SectionHeader(title: "Hall Details"),
-                      _buildHallDetailsCard(isDesktop: true),
-                    ],
-                  ),
-                ),
-              ),
-
-              Expanded(
-                flex: 4,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildActionCard(context, isDesktop: true),
-                      const SizedBox(height: 24),
-
-                      _SectionHeader(
-                        title: "Banking Information",
-                        padding: EdgeInsets.zero,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildBankingCard(isDesktop: true),
-                      const SizedBox(height: 24),
-
-                      _SectionHeader(
-                        title: "Verification Documents",
-                        padding: EdgeInsets.zero,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDocumentsList(isDesktop: true),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      body: _buildMobileLayout(context),
     );
   }
 
@@ -108,16 +41,16 @@ class ReviewRegistrationScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _SectionHeader(title: "Applicant Info"),
-                _buildApplicantInfoCard(isDesktop: false),
+                _buildApplicantInfoCard(),
                 const SizedBox(height: 24),
                 _SectionHeader(title: "Hall Details"),
-                _buildHallDetailsCard(isDesktop: false),
+                _buildHallDetailsCard(),
                 const SizedBox(height: 24),
                 _SectionHeader(title: "Banking Information"),
-                _buildBankingCard(isDesktop: false),
+                _buildBankingCard(),
                 const SizedBox(height: 24),
                 _SectionHeader(title: "Verification Documents"),
-                _buildDocumentsList(isDesktop: false),
+                _buildDocumentsList(),
               ],
             ),
           ),
@@ -128,7 +61,7 @@ class ReviewRegistrationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildApplicantInfoCard({required bool isDesktop}) {
+  Widget _buildApplicantInfoCard() {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: _cardDecoration(),
@@ -143,7 +76,7 @@ class ReviewRegistrationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHallDetailsCard({required bool isDesktop}) {
+  Widget _buildHallDetailsCard() {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: _cardDecoration(),
@@ -231,7 +164,7 @@ class ReviewRegistrationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBankingCard({required bool isDesktop}) {
+  Widget _buildBankingCard() {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: _cardDecoration(),
@@ -265,7 +198,7 @@ class ReviewRegistrationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDocumentsList({required bool isDesktop}) {
+  Widget _buildDocumentsList() {
     final docs = [
       {"name": "ntn_license.pdf", "type": "pdf"},
       {"name": "business_license.pdf", "type": "pdf"},
@@ -274,89 +207,19 @@ class ReviewRegistrationScreen extends StatelessWidget {
     ];
 
     return Column(
-      children: docs
-          .map(
-            (doc) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: DocumentCard(
-                fileName: doc['name']!,
-                fileType: doc['type']!,
-                isDesktop: isDesktop,
-                isTablet: false,
-              ),
-            ),
-          )
-          .toList(),
-    );
-  }
-
-  Widget _buildActionCard(BuildContext context, {required bool isDesktop}) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration().copyWith(
-        border: Border.all(
-          color: const Color(0xFFF47C20).withOpacity(0.3),
-          width: 1.5,
-        ),
-        color: const Color(0xFFFFF8F0),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Application Decision",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Please review all documents before approving.",
-            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    AppNavigation.push(context, RejectRegistrationScreen());
-                  },
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: const BorderSide(color: Color(0xFFD92D20)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    foregroundColor: Color(0xFFD92D20),
-                  ),
-                  child: const Text(
-                    "Reject",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+      children:
+          docs
+              .map(
+                (doc) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: DocumentCard(
+                    fileName: doc['name']!,
+                    fileType: doc['type']!,
+                    isTablet: false,
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0xFFF47C20),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    "Approve",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+              )
+              .toList(),
     );
   }
 
@@ -465,16 +328,12 @@ class ReviewRegistrationScreen extends StatelessWidget {
 
 class _SectionHeader extends StatelessWidget {
   final String title;
-  final EdgeInsetsGeometry padding;
-  const _SectionHeader({
-    required this.title,
-    this.padding = const EdgeInsets.only(bottom: 12, left: 4),
-  });
+  const _SectionHeader({required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: padding,
+      padding: const EdgeInsets.only(bottom: 12, left: 4),
       child: Text(
         title,
         style: const TextStyle(
@@ -525,14 +384,12 @@ class _DetailRow extends StatelessWidget {
 class DocumentCard extends StatelessWidget {
   final String fileName;
   final String fileType;
-  final bool isDesktop;
   final bool isTablet;
 
   const DocumentCard({
     super.key,
     required this.fileName,
     required this.fileType,
-    required this.isDesktop,
     required this.isTablet,
   });
 

@@ -19,160 +19,12 @@ class _ManageHallScreenState extends State<ManageHallScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Layout Decision
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth >= 700) {
-            return _buildDesktopLayout();
-          } else {
-            return _buildMobileLayout();
-          }
-        },
-      ),
+      body: _buildMobileLayout(),
     );
   }
 
-  // ==========================================
-  // DESKTOP LAYOUT (2 Columns)
-  // ==========================================
-  Widget _buildDesktopLayout() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1100),
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // LEFT COLUMN: Images & Basic Info (40%)
-              Expanded(
-                flex: 4,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      // Image Carousel (Fixed height for desktop)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: SizedBox(
-                          height: 300,
-                          child: _buildImageCarousel(),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: _cardDecoration(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Al Rehman Banquet Hall",
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.location_on,
-                                  size: 18,
-                                  color: Colors.grey[600],
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "Model Colony, Karachi, PK",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 32),
-
-              // RIGHT COLUMN: Details Sections (60%)
-              Expanded(
-                flex: 6,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildSectionHeader("Public Details", onEdit: () {}),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(32),
-                        decoration: _cardDecoration(),
-                        child: Column(
-                          children: [
-                            _buildInfoRow(
-                              Icons.description,
-                              "Description",
-                              "A luxurious venue perfect for weddings and corporate events with premium catering services.",
-                            ),
-                            const SizedBox(height: 24),
-                            _buildInfoRow(
-                              Icons.groups,
-                              "Guest Capacity",
-                              "300 - 800 Guests",
-                            ),
-                            const SizedBox(height: 24),
-                            _buildInfoRow(
-                              Icons.phone,
-                              "Contact Number",
-                              "+92 3XX XXXXXXX",
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      _buildSectionHeader("Private Details", onEdit: () {}),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(32),
-                        decoration: _cardDecoration(),
-                        child: Column(
-                          children: [
-                            _buildInfoRow(
-                              Icons.account_balance,
-                              "Bank Name",
-                              "Meezan Bank Ltd",
-                            ),
-                            const SizedBox(height: 24),
-                            _buildInfoRow(
-                              Icons.numbers,
-                              "Account Number",
-                              "PK35 MEZN 0000 **** ****",
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ==========================================
-  // MOBILE LAYOUT (Slivers)
-  // ==========================================
   Widget _buildMobileLayout() {
     return CustomScrollView(
       slivers: [
@@ -191,8 +43,7 @@ class _ManageHallScreenState extends State<ManageHallScreen> {
             ),
             child: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.black),
-              onPressed: () =>
-                  Navigator.pop(context), // Ensure navigation context exists
+              onPressed: () => Navigator.pop(context),
             ),
           ),
           flexibleSpace: FlexibleSpaceBar(background: _buildImageCarousel()),
@@ -204,7 +55,6 @@ class _ManageHallScreenState extends State<ManageHallScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Info
                 const Text(
                   "Al Rehman Banquet Hall",
                   style: TextStyle(
@@ -233,7 +83,6 @@ class _ManageHallScreenState extends State<ManageHallScreen> {
                 const Divider(),
                 const SizedBox(height: 24),
 
-                // Public Details
                 _buildSectionHeader("Public Details", onEdit: () {}),
                 const SizedBox(height: 12),
                 Container(
@@ -264,7 +113,6 @@ class _ManageHallScreenState extends State<ManageHallScreen> {
 
                 const SizedBox(height: 30),
 
-                // Private Details
                 _buildSectionHeader("Private Details", onEdit: () {}),
                 const SizedBox(height: 12),
                 Container(
@@ -295,10 +143,6 @@ class _ManageHallScreenState extends State<ManageHallScreen> {
     );
   }
 
-  // ==========================================
-  // SHARED WIDGETS
-  // ==========================================
-
   Widget _buildImageCarousel() {
     return Stack(
       alignment: Alignment.bottomRight,
@@ -316,21 +160,22 @@ class _ManageHallScreenState extends State<ManageHallScreen> {
               });
             },
           ),
-          items: _hallImages.map((imageUrl) {
-            return Image.network(
-              imageUrl,
-              width: double.infinity,
-              height: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: Colors.grey[200],
-                child: const Icon(Icons.broken_image),
-              ),
-            );
-          }).toList(),
+          items:
+              _hallImages.map((imageUrl) {
+                return Image.network(
+                  imageUrl,
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (_, __, ___) => Container(
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.broken_image),
+                      ),
+                );
+              }).toList(),
         ),
 
-        // Gradient Overlay
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -341,7 +186,6 @@ class _ManageHallScreenState extends State<ManageHallScreen> {
           ),
         ),
 
-        // Page Counter
         Positioned(
           bottom: 16,
           right: 16,

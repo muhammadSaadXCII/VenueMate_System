@@ -45,20 +45,12 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 1100;
-    final isTablet = screenWidth >= 600 && screenWidth < 1100;
-    final isMobile = screenWidth < 600;
+    final filteredList =
+        _selectedFilter == "All"
+            ? _complaints
+            : _complaints.where((c) => c['status'] == _selectedFilter).toList();
 
-    final filteredList = _selectedFilter == "All"
-        ? _complaints
-        : _complaints.where((c) => c['status'] == _selectedFilter).toList();
-
-    final horizontalPadding = isDesktop
-        ? screenWidth * 0.15
-        : isTablet
-        ? 40.0
-        : 20.0;
+    final horizontalPadding = 20.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -66,17 +58,17 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: !isDesktop,
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        automaticallyImplyLeading: isMobile,
+        automaticallyImplyLeading: true,
         title: Text(
           "User Complaints",
           style: TextStyle(
             color: Colors.black,
-            fontSize: isDesktop ? 24 : 20,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -96,15 +88,13 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    mainAxisAlignment: isDesktop
-                        ? MainAxisAlignment.center
-                        : MainAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      _buildFilterChip("New", isDesktop: isDesktop),
+                      _buildFilterChip("New"),
                       const SizedBox(width: 12),
-                      _buildFilterChip("Resolved", isDesktop: isDesktop),
+                      _buildFilterChip("Resolved"),
                       const SizedBox(width: 12),
-                      _buildFilterChip("All", isDesktop: isDesktop),
+                      _buildFilterChip("All"),
                     ],
                   ),
                 ),
@@ -121,43 +111,22 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                     horizontal: horizontalPadding,
                     vertical: 20,
                   ),
-                  child: isDesktop
-                      ? GridView.builder(
-                          itemCount: filteredList.length,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 24,
-                                mainAxisSpacing: 24,
-
-                                mainAxisExtent: 260,
-                              ),
-                          itemBuilder: (context, index) {
-                            return _ComplaintCard(
-                              data: filteredList[index],
-                              isDesktop: true,
-                              onComplaintTap: () => _navigateToDetails(
-                                context,
-                                filteredList[index],
-                              ),
-                            );
-                          },
-                        )
-                      : ListView.separated(
-                          itemCount: filteredList.length,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 16),
-                          itemBuilder: (context, index) {
-                            return _ComplaintCard(
-                              data: filteredList[index],
-                              isDesktop: false,
-                              onComplaintTap: () => _navigateToDetails(
-                                context,
-                                filteredList[index],
-                              ),
-                            );
-                          },
-                        ),
+                  child: ListView.separated(
+                    itemCount: filteredList.length,
+                    separatorBuilder:
+                        (context, index) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      return _ComplaintCard(
+                        data: filteredList[index],
+                        isDesktop: false,
+                        onComplaintTap:
+                            () => _navigateToDetails(
+                              context,
+                              filteredList[index],
+                            ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -171,7 +140,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     AppNavigation.push(context, ComplaintDetailsScreen(complaint: item));
   }
 
-  Widget _buildFilterChip(String label, {int? count, required bool isDesktop}) {
+  Widget _buildFilterChip(String label, {int? count}) {
     bool isSelected = _selectedFilter == label;
 
     return GestureDetector(

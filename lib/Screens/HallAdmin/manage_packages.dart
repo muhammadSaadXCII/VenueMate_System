@@ -40,12 +40,7 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 1100;
-    final isTablet = screenWidth >= 650 && screenWidth < 1100;
-
-    final horizontalPadding = isDesktop ? screenWidth * 0.05 : 20.0;
-    int crossAxisCount = isDesktop ? 3 : (isTablet ? 2 : 1);
+    final horizontalPadding = 20.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -89,7 +84,10 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
                           constraints: const BoxConstraints(maxWidth: 600),
                           child: GestureDetector(
                             onTap: () {
-                              AppNavigation.push(context, CreatePackageScreen());
+                              AppNavigation.push(
+                                context,
+                                CreatePackageScreen(),
+                              );
                             },
                             child: Container(
                               width: double.infinity,
@@ -147,29 +145,15 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
                   top: 8.0,
                   bottom: 40,
                 ),
-                sliver: isDesktop || isTablet
-                    ? SliverGrid(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-
-                          mainAxisExtent: 230,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) => _buildPackageItem(index),
-                          childCount: _packages.length,
-                        ),
-                      )
-                    : SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) => Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: _buildPackageItem(index),
-                          ),
-                          childCount: _packages.length,
-                        ),
-                      ),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _buildPackageItem(index),
+                    ),
+                    childCount: _packages.length,
+                  ),
+                ),
               ),
             ],
           ),
