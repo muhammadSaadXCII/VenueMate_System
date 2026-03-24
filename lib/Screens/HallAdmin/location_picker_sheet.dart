@@ -78,7 +78,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 35.0),
                     child: Image.asset(
-                      'assets/images/locationPin.png',
+                      'assets/images/locationpin 3.png',
                       width: 60,
                       height: 60,
                       fit: BoxFit.contain,

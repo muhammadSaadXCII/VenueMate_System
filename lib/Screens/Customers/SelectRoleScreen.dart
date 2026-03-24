@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Screens/Customers/LoginScreen.dart';
 import 'SignUpScreen.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
@@ -8,7 +9,8 @@ class RoleSelectionScreen extends StatefulWidget {
   State<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
 }
 
-class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTickerProviderStateMixin {
+class _RoleSelectionScreenState extends State<RoleSelectionScreen>
+    with SingleTickerProviderStateMixin {
   int? _selectedRole; // 0 = Customer, 1 = Venue Owner
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -29,7 +31,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
 
     _animationController.forward();
   }
@@ -101,10 +105,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
               Text(
                 'Please select a role to continue.\nChoose either Customer or Venue Owner.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
               const SizedBox(height: 24),
               // OK Button
@@ -227,10 +228,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Text(
                         'Choose how you want to continue',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                     ),
                     const SizedBox(height: 40),
@@ -306,7 +304,12 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
                           const SizedBox(height: 16),
                           TextButton(
                             onPressed: () {
-                              // Skip logic (Navigate to Guest Home)
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => LoginScreen(),
+                                ),
+                              );
                             },
                             child: const Text(
                               'Skip for now',
@@ -358,9 +361,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
           ),
           boxShadow: [
             BoxShadow(
-              color: isSelected
-                  ? const Color(0xFFF47C20).withOpacity(0.4)
-                  : Colors.grey.withOpacity(0.1),
+              color:
+                  isSelected
+                      ? const Color(0xFFF47C20).withOpacity(0.4)
+                      : Colors.grey.withOpacity(0.1),
               blurRadius: isSelected ? 20 : 10,
               offset: const Offset(0, 5),
             ),
@@ -371,7 +375,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.white.withOpacity(0.2) : const Color(0xFFF47C20).withOpacity(0.1),
+                color:
+                    isSelected
+                        ? Colors.white.withOpacity(0.2)
+                        : const Color(0xFFF47C20).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
@@ -398,7 +405,10 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> with SingleTi
                     subtitle,
                     style: TextStyle(
                       fontSize: 13,
-                      color: isSelected ? Colors.white.withOpacity(0.9) : Colors.grey[600],
+                      color:
+                          isSelected
+                              ? Colors.white.withOpacity(0.9)
+                              : Colors.grey[600],
                     ),
                   ),
                 ],

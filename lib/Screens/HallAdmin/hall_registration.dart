@@ -696,7 +696,6 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
         AddNewButton(
           label: "Add New Menu Item",
           onTap: () {
-            print("Menu Sheet");
             showModalBottomSheet(
               context: context,
               isScrollControlled: true,
@@ -763,7 +762,6 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
         AddNewButton(
           label: "Add New Service",
           onTap: () {
-            print("Service Sheet");
             showModalBottomSheet(
               context: context,
               isScrollControlled: true,
@@ -864,7 +862,10 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
             onPressed:
                 _isConfirmed
                     ? () {
-                      AppNavigation.push(context, PendingReviewScreen());
+                      AppNavigation.pushReplacement(
+                        context,
+                        PendingReviewScreen(),
+                      );
                     }
                     : null,
             style: ElevatedButton.styleFrom(
