@@ -8,13 +8,14 @@ class ForgotPasswordScreen extends StatefulWidget {
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with SingleTickerProviderStateMixin {
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  
+
   bool _isEmailSent = false; // Toggles between Form and Success Message
-  bool _isLoading = false;   // Controls the loading spinner on button
-  
+  bool _isLoading = false; // Controls the loading spinner on button
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -26,16 +27,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
-    
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+
     _animationController.forward();
   }
 
@@ -80,7 +83,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
           setState(() {
             _isLoading = false;
           });
-          
+
           String errorMessage = "An error occurred";
           if (e.code == 'user-not-found') {
             errorMessage = "No user found with this email.";
@@ -161,7 +164,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                     ),
                   ),
                   const SizedBox(height: 40),
-                  
+
                   // Email Form or Success Message
                   if (!_isEmailSent) ...[
                     // Email Input Form
@@ -192,11 +195,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                               ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -218,7 +225,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                               }
                               // Simple regex for validation
                               final emailRegex = RegExp(
-                                r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+"
+                                r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
                               );
                               if (!emailRegex.hasMatch(value)) {
                                 return 'Please enter a valid email';
@@ -240,16 +247,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                                 ),
                                 elevation: 3,
                               ),
-                              child: _isLoading 
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text(
-                                  'Send Reset Link',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                              child:
+                                  _isLoading
+                                      ? const CircularProgressIndicator(
+                                        color: Colors.white,
+                                      )
+                                      : const Text(
+                                        'Send Reset Link',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
                             ),
                           ),
                         ],
@@ -331,7 +341,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                             _isEmailSent = false;
                           });
                         },
-                        icon: const Icon(Icons.refresh, color: Color(0xFFF47C20)),
+                        icon: const Icon(
+                          Icons.refresh,
+                          color: Color(0xFFF47C20),
+                        ),
                         label: const Text(
                           'Resend Email',
                           style: TextStyle(
@@ -343,9 +356,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                       ),
                     ),
                   ],
-                  
+
                   const SizedBox(height: 40),
-                  
+
                   // Back to Login
                   Center(
                     child: Row(
@@ -374,62 +387,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> with Single
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 40),
-                  
-                  // Help Section
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF47C20).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.help_outline,
-                            color: Color(0xFFF47C20),
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Need Help?',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Contact our support team',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          size: 16,
-                          color: Colors.grey,
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
