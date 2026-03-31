@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
 import 'LoginScreen.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({Key? key}) : super(key: key);
+  const OnboardingScreen({super.key});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -93,7 +94,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 
-  void _finishOnboarding() {
+  void _finishOnboarding() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarded', true);
+
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
@@ -116,16 +121,16 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 500),
-            decoration: BoxDecoration(
-              gradient: _pages[_currentPage].gradient,
-            ),
+            decoration: BoxDecoration(gradient: _pages[_currentPage].gradient),
           ),
           SafeArea(
             child: Column(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -160,7 +165,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           style: TextButton.styleFrom(
                             backgroundColor: Colors.white.withOpacity(0.2),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 8),
+                              horizontal: 20,
+                              vertical: 8,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                             ),
@@ -224,8 +231,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               borderRadius: BorderRadius.circular(20),
                             ),
                             elevation: 5,
-                            shadowColor:
-                                const Color(0xFFF47C20).withOpacity(0.5),
+                            shadowColor: const Color(
+                              0xFFF47C20,
+                            ).withOpacity(0.5),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,

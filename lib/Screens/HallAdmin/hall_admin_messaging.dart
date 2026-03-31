@@ -1,21 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:venuemate_system/Services/auth_service.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
 
-class HallAdminMessagingScreen extends StatelessWidget {
+// Same Firestore structure as MessagingScreen (Customer):
+//   chats/{chatId}  →  participants, participantNames, participantPhotos,
+//                       lastMessage, lastMessageTime, unreadCount
+//   chats/{chatId}/messages/{msgId}  →  text, senderId, createdAt
+
+class HallAdminMessagingScreen extends StatefulWidget {
   const HallAdminMessagingScreen({super.key});
+  @override
+  State<HallAdminMessagingScreen> createState() =>
+      _HallAdminMessagingScreenState();
+}
+
+class _HallAdminMessagingScreenState extends State<HallAdminMessagingScreen> {
+  final String _uid = AuthService.currentUid ?? '';
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Stream<QuerySnapshot> get _chatsStream =>
+      FirebaseFirestore.instance
+          .collection('chats')
+          .where('participants', arrayContains: _uid)
+          .snapshots();
 
   @override
   Widget build(BuildContext context) {
-    const Color searchBarColor = Color(0xFFF3F4F6);
+    const searchBarColor = Color(0xFFF3F4F6);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 20),
+
+            // ── Header ───────────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
                   Container(
@@ -44,7 +75,7 @@ class HallAdminMessagingScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   const Text(
-                    "Messages",
+                    'Messages',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
@@ -58,17 +89,20 @@ class HallAdminMessagingScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
+            // ── Search bar ────────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
                 height: 50,
                 decoration: BoxDecoration(
                   color: searchBarColor,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const TextField(
-                  decoration: InputDecoration(
-                    hintText: "Search chats...",
+                child: TextField(
+                  controller: _searchCtrl,
+                  onChanged: (v) => setState(() => _query = v.toLowerCase()),
+                  decoration: const InputDecoration(
+                    hintText: 'Search chats...',
                     hintStyle: TextStyle(
                       color: Colors.grey,
                       fontSize: 15,
@@ -87,7 +121,6 @@ class HallAdminMessagingScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 20),
-
             Divider(
               color: Colors.grey.shade200,
               thickness: 1.5,
@@ -95,76 +128,177 @@ class HallAdminMessagingScreen extends StatelessWidget {
               endIndent: 20,
             ),
 
+            // ── Chat list ──────────────────────────────────────────────────────
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                children: const [
-                  ChatTile(
-                    name: "Waqar Yunus",
-                    message: "Great I will arrive soon...",
-                    time: "05:02",
-                    unreadCount: 3,
-                    avatarUrl:
-                        "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80",
-                  ),
-                  ChatTile(
-                    name: "Muhammad Ali",
-                    message: "My order has not arrived yet",
-                    time: "05:02",
-                    unreadCount: 2,
-                    avatarUrl:
-                        "https://images.unsplash.com/photo-1599566150163-29194dcaad36?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80",
-                  ),
-                  ChatTile(
-                    name: "Arslan Umer",
-                    message: "How are you doing?",
-                    time: "12/21/2022",
-                    unreadCount: 0,
-                    avatarUrl:
-                        "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80",
-                  ),
-                ],
-              ),
+              child:
+                  _uid.isEmpty
+                      ? _emptyState('Log in to see your messages.')
+                      : StreamBuilder<QuerySnapshot>(
+                        stream: _chatsStream,
+                        builder: (context, snap) {
+                          if (snap.connectionState == ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFFF47C20),
+                              ),
+                            );
+                          }
+                          final docs = snap.data?.docs ?? [];
+                          if (docs.isEmpty) {
+                            return _emptyState(
+                              'No conversations yet.\nCustomers who book will appear here.',
+                            );
+                          }
+
+                          final filtered =
+                              _query.isEmpty
+                                  ? docs
+                                  : docs.where((d) {
+                                    final data =
+                                        d.data() as Map<String, dynamic>;
+                                    final names = Map<String, dynamic>.from(
+                                      data['participantNames'] ?? {},
+                                    );
+                                    final otherName =
+                                        names.entries
+                                                .firstWhere(
+                                                  (e) => e.key != _uid,
+                                                  orElse:
+                                                      () => const MapEntry(
+                                                        '',
+                                                        '',
+                                                      ),
+                                                )
+                                                .value
+                                            as String;
+                                    return otherName.toLowerCase().contains(
+                                      _query,
+                                    );
+                                  }).toList();
+
+                          if (filtered.isEmpty) {
+                            return _emptyState('No chats match your search.');
+                          }
+
+                          return ListView.builder(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                            itemCount: filtered.length,
+                            itemBuilder: (_, i) {
+                              final data =
+                                  filtered[i].data() as Map<String, dynamic>;
+                              final chatId = filtered[i].id;
+                              final names = Map<String, dynamic>.from(
+                                data['participantNames'] ?? {},
+                              );
+                              final photos = Map<String, dynamic>.from(
+                                data['participantPhotos'] ?? {},
+                              );
+                              final unreadMap = Map<String, dynamic>.from(
+                                data['unreadCount'] ?? {},
+                              );
+
+                              final otherEntry = names.entries.firstWhere(
+                                (e) => e.key != _uid,
+                                orElse: () => const MapEntry('', 'Customer'),
+                              );
+                              final otherId = otherEntry.key;
+                              final otherName = otherEntry.value as String;
+                              final otherPhoto =
+                                  photos[otherId] as String? ?? '';
+                              final unread = (unreadMap[_uid] ?? 0) as int;
+
+                              final ts = data['lastMessageTime'] as Timestamp?;
+                              final timeStr =
+                                  ts != null ? _formatTime(ts.toDate()) : '';
+
+                              return _ChatTile(
+                                chatId: chatId,
+                                currentUid: _uid,
+                                otherName: otherName,
+                                otherPhoto: otherPhoto,
+                                otherId: otherId,
+                                lastMessage:
+                                    data['lastMessage'] as String? ?? '',
+                                time: timeStr,
+                                unreadCount: unread,
+                              );
+                            },
+                          );
+                        },
+                      ),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _emptyState(String msg) => Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[300]),
+        const SizedBox(height: 16),
+        Text(
+          msg,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.grey[500], height: 1.5),
+        ),
+      ],
+    ),
+  );
+
+  String _formatTime(DateTime dt) {
+    final now = DateTime.now();
+    if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+      return '${dt.hour.toString().padLeft(2, '0')}:'
+          '${dt.minute.toString().padLeft(2, '0')}';
+    }
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
 }
 
-class ChatTile extends StatelessWidget {
-  final String name;
-  final String message;
-  final String time;
+// ── Chat tile ──────────────────────────────────────────────────────────────
+class _ChatTile extends StatelessWidget {
+  final String chatId, currentUid, otherName, otherPhoto, otherId;
+  final String lastMessage, time;
   final int unreadCount;
-  final String avatarUrl;
 
-  const ChatTile({
-    super.key,
-    required this.name,
-    required this.message,
+  const _ChatTile({
+    required this.chatId,
+    required this.currentUid,
+    required this.otherName,
+    required this.otherPhoto,
+    required this.otherId,
+    required this.lastMessage,
     required this.time,
     required this.unreadCount,
-    required this.avatarUrl,
   });
 
   @override
   Widget build(BuildContext context) {
-    const Color badgeColor = Color(0xFFF47C20);
-
+    const badgeColor = Color(0xFFF47C20);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
+            FirebaseFirestore.instance.collection('chats').doc(chatId).update({
+              'unreadCount.$currentUid': 0,
+            });
             AppNavigation.push(
               context,
-              ChattingScreen(username: name, avatarUrl: avatarUrl),
+              _ChattingScreen(
+                chatId: chatId,
+                currentUid: currentUid,
+                otherName: otherName,
+                otherPhoto: otherPhoto,
+                otherId: otherId,
+              ),
             );
           },
           borderRadius: BorderRadius.circular(16),
@@ -174,7 +308,6 @@ class ChatTile extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.grey.shade100),
-
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.03),
@@ -186,31 +319,14 @@ class ChatTile extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Stack(
-                  children: [
-                    Container(
-                      width: 55,
-                      height: 55,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        image: DecorationImage(
-                          image: NetworkImage(avatarUrl),
-                          fit: BoxFit.cover,
-                        ),
-                        color: Colors.grey[200],
-                      ),
-                    ),
-                  ],
-                ),
-
+                _Avatar(photoUrl: otherPhoto, name: otherName),
                 const SizedBox(width: 15),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        name,
+                        otherName,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -219,7 +335,7 @@ class ChatTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        message,
+                        lastMessage,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -237,33 +353,29 @@ class ChatTile extends StatelessWidget {
                     ],
                   ),
                 ),
-
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    if (unreadCount > 0)
-                      Container(
-                        width: 22,
-                        height: 22,
-                        alignment: Alignment.center,
-                        decoration: const BoxDecoration(
-                          color: badgeColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          unreadCount.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                    unreadCount > 0
+                        ? Container(
+                          width: 22,
+                          height: 22,
+                          alignment: Alignment.center,
+                          decoration: const BoxDecoration(
+                            color: badgeColor,
+                            shape: BoxShape.circle,
                           ),
-                        ),
-                      )
-                    else
-                      const SizedBox(height: 22),
-
+                          child: Text(
+                            '$unreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                        : const SizedBox(height: 22),
                     const SizedBox(height: 6),
-
                     Text(
                       time,
                       style: TextStyle(
@@ -283,85 +395,82 @@ class ChatTile extends StatelessWidget {
   }
 }
 
-class ChattingScreen extends StatefulWidget {
-  final String username;
-  final String avatarUrl;
-
-  const ChattingScreen({
-    super.key,
-    required this.username,
-    required this.avatarUrl,
+// ── Chatting screen ────────────────────────────────────────────────────────
+class _ChattingScreen extends StatefulWidget {
+  final String chatId, currentUid, otherName, otherPhoto, otherId;
+  const _ChattingScreen({
+    required this.chatId,
+    required this.currentUid,
+    required this.otherName,
+    required this.otherPhoto,
+    required this.otherId,
   });
-
   @override
-  State<ChattingScreen> createState() => _ChattingScreenState();
+  State<_ChattingScreen> createState() => _ChattingScreenState();
 }
 
-class _ChattingScreenState extends State<ChattingScreen> {
-  final ChatUser _hallAdmin = ChatUser(
-    id: '1',
-    firstName: 'Rehman',
-    lastName: 'Hussain',
-  );
+class _ChattingScreenState extends State<_ChattingScreen> {
+  late final ChatUser _me;
+  late final ChatUser _other;
+  final _db = FirebaseFirestore.instance;
 
-  late ChatUser _otherUser;
-
-  List<ChatMessage> _messages = [];
+  Stream<List<ChatMessage>> get _msgStream => _db
+      .collection('chats')
+      .doc(widget.chatId)
+      .collection('messages')
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map(
+        (snap) =>
+            snap.docs.map((d) {
+              final data = d.data();
+              final isMe = data['senderId'] == widget.currentUid;
+              return ChatMessage(
+                text: data['text'] ?? '',
+                user: isMe ? _me : _other,
+                createdAt:
+                    (data['createdAt'] as Timestamp?)?.toDate() ??
+                    DateTime.now(),
+              );
+            }).toList(),
+      );
 
   @override
   void initState() {
     super.initState();
-    _otherUser = ChatUser(
-      id: '2',
-      firstName: widget.username,
-      profileImage: widget.avatarUrl,
+    _me = ChatUser(id: widget.currentUid);
+    _other = ChatUser(
+      id: widget.otherId,
+      firstName: widget.otherName,
+      profileImage: widget.otherPhoto.isNotEmpty ? widget.otherPhoto : null,
     );
-
-    _messages = [
-      ChatMessage(
-        text: "Hi! Is the hall available for 25th Nov?",
-        user: _otherUser,
-        createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
-      ),
-      ChatMessage(
-        text: "Yes, we have slots available for the evening.",
-        user: _hallAdmin,
-        createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
-      ),
-    ];
-  }
-
-  void _onSend(ChatMessage message) {
-    setState(() {
-      _messages.insert(0, message);
-    });
-
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() {
-          _messages.insert(
-            0,
-            ChatMessage(
-              text: "Thanks! I will proceed with the booking.",
-              user: _otherUser,
-              createdAt: DateTime.now(),
-            ),
-          );
-        });
-      }
+    _db.collection('chats').doc(widget.chatId).update({
+      'unreadCount.${widget.currentUid}': 0,
     });
   }
 
-  void _handlePhotoUpload() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Photo Picker would open here")),
-    );
+  Future<void> _onSend(ChatMessage message) async {
+    final batch = _db.batch();
+    final msgRef =
+        _db.collection('chats').doc(widget.chatId).collection('messages').doc();
+    batch.set(msgRef, {
+      'text': message.text,
+      'senderId': widget.currentUid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    final chatRef = _db.collection('chats').doc(widget.chatId);
+    batch.update(chatRef, {
+      'lastMessage': message.text,
+      'lastMessageTime': FieldValue.serverTimestamp(),
+      'unreadCount.${widget.otherId}': FieldValue.increment(1),
+      'unreadCount.${widget.currentUid}': 0,
+    });
+    await batch.commit();
   }
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryOrange = Color(0xFFF47C20);
-
+    const primaryOrange = Color(0xFFF47C20);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -374,76 +483,110 @@ class _ChattingScreenState extends State<ChattingScreen> {
         ),
         title: Row(
           children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundImage: NetworkImage(widget.avatarUrl),
-            ),
+            _Avatar(photoUrl: widget.otherPhoto, name: widget.otherName),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.username,
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+            Text(
+              widget.otherName,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
       ),
-      body: DashChat(
-        currentUser: _hallAdmin,
-        onSend: _onSend,
-        messages: _messages,
-
-        inputOptions: InputOptions(
-          leading: [
-            IconButton(
-              icon: const Icon(Icons.photo, color: primaryOrange, size: 28),
-              onPressed: _handlePhotoUpload,
+      body: StreamBuilder<List<ChatMessage>>(
+        stream: _msgStream,
+        builder:
+            (context, snap) => DashChat(
+              currentUser: _me,
+              onSend: _onSend,
+              messages: snap.data ?? [],
+              inputOptions: InputOptions(
+                inputDecoration: InputDecoration(
+                  hintText: 'Type a message...',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  fillColor: const Color(0xFFF3F4F6),
+                  filled: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                ),
+                alwaysShowSend: true,
+                sendButtonBuilder:
+                    (send) => IconButton(
+                      icon: const Icon(Icons.send_rounded),
+                      color: primaryOrange,
+                      onPressed: send,
+                    ),
+              ),
+              messageOptions: const MessageOptions(
+                showOtherUsersAvatar: false,
+                showTime: true,
+                containerColor: Color(0xFFF3F4F6),
+                currentUserContainerColor: primaryOrange,
+                textColor: Colors.black87,
+                currentUserTextColor: Colors.white,
+                timeFontSize: 10,
+                messagePadding: EdgeInsets.all(12),
+                borderRadius: 16,
+              ),
             ),
-          ],
-
-          inputDecoration: InputDecoration(
-            hintText: "Type a message...",
-            hintStyle: TextStyle(color: Colors.grey[400]),
-            fillColor: const Color(0xFFF3F4F6),
-            filled: true,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(30),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 10,
-            ),
-          ),
-          alwaysShowSend: true,
-          sendButtonBuilder: (send) {
-            return IconButton(
-              icon: const Icon(Icons.send_rounded),
-              color: primaryOrange,
-              onPressed: send,
-            );
-          },
-        ),
-
-        messageOptions: MessageOptions(
-          showOtherUsersAvatar: false,
-          showTime: true,
-          containerColor: const Color(0xFFF3F4F6),
-          currentUserContainerColor: primaryOrange,
-          textColor: Colors.black87,
-          currentUserTextColor: Colors.white,
-          timeFontSize: 10,
-          messagePadding: const EdgeInsets.all(12),
-          borderRadius: 16,
-        ),
       ),
     );
   }
+}
+
+// ── Shared avatar widget ───────────────────────────────────────────────────
+class _Avatar extends StatelessWidget {
+  final String photoUrl, name;
+  const _Avatar({required this.photoUrl, required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    final initials =
+        name.trim().isNotEmpty
+            ? name
+                .trim()
+                .split(' ')
+                .map((w) => w[0].toUpperCase())
+                .take(2)
+                .join()
+            : '?';
+    return Container(
+      width: 55,
+      height: 55,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.orange.shade50,
+      ),
+      child:
+          photoUrl.isNotEmpty
+              ? ClipOval(
+                child: Image.network(
+                  photoUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _initials(initials),
+                ),
+              )
+              : _initials(initials),
+    );
+  }
+
+  Widget _initials(String i) => Center(
+    child: Text(
+      i,
+      style: const TextStyle(
+        color: Color(0xFFF47C20),
+        fontWeight: FontWeight.bold,
+        fontSize: 18,
+      ),
+    ),
+  );
 }

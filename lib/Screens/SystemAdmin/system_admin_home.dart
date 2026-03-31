@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:badges/badges.dart' as badges;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
+import 'package:venuemate_system/Services/auth_service.dart';
+import 'package:venuemate_system/Services/user_service.dart';
 import 'package:venuemate_system/Screens/Customers/LoginScreen.dart';
 import 'package:venuemate_system/Screens/Shared/user_notifications.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/manage_all_halls.dart';
@@ -18,389 +21,282 @@ class SystemAdminHome extends StatefulWidget {
 }
 
 class _SystemAdminHomeState extends State<SystemAdminHome> {
-  int _selectedIndex = 0;
+  final _db = FirebaseFirestore.instance;
+
+  // ── Stream helpers ─────────────────────────────────────────────────────────
+  Stream<int> get _pendingStream => _db
+      .collection('halls')
+      .where('status', isEqualTo: 'pending')
+      .snapshots()
+      .map((s) => s.docs.length);
+
+  Stream<int> get _complaintsStream => _db
+      .collection('complaints')
+      .where('status', isEqualTo: 'Pending')
+      .snapshots()
+      .map((s) => s.docs.length);
+
+  // One-time stat fetches (cached in FutureBuilder)
+  Future<Map<String, int>> _fetchStats() async {
+    final results = await Future.wait([
+      _db.collection('halls').where('status', isEqualTo: 'approved').get(),
+      _db.collection('users').get(),
+      _db.collection('bookings').get(),
+      _db.collection('bookings').where('status', isEqualTo: 'cancelled').get(),
+    ]);
+    return {
+      'halls': results[0].docs.length,
+      'users': results[1].docs.length,
+      'bookings': results[2].docs.length,
+      'cancelled': results[3].docs.length,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth >= 750) {
-            return _buildDesktopLayout(context);
-          } else {
-            return _buildMobileLayout(context);
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _buildDesktopLayout(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 260,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(right: BorderSide(color: Colors.grey.shade200)),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: IntrinsicHeight(
-                    child: Column(
-                      children: [
-                        _buildSidebarHeader(),
-                        const SizedBox(height: 20),
-                        _SidebarItem(
-                          icon: Icons.dashboard_outlined,
-                          label: "Dashboard",
-                          isActive: _selectedIndex == 0,
-                          onTap: () => setState(() => _selectedIndex = 0),
-                        ),
-                        _SidebarItem(
-                          icon: Icons.account_balance_outlined,
-                          label: "Manage Halls",
-                          isActive: _selectedIndex == 1,
-                          onTap: () => setState(() => _selectedIndex = 1),
-                        ),
-                        _SidebarItem(
-                          icon: Icons.people_outline,
-                          label: "Manage Users",
-                          isActive: _selectedIndex == 2,
-                          onTap: () => setState(() => _selectedIndex = 2),
-                        ),
-                        _SidebarItem(
-                          icon: Icons.notifications_outlined,
-                          label: "Notifications",
-                          isActive: _selectedIndex == 3,
-                          showBadge: true,
-                          onTap: () => setState(() => _selectedIndex = 3),
-                        ),
-                        const Expanded(child: SizedBox(height: 40)),
-                        _SidebarItem(
-                          icon: Icons.logout,
-                          label: "Logout",
-                          isDestructive: true,
-                          onTap: () => _handleLogout(context),
-                        ),
-                        const SizedBox(height: 4),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        Expanded(child: _getSelectedScreen()),
-      ],
-    );
-  }
-
-  Widget _getSelectedScreen() {
-    switch (_selectedIndex) {
-      case 0:
-        return _DashboardContent(
-          onNavigateToPending: () {
-            AppNavigation.push(context, const PendingRegistrationsScreen());
-          },
-          onNavigateToComplaints: () {
-            AppNavigation.push(context, const ComplaintsScreen());
-          },
-        );
-      case 1:
-        return const ManageAllHallsScreen();
-      case 2:
-        return const ManageAllUsersScreen();
-      case 3:
-        return const UserNotificationsScreen();
-      default:
-        return _DashboardContent(
-          onNavigateToPending: () {},
-          onNavigateToComplaints: () {},
-        );
-    }
-  }
-
-  Widget _buildMobileLayout(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _AdminHeaderMobile(context: context),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ActionCard(
-                  title: "4 Pending Registrations",
-                  subtitle: "Review submissions",
-                  imagePath: 'assets/images/pendingLogo.png',
-                  iconColor: Colors.amber,
-                  borderColor: Colors.amber,
-                  secondaryIcon: Icons.access_time_filled,
-                  isDesktop: false,
-                  onTap: () => AppNavigation.push(
-                    context,
-                    const PendingRegistrationsScreen(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ActionCard(
-                  title: "2 New Complaints",
-                  subtitle: "Resolve issues",
-                  imagePath: 'assets/images/complaintsLogo.png',
-                  iconColor: Colors.redAccent,
-                  borderColor: Colors.redAccent,
-                  secondaryIcon: Icons.warning,
-                  isDesktop: false,
-                  onTap: () =>
-                      AppNavigation.push(context, const ComplaintsScreen()),
-                ),
-                const SizedBox(height: 32),
-                const Text(
-                  "Statistics",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  childAspectRatio: 1.1,
-                  children: const [
-                    StatCard(
-                      count: "150",
-                      label: "Total Halls",
-                      imagePath: 'assets/images/hallpic.png',
-                      color: Colors.blue,
-                      isDesktop: false,
-                    ),
-                    StatCard(
-                      count: "500",
-                      label: "Total Users",
-                      imagePath: 'assets/images/users.png',
-                      color: Colors.purple,
-                      isDesktop: false,
-                    ),
-                    StatCard(
-                      count: "320",
-                      label: "Bookings",
-                      imagePath: 'assets/images/bookcalendar.png',
-                      color: Colors.orange,
-                      isDesktop: false,
-                    ),
-                    StatCard(
-                      count: "15",
-                      label: "Cancelled",
-                      imagePath: 'assets/images/cancelfile.png',
-                      color: Colors.red,
-                      isDesktop: false,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-                const Text(
-                  "Quick Links",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-
-                _MobileManagementTile(
-                  title: "Manage All Halls",
-                  imagePath: 'assets/images/hallpic.png',
-                  onTap: () =>
-                      AppNavigation.push(context, const ManageAllHallsScreen()),
-                ),
-
-                const SizedBox(height: 12),
-
-                _MobileManagementTile(
-                  title: "Manage All Users",
-                  imagePath: 'assets/images/users.png',
-                  onTap: () =>
-                      AppNavigation.push(context, const ManageAllUsersScreen()),
-                ),
-
-                const SizedBox(height: 40),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSidebarHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 30),
-      child: const Column(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: Color(0xFFF47C20),
-            child: Icon(
-              Icons.admin_panel_settings,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          SizedBox(height: 10),
-          Text(
-            "VenueMate Admin",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DashboardContent extends StatelessWidget {
-  final VoidCallback onNavigateToPending;
-  final VoidCallback onNavigateToComplaints;
-
-  const _DashboardContent({
-    required this.onNavigateToPending,
-    required this.onNavigateToComplaints,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1100),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDesktopHeader(),
-              const SizedBox(height: 32),
-              Row(
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(context),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: ActionCard(
-                      title: "4 Pending",
-                      subtitle: "Registrations",
-                      imagePath: 'assets/images/pendingLogo.png',
-                      iconColor: Colors.amber,
-                      borderColor: Colors.amber,
-                      secondaryIcon: Icons.access_time_filled,
-                      isDesktop: true,
-                      onTap: onNavigateToPending,
-                    ),
+                  // ── Pending Registrations action card ──────────────────
+                  StreamBuilder<int>(
+                    stream: _pendingStream,
+                    builder: (context, snap) {
+                      final count = snap.data ?? 0;
+                      return ActionCard(
+                        title:
+                            count == 0
+                                ? 'No Pending Registrations'
+                                : '$count Pending Registration${count == 1 ? '' : 's'}',
+                        subtitle: 'Review hall submissions',
+                        imagePath: 'assets/images/pendingLogo.png',
+                        iconColor: Colors.amber,
+                        borderColor: Colors.amber,
+                        badgeCount: count,
+                        onTap:
+                            () => AppNavigation.push(
+                              context,
+                              const PendingRegistrationsScreen(),
+                            ),
+                      );
+                    },
                   ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: ActionCard(
-                      title: "2 Complaints",
-                      subtitle: "Need Review",
-                      imagePath: 'assets/images/complaintsLogo.png',
-                      iconColor: Colors.redAccent,
-                      borderColor: Colors.redAccent,
-                      secondaryIcon: Icons.warning,
-                      isDesktop: true,
-                      onTap: onNavigateToComplaints,
-                    ),
+                  const SizedBox(height: 16),
+
+                  // ── Complaints action card ─────────────────────────────
+                  StreamBuilder<int>(
+                    stream: _complaintsStream,
+                    builder: (context, snap) {
+                      final count = snap.data ?? 0;
+                      return ActionCard(
+                        title:
+                            count == 0
+                                ? 'No New Complaints'
+                                : '$count New Complaint${count == 1 ? '' : 's'}',
+                        subtitle: 'Resolve customer issues',
+                        imagePath: 'assets/images/complaintsLogo.png',
+                        iconColor: Colors.redAccent,
+                        borderColor: Colors.redAccent,
+                        badgeCount: count,
+                        onTap:
+                            () => AppNavigation.push(
+                              context,
+                              const ComplaintsScreen(),
+                            ),
+                      );
+                    },
                   ),
+                  const SizedBox(height: 32),
+
+                  // ── Statistics ────────────────────────────────────────
+                  const Text(
+                    'Statistics',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  // const SizedBox(height: 16),
+                  FutureBuilder<Map<String, int>>(
+                    future: _fetchStats(),
+                    builder: (context, snap) {
+                      final stats = snap.data;
+                      return GridView.count(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        childAspectRatio: 1.1,
+                        children: [
+                          StatCard(
+                            count: stats == null ? '—' : '${stats['halls']}',
+                            label: 'Total Halls',
+                            imagePath: 'assets/images/hallpic.png',
+                            color: Colors.blue,
+                          ),
+                          StatCard(
+                            count: stats == null ? '—' : '${stats['users']}',
+                            label: 'Total Users',
+                            imagePath: 'assets/images/users.png',
+                            color: Colors.purple,
+                          ),
+                          StatCard(
+                            count: stats == null ? '—' : '${stats['bookings']}',
+                            label: 'Bookings',
+                            imagePath: 'assets/images/bookcalendar.png',
+                            color: Colors.orange,
+                          ),
+                          StatCard(
+                            count:
+                                stats == null ? '—' : '${stats['cancelled']}',
+                            label: 'Cancelled',
+                            imagePath: 'assets/images/cancelfile.png',
+                            color: Colors.red,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 32),
+
+                  // ── Quick Links ──────────────────────────────────────
+                  const Text(
+                    'Quick Links',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  _ManagementTile(
+                    title: 'Manage All Halls',
+                    imagePath: 'assets/images/hallpic.png',
+                    onTap:
+                        () => AppNavigation.push(
+                          context,
+                          const ManageAllHallsScreen(),
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  _ManagementTile(
+                    title: 'Manage All Users',
+                    imagePath: 'assets/images/users.png',
+                    onTap:
+                        () => AppNavigation.push(
+                          context,
+                          const ManageAllUsersScreen(),
+                        ),
+                  ),
+                  const SizedBox(height: 40),
                 ],
               ),
-              const SizedBox(height: 32),
-              const Text(
-                "Overview",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: 4,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  mainAxisExtent: 100,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Header ─────────────────────────────────────────────────────────────────
+  Widget _buildHeader(BuildContext context) {
+    final uid = AuthService.currentUid;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 60, 24, 30),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Welcome, Admin!',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          Row(
+            children: [
+              // Logout
+              GestureDetector(
+                onTap: () => _handleLogout(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.logout, color: Colors.red, size: 24),
                 ),
-                itemBuilder: (context, index) {
-                  final stats = [
-                    {
-                      'count': "150",
-                      'label': "Total Halls",
-                      'imagePath': 'assets/images/hallpic.png',
-                      'color': Colors.blue,
-                    },
-                    {
-                      'count': "500",
-                      'label': "Active Users",
-                      'imagePath': 'assets/images/users.png',
-                      'color': Colors.purple,
-                    },
-                    {
-                      'count': "320",
-                      'label': "Bookings",
-                      'imagePath': 'assets/images/bookcalendar.png',
-                      'color': Colors.orange,
-                    },
-                    {
-                      'count': "12",
-                      'label': "Cancelled",
-                      'imagePath': 'assets/images/cancelfile.png',
-                      'color': Colors.red,
-                    },
-                  ];
-                  final stat = stats[index];
-                  return StatCard(
-                    count: stat['count'] as String,
-                    label: stat['label'] as String,
-                    imagePath: stat['imagePath'] as String,
-                    color: stat['color'] as Color,
-                    isDesktop: true,
+              ),
+              const SizedBox(width: 12),
+              // Notifications
+              StreamBuilder<int>(
+                stream:
+                    uid != null
+                        ? UserService.streamUnreadNotificationCount(uid)
+                        : Stream.value(0),
+                builder: (context, snap) {
+                  final count = snap.data ?? 0;
+                  return GestureDetector(
+                    onTap:
+                        () => AppNavigation.push(
+                          context,
+                          const UserNotificationsScreen(),
+                        ),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: badges.Badge(
+                        showBadge: count > 0,
+                        badgeContent: Text(
+                          '$count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                          ),
+                        ),
+                        badgeStyle: const badges.BadgeStyle(
+                          badgeColor: Colors.red,
+                          elevation: 0,
+                        ),
+                        child: const Icon(
+                          Icons.notifications_none,
+                          color: Colors.black87,
+                          size: 24,
+                        ),
+                      ),
+                    ),
                   );
                 },
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
-
-  Widget _buildDesktopHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Welcome back, Admin!",
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          "Here is what's happening in your system today.",
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-        ),
-      ],
-    );
-  }
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SHARED WIDGETS
+// ══════════════════════════════════════════════════════════════════════════════
 
 class StatCard extends StatelessWidget {
   final String count;
   final String label;
   final String imagePath;
   final Color color;
-  final bool isDesktop;
 
   const StatCard({
     super.key,
@@ -408,7 +304,6 @@ class StatCard extends StatelessWidget {
     required this.label,
     required this.imagePath,
     required this.color,
-    required this.isDesktop,
   });
 
   @override
@@ -426,88 +321,46 @@ class StatCard extends StatelessWidget {
           ),
         ],
       ),
-      child: isDesktop
-          ? Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Image.asset(
-                    imagePath,
-                    width: 25,
-                    height: 25,
-                    color: color,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      count,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1D1D1D),
-                        height: 1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Image.asset(
-                    imagePath,
-                    width: 28,
-                    height: 28,
-                    color: color,
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      count,
-                      style: const TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1D1D1D),
-                        height: 1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      label,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: Image.asset(
+              imagePath,
+              width: 28,
+              height: 28,
+              color: color,
+              errorBuilder:
+                  (_, __, ___) => Icon(Icons.bar_chart, color: color, size: 28),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                count,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1D1D1D),
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -518,8 +371,7 @@ class ActionCard extends StatelessWidget {
   final String imagePath;
   final Color iconColor;
   final Color borderColor;
-  final IconData secondaryIcon;
-  final bool isDesktop;
+  final int badgeCount;
   final VoidCallback onTap;
 
   const ActionCard({
@@ -529,9 +381,8 @@ class ActionCard extends StatelessWidget {
     required this.imagePath,
     required this.iconColor,
     required this.borderColor,
-    required this.secondaryIcon,
-    required this.isDesktop,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   @override
@@ -555,18 +406,45 @@ class ActionCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Image.asset(
-                imagePath,
-                width: 45,
-                height: 45,
-                fit: BoxFit.contain,
-              ),
+            Stack(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Image.asset(
+                    imagePath,
+                    width: 45,
+                    height: 45,
+                    fit: BoxFit.contain,
+                    errorBuilder:
+                        (_, __, ___) =>
+                            Icon(Icons.business, color: iconColor, size: 45),
+                  ),
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '$badgeCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -588,8 +466,7 @@ class ActionCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (isDesktop)
-              Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey[400]),
+            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
           ],
         ),
       ),
@@ -597,67 +474,12 @@ class ActionCard extends StatelessWidget {
   }
 }
 
-class _SidebarItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final bool isDestructive;
-  final bool showBadge;
-  final VoidCallback onTap;
-
-  const _SidebarItem({
-    required this.icon,
-    required this.label,
-    this.isActive = false,
-    this.isDestructive = false,
-    this.showBadge = false,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      leading: Icon(
-        icon,
-        color: isDestructive
-            ? Colors.red
-            : (isActive ? const Color(0xFFF47C20) : Colors.grey[600]),
-        size: 22,
-      ),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontSize: 14,
-          color: isDestructive
-              ? Colors.red
-              : (isActive ? const Color(0xFFF47C20) : Colors.grey[800]),
-          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
-      trailing: showBadge
-          ? badges.Badge(
-              badgeContent: const Text(
-                '3',
-                style: TextStyle(color: Colors.white, fontSize: 10),
-              ),
-              badgeStyle: const badges.BadgeStyle(badgeColor: Colors.red),
-            )
-          : null,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-      selected: isActive,
-      selectedTileColor: const Color(0xFFFEA845).withOpacity(0.1),
-    );
-  }
-}
-
-class _MobileManagementTile extends StatelessWidget {
+class _ManagementTile extends StatelessWidget {
   final String title;
-
   final String imagePath;
   final VoidCallback onTap;
 
-  const _MobileManagementTile({
+  const _ManagementTile({
     required this.title,
     required this.imagePath,
     required this.onTap,
@@ -682,6 +504,8 @@ class _MobileManagementTile extends StatelessWidget {
               width: 30,
               height: 30,
               color: Colors.grey[700],
+              errorBuilder:
+                  (_, __, ___) => Icon(Icons.business, color: Colors.grey[700]),
             ),
             const SizedBox(width: 16),
             Text(
@@ -697,104 +521,27 @@ class _MobileManagementTile extends StatelessWidget {
   }
 }
 
-class _AdminHeaderMobile extends StatelessWidget {
-  final BuildContext context;
-  const _AdminHeaderMobile({required this.context});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 60, 24, 30),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text(
-            "Welcome, Admin!",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          Row(
-            children: [
-              _buildHeaderIcon(
-                Icons.logout,
-                Colors.red,
-                () => _handleLogout(context),
-              ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: () => AppNavigation.push(
-                  context,
-                  const UserNotificationsScreen(),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: badges.Badge(
-                    position: badges.BadgePosition.topEnd(top: -2, end: -2),
-                    showBadge: true,
-                    badgeStyle: const badges.BadgeStyle(badgeColor: Colors.red),
-                    child: const Icon(
-                      Icons.notifications_none,
-                      color: Colors.black87,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeaderIcon(IconData icon, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: color, size: 24),
-      ),
-    );
-  }
-}
-
+// ── Logout ─────────────────────────────────────────────────────────────────
 void _handleLogout(BuildContext context) async {
-  bool confirm =
-      await showDialog(
+  final confirm =
+      await showDialog<bool>(
         context: context,
         builder:
-            (context) => AlertDialog(
-              title: const Text("Logout"),
-              content: const Text("Are you sure you want to logout?"),
+            (_) => AlertDialog(
+              title: const Text('Logout'),
+              content: const Text('Are you sure you want to logout?'),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
                   child: const Text(
-                    "Cancel",
+                    'Cancel',
                     style: TextStyle(color: Colors.grey),
                   ),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context, true),
                   child: const Text(
-                    "Logout",
+                    'Logout',
                     style: TextStyle(color: Color(0xFFF47C20)),
                   ),
                 ),
@@ -803,33 +550,26 @@ void _handleLogout(BuildContext context) async {
       ) ??
       false;
 
-  if (confirm) {
+  if (!confirm) return;
+  try {
+    await FirebaseAuth.instance.signOut();
     try {
-      await FirebaseAuth.instance.signOut();
-
-      try {
-        final googleSignIn = GoogleSignIn();
-
-        if (await googleSignIn.isSignedIn()) {
-          await googleSignIn.disconnect();
-          await googleSignIn.signOut();
-        }
-      } catch (e) {
-        debugPrint("Google logout error (ignored): $e");
+      final g = GoogleSignIn();
+      if (await g.isSignedIn()) {
+        await g.disconnect();
+        await g.signOut();
       }
-
-      if (!context.mounted) return;
-
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (Route<dynamic> route) => false,
-      );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error logging out: $e")));
-      }
+    } catch (_) {}
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (r) => false,
+    );
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
     }
   }
 }

@@ -41,115 +41,7 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
           ),
         ),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth >= 700) {
-            return _buildDesktopLayout();
-          } else {
-            return _buildMobileLayout();
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _buildDesktopLayout() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1100),
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 350,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildRatingSummaryCard(),
-                    const SizedBox(height: 32),
-                    const Text(
-                      "Filter Reviews",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: _filters.map((filter) {
-                        return _FilterChip(
-                          label: filter,
-                          isSelected: _selectedFilter == filter,
-                          onTap: () => setState(() => _selectedFilter = filter),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 40),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Recent Reviews",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Expanded(
-                      child: ListView(
-                        children: const [
-                          _ReviewCard(
-                            name: "Ali Khan",
-                            date: "2 days ago",
-                            rating: 5,
-                            comment:
-                                "Amazing venue! The staff was very cooperative and the food was delicious.",
-                          ),
-                          SizedBox(height: 16),
-                          _ReviewCard(
-                            name: "Sara Ahmed",
-                            date: "1 week ago",
-                            rating: 4,
-                            comment:
-                                "Good hall, but the parking space was a bit tight for our guests.",
-                          ),
-                          SizedBox(height: 16),
-                          _ReviewCard(
-                            name: "Muzamil",
-                            date: "2 weeks ago",
-                            rating: 5,
-                            comment:
-                                "Best experience ever! The lighting and decor were spot on.",
-                          ),
-                          SizedBox(height: 16),
-                          _ReviewCard(
-                            name: "Hamza",
-                            date: "3 weeks ago",
-                            rating: 3,
-                            comment:
-                                "The AC was not working properly in the beginning.",
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      body: _buildMobileLayout(),
     );
   }
 
@@ -165,13 +57,14 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children: _filters.map((filter) {
-                return _FilterChip(
-                  label: filter,
-                  isSelected: _selectedFilter == filter,
-                  onTap: () => setState(() => _selectedFilter = filter),
-                );
-              }).toList(),
+              children:
+                  _filters.map((filter) {
+                    return _FilterChip(
+                      label: filter,
+                      isSelected: _selectedFilter == filter,
+                      onTap: () => setState(() => _selectedFilter = filter),
+                    );
+                  }).toList(),
             ),
           ),
 
@@ -314,15 +207,16 @@ class _FilterChip extends StatelessWidget {
           color: isSelected ? const Color(0xFFF47C20) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: isSelected ? null : Border.all(color: Colors.grey.shade300),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Color(0xFFF47C20).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : null,
+          boxShadow:
+              isSelected
+                  ? [
+                    BoxShadow(
+                      color: Color(0xFFF47C20).withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                  : null,
         ),
         child: Text(
           label,

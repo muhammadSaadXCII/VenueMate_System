@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:venuemate_system/Models/hall_model.dart';
+import 'package:venuemate_system/Services/hall_service.dart';
 
 class ManageHallDetailsScreen extends StatefulWidget {
-  final Map<String, dynamic> hall;
+  final HallModel hall;
   const ManageHallDetailsScreen({super.key, required this.hall});
 
   @override
@@ -12,156 +16,508 @@ class ManageHallDetailsScreen extends StatefulWidget {
 
 class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
   int _currentImageIndex = 0;
+  bool _isUpdating = false;
 
-  late String _hallStatus;
-
-  final List<String> _hallImages = [
-    "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1519741497674-611481863552?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80",
-  ];
+  // Stream the hall so visibility/status changes reflect immediately
+  late Stream<HallModel?> _hallStream;
+  HallModel? _hall; // local copy for immediate UI
 
   @override
   void initState() {
     super.initState();
+    _hall = widget.hall;
+    _hallStream = HallService.streamHallByOwnerId(widget.hall.ownerId);
+  }
 
-    _hallStatus = widget.hall['status'] ?? "Approved";
+  // ── Booking count for this hall ────────────────────────────────────────────
+  Future<Map<String, int>> _fetchBookingStats() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('bookings')
+          .where('hallId', isEqualTo: widget.hall.hallId)
+          .get();
+      int completed = 0, upcoming = 0, cancelled = 0;
+      for (final d in snap.docs) {
+        final s = d.data()['status'] as String? ?? '';
+        if (s == 'completed') completed++;
+        if (s == 'confirmed') upcoming++;
+        if (s == 'cancelled') cancelled++;
+      }
+      return {
+        'total': snap.docs.length,
+        'completed': completed,
+        'upcoming': upcoming,
+        'cancelled': cancelled,
+      };
+    } catch (_) {
+      return {'total': 0, 'completed': 0, 'upcoming': 0, 'cancelled': 0};
+    }
+  }
+
+  // ── Toggle hall visibility (Disable / Enable) ──────────────────────────────
+  Future<void> _toggleVisibility() async {
+    final hall = _hall;
+    if (hall == null) return;
+
+    final willDisable = hall.isVisible;
+    final action = willDisable ? 'Disable' : 'Enable';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Column(
+          children: [
+            Icon(
+              willDisable ? Icons.block : Icons.check_circle_outline,
+              color: willDisable ? Colors.red : Colors.green,
+              size: 52,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '$action Hall?',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            ),
+          ],
+        ),
+        content: Text(
+          willDisable
+              ? 'This hall will be hidden from customers and '
+                    'will no longer appear in search results.'
+              : 'This hall will become visible to customers again '
+                    'and will appear in search results.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.grey[600], height: 1.5),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.grey.shade300),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: willDisable
+                        ? const Color(0xFFD92D20)
+                        : Colors.green,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: Text(
+                    action,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    setState(() => _isUpdating = true);
+
+    String? error;
+    if (willDisable) {
+      error = await _disableHall(hall.hallId);
+    } else {
+      error = await _enableHall(hall.hallId);
+    }
+
+    if (!mounted) return;
+    setState(() => _isUpdating = false);
+
+    if (error != null) {
+      _snack(error, isError: true);
+    } else {
+      _snack(
+        willDisable
+            ? 'Hall disabled. Hidden from customers.'
+            : 'Hall enabled. Visible to customers again.',
+      );
+    }
+  }
+
+  static Future<String?> _disableHall(String hallId) async {
+    try {
+      await FirebaseFirestore.instance.collection('halls').doc(hallId).update({
+        'isVisible': false,
+      });
+      return null;
+    } catch (e) {
+      return 'Failed to disable hall: $e';
+    }
+  }
+
+  static Future<String?> _enableHall(String hallId) async {
+    try {
+      await FirebaseFirestore.instance.collection('halls').doc(hallId).update({
+        'isVisible': true,
+      });
+      return null;
+    } catch (e) {
+      return 'Failed to enable hall: $e';
+    }
+  }
+
+  void _snack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenWidth = constraints.maxWidth;
-        final isDesktop = screenWidth >= 1000;
-        final isTablet = screenWidth >= 600 && screenWidth < 1000;
+    return StreamBuilder<HallModel?>(
+      stream: _hallStream,
+      builder: (context, snap) {
+        // Keep local copy fresh from stream
+        if (snap.data != null) _hall = snap.data;
+        final hall = _hall ?? widget.hall;
 
         return Scaffold(
           backgroundColor: const Color(0xFFF5F7FA),
-          body: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1400),
-              child: isDesktop
-                  ? _buildDesktopLayout(context)
-                  : _buildMobileLayout(context, isTablet),
-            ),
+          body: Stack(
+            children: [
+              CustomScrollView(
+                slivers: [
+                  _buildAppBar(hall),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(hall),
+                          const SizedBox(height: 20),
+
+                          // ── Stats row ──────────────────────────────────────
+                          FutureBuilder<Map<String, int>>(
+                            future: _fetchBookingStats(),
+                            builder: (context, bSnap) {
+                              final b = bSnap.data;
+                              return Row(
+                                children: [
+                                  Expanded(
+                                    child: _statCard(
+                                      Icons.people,
+                                      hall.capacityLabel
+                                          .split('–')
+                                          .last
+                                          .trim()
+                                          .replaceAll(' Guests', ''),
+                                      'Max Guests',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _statCard(
+                                      Icons.star,
+                                      hall.ratingCount == 0
+                                          ? '—'
+                                          : hall.ratingAvg.toStringAsFixed(1),
+                                      'Rating',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _statCard(
+                                      Icons.event,
+                                      b == null ? '—' : '${b['total']}',
+                                      'Bookings',
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 28),
+
+                          // ── Hall Info ──────────────────────────────────────
+                          _sectionTitle('Hall Details'),
+                          _infoCard(
+                            children: [
+                              _infoRow(
+                                Icons.location_on_outlined,
+                                'Location',
+                                hall.address.isNotEmpty ? hall.address : '—',
+                              ),
+                              const SizedBox(height: 16),
+                              _infoRow(
+                                Icons.groups,
+                                'Capacity',
+                                '${hall.capacityMin} – ${hall.capacityMax} Guests',
+                              ),
+                              const SizedBox(height: 16),
+                              _infoRow(
+                                Icons.payments,
+                                'Price Per Event',
+                                hall.priceLabel,
+                              ),
+                              const SizedBox(height: 16),
+                              _infoRow(
+                                Icons.phone,
+                                'Contact',
+                                hall.contactPhone.isNotEmpty
+                                    ? hall.contactPhone
+                                    : '—',
+                              ),
+                              if (hall.description.isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'DESCRIPTION',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey[500],
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        hall.description,
+                                        style: const TextStyle(
+                                          height: 1.5,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+
+                          // ── Payout ────────────────────────────────────────
+                          _sectionTitle('Payout Information'),
+                          _infoCard(
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.blueGrey.shade100,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.account_balance,
+                                      color: Colors.blueGrey[700],
+                                      size: 28,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          hall.bankName.isNotEmpty
+                                              ? hall.bankName
+                                              : '—',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          hall.bankAccountNumber.isNotEmpty
+                                              ? hall.bankAccountNumber
+                                              : '—',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+
+                          // ── Booking stats breakdown ────────────────────────
+                          FutureBuilder<Map<String, int>>(
+                            future: _fetchBookingStats(),
+                            builder: (context, bSnap) {
+                              final b =
+                                  bSnap.data ??
+                                  {
+                                    'completed': 0,
+                                    'upcoming': 0,
+                                    'cancelled': 0,
+                                    'total': 0,
+                                  };
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _sectionTitle('Booking Stats'),
+                                  _infoCard(
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            'Total Bookings',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${b['total']}',
+                                            style: TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey[800],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const Divider(height: 32),
+                                      Row(
+                                        children: [
+                                          _miniStat(
+                                            Icons.check_circle_outline,
+                                            '${b['completed']}',
+                                            'Completed',
+                                            Colors.green,
+                                          ),
+                                          _miniStat(
+                                            Icons.calendar_today,
+                                            '${b['upcoming']}',
+                                            'Upcoming',
+                                            const Color(0xFFF47C20),
+                                          ),
+                                          _miniStat(
+                                            Icons.cancel_outlined,
+                                            '${b['cancelled']}',
+                                            'Cancelled',
+                                            Colors.redAccent,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // ── Bottom action button ───────────────────────────────────
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: 20,
+                child: _isUpdating
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFF47C20),
+                        ),
+                      )
+                    : SizedBox(
+                        height: 54,
+                        child: ElevatedButton.icon(
+                          onPressed: _toggleVisibility,
+                          icon: Icon(
+                            hall.isVisible
+                                ? Icons.block
+                                : Icons.check_circle_outline,
+                          ),
+                          label: Text(
+                            hall.isVisible ? 'Disable Hall' : 'Enable Hall',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: hall.isVisible
+                                ? const Color(0xFFD92D20)
+                                : const Color(0xFFF47C20),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildMobileLayout(BuildContext context, bool isTablet) {
-    return Stack(
-      children: [
-        CustomScrollView(
-          slivers: [
-            _buildSliverAppBar(isDesktop: false),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeaderSection(isDesktop: false),
-                    const SizedBox(height: 24),
-                    _buildStatsRow(isDesktop: false),
-                    const SizedBox(height: 32),
-                    _SectionTitle(title: "Owner Details"),
-                    _buildOwnerCard(isDesktop: false),
-                    const SizedBox(height: 32),
-                    _SectionTitle(title: "Description"),
-                    _buildDescriptionCard(),
-                    const SizedBox(height: 32),
-                    _SectionTitle(title: "Payout Information"),
-                    _buildPayoutCard(isDesktop: false),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        Positioned(
-          left: 20,
-          right: 20,
-          bottom: 20,
-          child: _buildActionButtons(isDesktop: false),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDesktopLayout(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 6,
-          child: CustomScrollView(
-            slivers: [
-              _buildSliverAppBar(isDesktop: true),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(40.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeaderSection(isDesktop: true),
-                      const SizedBox(height: 40),
-                      _SectionTitle(title: "Description"),
-                      _buildDescriptionCard(),
-                      const SizedBox(height: 40),
-                      _SectionTitle(title: "Payout Information"),
-                      _buildPayoutCard(isDesktop: true),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        Expanded(
-          flex: 4,
-          child: Container(
-            height: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(left: BorderSide(color: Colors.grey.shade200)),
-            ),
-            padding: const EdgeInsets.all(40),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 20),
-                  _SectionTitle(title: "Hall Statistics"),
-                  _buildStatsRow(isDesktop: true),
-                  const SizedBox(height: 40),
-                  _SectionTitle(title: "Owner Details"),
-                  _buildOwnerCard(isDesktop: true),
-                  const SizedBox(height: 40),
-                  const Divider(),
-                  const SizedBox(height: 20),
-                  _buildActionButtons(isDesktop: true),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSliverAppBar({required bool isDesktop}) {
+  // ── Sliver AppBar with carousel ────────────────────────────────────────────
+  Widget _buildAppBar(HallModel hall) {
+    final images = hall.imageUrls;
     return SliverAppBar(
-      expandedHeight: isDesktop ? 400 : 300,
+      expandedHeight: 280,
       pinned: true,
       backgroundColor: Colors.white,
       elevation: 0,
       leading: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(8),
         child: CircleAvatar(
           backgroundColor: Colors.white,
           child: IconButton(
@@ -174,391 +530,228 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            CarouselSlider(
-              options: CarouselOptions(
-                height: double.infinity,
-                viewportFraction: 1.0,
-                autoPlay: true,
-                onPageChanged: (index, reason) {
-                  setState(() => _currentImageIndex = index);
-                },
-              ),
-              items: _hallImages
-                  .map((img) => Image.network(img, fit: BoxFit.cover))
-                  .toList(),
-            ),
-
+            images.isEmpty
+                ? Container(
+                    color: Colors.grey[300],
+                    child: const Icon(
+                      Icons.business,
+                      size: 80,
+                      color: Colors.grey,
+                    ),
+                  )
+                : CarouselSlider(
+                    options: CarouselOptions(
+                      height: double.infinity,
+                      viewportFraction: 1.0,
+                      autoPlay: images.length > 1,
+                      onPageChanged: (i, _) =>
+                          setState(() => _currentImageIndex = i),
+                    ),
+                    items: images
+                        .map(
+                          (url) => CachedNetworkImage(
+                            imageUrl: url,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            placeholder: (_, __) =>
+                                Container(color: Colors.grey[300]),
+                            errorWidget: (_, __, ___) => Container(
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.broken_image),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+            // Gradient overlay
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withOpacity(0.5)],
+                  colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
                 ),
               ),
             ),
-
-            Positioned(
-              bottom: 20,
-              right: 20,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  "${_currentImageIndex + 1} / ${_hallImages.length}",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+            // Photo counter
+            if (images.isNotEmpty)
+              Positioned(
+                bottom: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_currentImageIndex + 1}/${images.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeaderSection({required bool isDesktop}) {
-    return Column(
+  // ── Header (hall name + status badge) ─────────────────────────────────────
+  Widget _buildHeader(HallModel hall) {
+    final (_, bg, fg) = _statusColors(hall);
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                widget.hall['name'] ?? "Grand Palace Hall",
-                style: TextStyle(
-                  fontSize: isDesktop ? 32 : 24,
-                  fontWeight: FontWeight.w800,
-                  height: 1.2,
-                  color: const Color(0xFF2D3436),
-                ),
-              ),
+        Expanded(
+          child: Text(
+            hall.hallName,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+              color: Color(0xFF2D3436),
             ),
-            if (!isDesktop) ...[const SizedBox(width: 10), _buildStatusBadge()],
-          ],
+          ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Icon(Icons.location_on, color: Colors.grey[600], size: 20),
-            const SizedBox(width: 8),
-            Text(
-              "Model Colony, Street 12A, Karachi",
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-            if (isDesktop) ...[const Spacer(), _buildStatusBadge()],
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatusBadge() {
-    final isApproved = _hallStatus == "Approved";
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: isApproved ? const Color(0xFFE6F7ED) : const Color(0xFFFFF0F1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isApproved ? Icons.check_circle : Icons.cancel,
-            size: 16,
-            color: isApproved
-                ? const Color(0xFF00B85E)
-                : const Color(0xFFD92D20),
+        const SizedBox(width: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(20),
           ),
-          const SizedBox(width: 6),
-          Text(
-            isApproved ? "Approved" : "Disabled",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-              color: isApproved
-                  ? const Color(0xFF00B85E)
-                  : const Color(0xFFD92D20),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsRow({required bool isDesktop}) {
-    if (isDesktop) {
-      return Column(
-        children: [
-          _buildStatItem(Icons.people_outline, "Capacity", "300 - 800 Guests"),
-          const SizedBox(height: 16),
-          _buildStatItem(Icons.star_outline, "Rating", "4.8 (120 Reviews)"),
-          const SizedBox(height: 16),
-          _buildStatItem(
-            Icons.calendar_today_outlined,
-            "Bookings",
-            "25 this month",
-          ),
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        Expanded(child: _buildMobileStatCard(Icons.people, "800", "Capacity")),
-        const SizedBox(width: 12),
-        Expanded(child: _buildMobileStatCard(Icons.star, "4.8", "Rating")),
-        const SizedBox(width: 12),
-        Expanded(child: _buildMobileStatCard(Icons.event, "25", "Bookings")),
-      ],
-    );
-  }
-
-  Widget _buildStatItem(IconData icon, String label, String value) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Icon(icon, color: Color(0xFFF47C20), size: 20),
-          ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              Icon(
+                hall.isVisible ? Icons.check_circle : Icons.block,
+                size: 14,
+                color: fg,
               ),
+              const SizedBox(width: 4),
               Text(
-                value,
-                style: const TextStyle(
+                hall.isVisible ? 'Active' : 'Disabled',
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 12,
+                  color: fg,
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildMobileStatCard(IconData icon, String value, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: Color(0xFFF47C20), size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-        ],
-      ),
-    );
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  (String, Color, Color) _statusColors(HallModel hall) {
+    if (!hall.isVisible)
+      return ('Disabled', const Color(0xFFFFF0F1), const Color(0xFFD92D20));
+    return ('Active', const Color(0xFFE6F7ED), const Color(0xFF00B85E));
   }
 
-  Widget _buildOwnerCard({required bool isDesktop}) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+  Widget _sectionTitle(String t) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Text(
+      t,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF2D3436),
       ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.orange.shade50,
-            child: const Text(
-              "RH",
-              style: TextStyle(
-                color: Color(0xFFF47C20),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Rehman Hussain",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "rehman@example.com",
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.phone),
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.green.shade50,
-              foregroundColor: Colors.green,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    ),
+  );
 
-  Widget _buildDescriptionCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: const Text(
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
-        style: TextStyle(height: 1.6, color: Colors.black87),
-      ),
-    );
-  }
+  Widget _infoCard({required List<Widget> children}) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.grey.shade200),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.03),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    ),
+  );
 
-  Widget _buildPayoutCard({required bool isDesktop}) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blueGrey.shade100),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blueGrey.shade100),
-            ),
-            child: Icon(
-              Icons.account_balance,
-              color: Colors.blueGrey[700],
-              size: 28,
-            ),
+  Widget _infoRow(IconData icon, String label, String value) => Row(
+    children: [
+      Icon(icon, size: 18, color: Colors.grey[400]),
+      const SizedBox(width: 10),
+      Text('$label: ', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+      Expanded(
+        child: Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.black87,
+            fontWeight: FontWeight.w600,
           ),
-          const SizedBox(width: 20),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Meezan Bank Ltd",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                "PK35 MEZN **** **** 1234",
-                style: TextStyle(
-                  fontSize: 13,
-                  fontFamily: 'monospace',
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons({required bool isDesktop}) {
-    final bool isDisabled = _hallStatus == "Disabled";
-
-    final IconData icon = isDisabled ? Icons.check_circle_outline : Icons.block;
-    final String label = isDisabled ? "Activate Hall" : "Disable Hall";
-    final Color color = isDisabled ? Color(0xFFF47C20) : Color(0xFFD92D20);
-
-    void onButtonPressed() {
-      setState(() {
-        _hallStatus = isDisabled ? "Approved" : "Disabled";
-      });
-    }
-
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton.icon(
-        onPressed: onButtonPressed,
-        icon: Icon(icon),
-        label: Text(label),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
-    );
-  }
-}
+    ],
+  );
 
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  const _SectionTitle({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF2D3436),
+  Widget _statCard(IconData icon, String value, String label) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.grey.shade200),
+    ),
+    child: Column(
+      children: [
+        Icon(icon, color: const Color(0xFFF47C20), size: 22),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-      ),
-    );
-  }
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+      ],
+    ),
+  );
+
+  Widget _miniStat(IconData icon, String count, String label, Color color) =>
+      Expanded(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              count,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              label,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
 }

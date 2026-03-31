@@ -1,9 +1,126 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:venuemate_system/Models/hall_model.dart';
+import 'package:venuemate_system/Services/hall_service.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
-import 'package:venuemate_system/Screens/SystemAdmin/reject_registration.dart';
+import 'reject_registration.dart';
 
-class ReviewRegistrationScreen extends StatelessWidget {
-  const ReviewRegistrationScreen({super.key});
+class ReviewRegistrationScreen extends StatefulWidget {
+  final HallModel hall;
+  const ReviewRegistrationScreen({super.key, required this.hall});
+
+  @override
+  State<ReviewRegistrationScreen> createState() =>
+      _ReviewRegistrationScreenState();
+}
+
+class _ReviewRegistrationScreenState extends State<ReviewRegistrationScreen> {
+  bool _isApproving = false;
+
+  HallModel get h => widget.hall;
+
+  // ── Approve ────────────────────────────────────────────────────────────────
+  Future<void> _approve() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Column(
+              children: [
+                Icon(Icons.check_circle_outline, color: Colors.green, size: 52),
+                SizedBox(height: 12),
+                Text(
+                  'Approve Hall?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                ),
+              ],
+            ),
+            content: Text(
+              'Approve "${h.hallName}"?\n\n'
+              'The hall will go live and the owner will be notified.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600], height: 1.5),
+            ),
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text(
+                        'Approve',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isApproving = true);
+    final error = await HallService.approveHall(h.hallId);
+    if (!mounted) return;
+    setState(() => _isApproving = false);
+
+    if (error != null) {
+      _snack(error, isError: true);
+    } else {
+      _snack('Hall approved successfully! Owner has been notified.');
+
+      Navigator.pop(context);
+    }
+  }
+
+  void _snack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +135,7 @@ class ReviewRegistrationScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "Review Registrations",
+          'Review Registration',
           style: TextStyle(
             color: Colors.black,
             fontSize: 20,
@@ -26,341 +143,280 @@ class ReviewRegistrationScreen extends StatelessWidget {
           ),
         ),
       ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Hall Photos ───────────────────────────────────────────────
+                  if (h.imageUrls.isNotEmpty) ...[
+                    _sectionTitle('Hall Photos'),
+                    _buildImageGallery(),
+                    const SizedBox(height: 24),
+                  ],
 
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth >= 1000) {
-            return _buildDesktopLayout(context);
-          } else {
-            return _buildMobileLayout(context);
-          }
+                  // ── Applicant Info ────────────────────────────────────────────
+                  _sectionTitle('Hall & Owner Info'),
+                  _infoCard(
+                    children: [
+                      _labelRow('Hall Name', h.hallName, isLarge: true),
+                      _divider(),
+                      _labelRow('Contact Phone', h.contactPhone),
+                      _divider(),
+                      _labelRow('Location', h.address),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── Hall Details ──────────────────────────────────────────────
+                  _sectionTitle('Hall Details'),
+                  _infoCard(
+                    children: [
+                      _detailRow(Icons.groups, 'Capacity', h.capacityLabel),
+                      const SizedBox(height: 12),
+                      _detailRow(
+                        Icons.payments,
+                        'Price Per Event',
+                        h.priceLabel,
+                      ),
+                      if (h.description.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'DESCRIPTION',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[500],
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                h.description,
+                                style: const TextStyle(
+                                  height: 1.5,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── Banking ───────────────────────────────────────────────────
+                  _sectionTitle('Banking Information'),
+                  _infoCard(
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.teal.shade50,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.account_balance,
+                              color: Colors.teal.shade700,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _labelRow(
+                                  'Bank',
+                                  h.bankName.isNotEmpty ? h.bankName : '—',
+                                ),
+                                const SizedBox(height: 8),
+                                _labelRow(
+                                  'Account Number',
+                                  h.bankAccountNumber.isNotEmpty
+                                      ? h.bankAccountNumber
+                                      : '—',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── Documents ─────────────────────────────────────────────────
+                  _sectionTitle('Verification Documents'),
+                  _buildDocuments(),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Bottom bar ────────────────────────────────────────────────────
+          _buildBottomBar(context),
+        ],
+      ),
+    );
+  }
+
+  // ── Image gallery ──────────────────────────────────────────────────────────
+  Widget _buildImageGallery() {
+    return SizedBox(
+      height: 160,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: h.imageUrls.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, i) {
+          final url = h.imageUrls[i];
+          return GestureDetector(
+            onTap: () => _openImageViewer(context, h.imageUrls, i),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CachedNetworkImage(
+                imageUrl: url,
+                width: 200,
+                height: 160,
+                fit: BoxFit.cover,
+                placeholder:
+                    (_, __) => Container(
+                      width: 200,
+                      height: 160,
+                      color: Colors.grey[200],
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFF47C20),
+                        ),
+                      ),
+                    ),
+                errorWidget:
+                    (_, __, ___) => Container(
+                      width: 200,
+                      height: 160,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    ),
+              ),
+            ),
+          );
         },
       ),
     );
   }
 
-  Widget _buildDesktopLayout(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1200),
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 6,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(right: 32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SectionHeader(title: "Applicant Info"),
-                      _buildApplicantInfoCard(isDesktop: true),
-                      const SizedBox(height: 32),
-                      _SectionHeader(title: "Hall Details"),
-                      _buildHallDetailsCard(isDesktop: true),
-                    ],
-                  ),
-                ),
-              ),
+  // ── Documents (CNIC, NTN, License) ────────────────────────────────────────
+  Widget _buildDocuments() {
+    final docs = <Map<String, String>>[];
 
-              Expanded(
-                flex: 4,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildActionCard(context, isDesktop: true),
-                      const SizedBox(height: 24),
+    if (h.cnicFrontUrl.isNotEmpty) {
+      docs.add({
+        'label': 'CNIC — Front Side',
+        'url': h.cnicFrontUrl,
+        'type': 'image',
+      });
+    }
+    if (h.cnicBackUrl.isNotEmpty) {
+      docs.add({
+        'label': 'CNIC — Back Side',
+        'url': h.cnicBackUrl,
+        'type': 'image',
+      });
+    }
+    if (h.ntnDocUrl.isNotEmpty) {
+      docs.add({
+        'label': 'NTN Document',
+        'url': h.ntnDocUrl,
+        'type': _docType(h.ntnDocUrl),
+      });
+    }
+    if (h.businessLicenseUrl.isNotEmpty) {
+      docs.add({
+        'label': 'Business License',
+        'url': h.businessLicenseUrl,
+        'type': _docType(h.businessLicenseUrl),
+      });
+    }
 
-                      _SectionHeader(
-                        title: "Banking Information",
-                        padding: EdgeInsets.zero,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildBankingCard(isDesktop: true),
-                      const SizedBox(height: 24),
-
-                      _SectionHeader(
-                        title: "Verification Documents",
-                        padding: EdgeInsets.zero,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDocumentsList(isDesktop: true),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+    if (docs.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
         ),
-      ),
-    );
-  }
-
-  Widget _buildMobileLayout(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _SectionHeader(title: "Applicant Info"),
-                _buildApplicantInfoCard(isDesktop: false),
-                const SizedBox(height: 24),
-                _SectionHeader(title: "Hall Details"),
-                _buildHallDetailsCard(isDesktop: false),
-                const SizedBox(height: 24),
-                _SectionHeader(title: "Banking Information"),
-                _buildBankingCard(isDesktop: false),
-                const SizedBox(height: 24),
-                _SectionHeader(title: "Verification Documents"),
-                _buildDocumentsList(isDesktop: false),
-              ],
+        child: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.amber[700],
+              size: 20,
             ),
-          ),
+            const SizedBox(width: 8),
+            Text(
+              'No documents uploaded.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
+          ],
         ),
-
-        _buildMobileBottomBar(context),
-      ],
-    );
-  }
-
-  Widget _buildApplicantInfoCard({required bool isDesktop}) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildLabelRow("Hall Name", "Al Rehman Banquet Hall", isLarge: true),
-          Divider(height: 32, color: Colors.grey[200]),
-          _buildLabelRow("Owner Name", "Rehman Hussain"),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHallDetailsCard({required bool isDesktop}) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration(),
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.location_on,
-                  color: Colors.blue.shade700,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Model Colony, Street 12A, Karachi",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Pakistan",
-                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _DetailRow(
-            icon: Icons.groups,
-            label: "Capacity",
-            value: "300 - 800 Guests",
-          ),
-          const SizedBox(height: 12),
-          _DetailRow(
-            icon: Icons.phone,
-            label: "Contact",
-            value: "+92 3XX-XXXXXXX",
-          ),
-          const SizedBox(height: 24),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "DESCRIPTION",
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[500],
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor...",
-                  style: TextStyle(height: 1.5),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBankingCard({required bool isDesktop}) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration(),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.teal.shade50,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.account_balance,
-              color: Colors.teal.shade700,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildLabelRow("Bank", "Meezan Bank Ltd"),
-                const SizedBox(height: 8),
-                _buildLabelRow("Account No", "PK35 MEZN 0000 1234 ****"),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDocumentsList({required bool isDesktop}) {
-    final docs = [
-      {"name": "ntn_license.pdf", "type": "pdf"},
-      {"name": "business_license.pdf", "type": "pdf"},
-      {"name": "cnic_front.jpg", "type": "img"},
-      {"name": "cnic_back.jpg", "type": "img"},
-    ];
+      );
+    }
 
     return Column(
-      children: docs
-          .map(
-            (doc) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: DocumentCard(
-                fileName: doc['name']!,
-                fileType: doc['type']!,
-                isDesktop: isDesktop,
-                isTablet: false,
-              ),
-            ),
-          )
-          .toList(),
+      children:
+          docs
+              .map(
+                (doc) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _DocumentTile(
+                    label: doc['label']!,
+                    url: doc['url']!,
+                    type: doc['type']!,
+                    onTap:
+                        () =>
+                            doc['type'] == 'pdf'
+                                ? _openPdfViewer(
+                                  context,
+                                  doc['url']!,
+                                  doc['label']!,
+                                )
+                                : _openImageViewer(context, [doc['url']!], 0),
+                  ),
+                ),
+              )
+              .toList(),
     );
   }
 
-  Widget _buildActionCard(BuildContext context, {required bool isDesktop}) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: _cardDecoration().copyWith(
-        border: Border.all(
-          color: const Color(0xFFF47C20).withOpacity(0.3),
-          width: 1.5,
-        ),
-        color: const Color(0xFFFFF8F0),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Application Decision",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Please review all documents before approving.",
-            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    AppNavigation.push(context, RejectRegistrationScreen());
-                  },
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: const BorderSide(color: Color(0xFFD92D20)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    foregroundColor: Color(0xFFD92D20),
-                  ),
-                  child: const Text(
-                    "Reject",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: const Color(0xFFF47C20),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    "Approve",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+  String _docType(String url) {
+    final lower = url.toLowerCase();
+    if (lower.contains('.pdf') || lower.contains('pdf')) return 'pdf';
+    return 'image';
   }
 
-  Widget _buildMobileBottomBar(BuildContext context) {
+  // ── Bottom approve/reject bar ──────────────────────────────────────────────
+  Widget _buildBottomBar(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -379,18 +435,20 @@ class ReviewRegistrationScreen extends StatelessWidget {
             child: SizedBox(
               height: 52,
               child: OutlinedButton(
-                onPressed: () {
-                  AppNavigation.push(context, RejectRegistrationScreen());
-                },
+                onPressed:
+                    () => AppNavigation.push(
+                      context,
+                      RejectRegistrationScreen(hallId: h.hallId),
+                    ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Color(0xFFD92D20)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  foregroundColor: Color(0xFFD92D20),
+                  foregroundColor: const Color(0xFFD92D20),
                 ),
                 child: const Text(
-                  "Reject",
+                  'Reject',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),
@@ -401,7 +459,7 @@ class ReviewRegistrationScreen extends StatelessWidget {
             child: SizedBox(
               height: 52,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: _isApproving ? null : _approve,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFF47C20),
                   foregroundColor: Colors.white,
@@ -409,10 +467,23 @@ class ReviewRegistrationScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  "Approve",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
+                child:
+                    _isApproving
+                        ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                        : const Text(
+                          'Approve',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
               ),
             ),
           ),
@@ -421,8 +492,42 @@ class ReviewRegistrationScreen extends StatelessWidget {
     );
   }
 
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
+  // ── Image full-screen viewer ───────────────────────────────────────────────
+  void _openImageViewer(BuildContext context, List<String> urls, int initial) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _ImageViewerScreen(urls: urls, initialIndex: initial),
+      ),
+    );
+  }
+
+  // ── PDF viewer ────────────────────────────────────────────────────────────
+  void _openPdfViewer(BuildContext context, String url, String title) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _PdfViewerScreen(url: url, title: title),
+      ),
+    );
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  Widget _sectionTitle(String t) => Padding(
+    padding: const EdgeInsets.only(bottom: 12, left: 4),
+    child: Text(
+      t,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: Colors.black87,
+      ),
+    ),
+  );
+
+  Widget _infoCard({required List<Widget> children}) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       border: Border.all(color: Colors.grey.shade200),
@@ -433,142 +538,334 @@ class ReviewRegistrationScreen extends StatelessWidget {
           offset: const Offset(0, 4),
         ),
       ],
-    );
-  }
-
-  Widget _buildLabelRow(String label, String value, {bool isLarge = false}) {
-    return Column(
+    ),
+    child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            fontSize: 11,
-            color: Colors.grey[500],
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
+      children: children,
+    ),
+  );
+
+  Widget _labelRow(String label, String value, {bool isLarge = false}) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[500],
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: isLarge ? 18 : 15,
+              fontWeight: isLarge ? FontWeight.bold : FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      );
+
+  Widget _divider() => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 14),
+    child: Divider(height: 1, color: Colors.grey[200]),
+  );
+
+  Widget _detailRow(IconData icon, String label, String value) => Row(
+    children: [
+      Icon(icon, size: 20, color: Colors.grey[400]),
+      const SizedBox(width: 12),
+      Text('$label: ', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+      Expanded(
+        child: Text(
           value,
-          style: TextStyle(
-            fontSize: isLarge ? 18 : 15,
-            fontWeight: isLarge ? FontWeight.bold : FontWeight.w600,
+          style: const TextStyle(
+            fontSize: 14,
             color: Colors.black87,
+            fontWeight: FontWeight.w600,
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final EdgeInsetsGeometry padding;
-  const _SectionHeader({
-    required this.title,
-    this.padding = const EdgeInsets.only(bottom: 12, left: 4),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: padding,
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Colors.black87,
         ),
       ),
-    );
-  }
+    ],
+  );
 }
 
-class _DetailRow extends StatelessWidget {
-  final IconData icon;
+// ── Document tile ────────────────────────────────────────────────────────────
+class _DocumentTile extends StatelessWidget {
   final String label;
-  final String value;
-  const _DetailRow({
-    required this.icon,
+  final String url;
+  final String type;
+  final VoidCallback onTap;
+
+  const _DocumentTile({
     required this.label,
-    required this.value,
+    required this.url,
+    required this.type,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey[400]),
-        const SizedBox(width: 12),
-        Text(
-          "$label: ",
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+    final isPdf = type == 'pdf';
+    final iconData = isPdf ? Icons.picture_as_pdf : Icons.image_outlined;
+    final iconClr = isPdf ? Colors.red : Colors.blue;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8),
+          ],
         ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.black87,
-              fontWeight: FontWeight.w600,
+        child: ListTile(
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconClr.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(iconData, color: iconClr, size: 24),
+          ),
+          title: Text(
+            label,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text(
+            isPdf ? 'Tap to view PDF' : 'Tap to view image',
+            style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+          ),
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF47C20).withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(
+                  Icons.visibility_outlined,
+                  color: Color(0xFFF47C20),
+                  size: 16,
+                ),
+                SizedBox(width: 4),
+                Text(
+                  'View',
+                  style: TextStyle(
+                    color: Color(0xFFF47C20),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }
 
-class DocumentCard extends StatelessWidget {
-  final String fileName;
-  final String fileType;
-  final bool isDesktop;
-  final bool isTablet;
+// ══════════════════════════════════════════════════════════════════════════════
+//  FULL-SCREEN IMAGE VIEWER  (swipeable gallery)
+// ══════════════════════════════════════════════════════════════════════════════
+class _ImageViewerScreen extends StatefulWidget {
+  final List<String> urls;
+  final int initialIndex;
+  const _ImageViewerScreen({required this.urls, required this.initialIndex});
 
-  const DocumentCard({
-    super.key,
-    required this.fileName,
-    required this.fileType,
-    required this.isDesktop,
-    required this.isTablet,
-  });
+  @override
+  State<_ImageViewerScreen> createState() => _ImageViewerScreenState();
+}
+
+class _ImageViewerScreenState extends State<_ImageViewerScreen> {
+  late PageController _pageCtrl;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageCtrl = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    IconData getIcon() =>
-        fileType == 'pdf' ? Icons.picture_as_pdf : Icons.image;
-    Color getIconColor() =>
-        fileType == 'pdf' ? Colors.redAccent : Colors.blueAccent;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: getIconColor().withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(getIcon(), color: getIconColor(), size: 24),
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          fileName,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          '${_currentIndex + 1} / ${widget.urls.length}',
+          style: const TextStyle(color: Colors.white),
         ),
-        subtitle: Text(
-          "Tap to preview",
-          style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-        ),
-        trailing: Icon(Icons.visibility_outlined, color: Colors.grey[400]),
-        onTap: () {},
+        centerTitle: true,
+      ),
+      body: PageView.builder(
+        controller: _pageCtrl,
+        itemCount: widget.urls.length,
+        onPageChanged: (i) => setState(() => _currentIndex = i),
+        itemBuilder:
+            (context, i) => InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Center(
+                child: CachedNetworkImage(
+                  imageUrl: widget.urls[i],
+                  fit: BoxFit.contain,
+                  placeholder:
+                      (_, __) => const CircularProgressIndicator(
+                        color: Color(0xFFF47C20),
+                      ),
+                  errorWidget:
+                      (_, __, ___) => Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(
+                            Icons.broken_image,
+                            color: Colors.white54,
+                            size: 64,
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            'Image failed to load',
+                            style: TextStyle(color: Colors.white54),
+                          ),
+                        ],
+                      ),
+                ),
+              ),
+            ),
       ),
     );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  PDF VIEWER  (opens URL in webview / external browser)
+// ══════════════════════════════════════════════════════════════════════════════
+class _PdfViewerScreen extends StatelessWidget {
+  final String url;
+  final String title;
+  const _PdfViewerScreen({required this.url, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    // Option A: Use url_launcher to open in browser/PDF viewer app
+    // Option B: Use flutter_pdfview with a downloaded file
+    // For now we show a preview card with an "Open" button using url_launcher.
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(color: Colors.white),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade900.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.picture_as_pdf,
+                  color: Colors.white,
+                  size: 72,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'PDF Document',
+                style: TextStyle(color: Colors.grey[400], fontSize: 13),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _launchUrl(context, url),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF47C20),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.open_in_new, color: Colors.white),
+                  label: const Text(
+                    'Open PDF',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Opens in your device\'s PDF viewer or browser',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(BuildContext context, String url) async {
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open PDF: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }

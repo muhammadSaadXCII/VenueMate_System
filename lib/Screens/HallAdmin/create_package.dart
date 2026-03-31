@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Services/menu_service.dart';
+import 'package:venuemate_system/Services/package_service.dart';
+import '../../Models/menu_item_model.dart';
+import '../../Models/package_model.dart';
+import '../../Models/service_item_model.dart';
+import '../../Services/service_item_service.dart';
 
+/// Create a new package OR edit an existing one.
+/// Pass [existing] to pre-fill the form for editing.
 class CreatePackageScreen extends StatefulWidget {
-  const CreatePackageScreen({super.key});
+  final String hallId;
+  final PackageModel? existing;
+  const CreatePackageScreen({super.key, required this.hallId, this.existing});
 
   @override
   State<CreatePackageScreen> createState() => _CreatePackageScreenState();
@@ -10,11 +20,65 @@ class CreatePackageScreen extends StatefulWidget {
 class _CreatePackageScreenState extends State<CreatePackageScreen> {
   int _currentStep = 0;
 
-  final List<Map<String, dynamic>> _stepData = [
-    {'title': 'Package Details', 'number': 1},
-    {'title': 'Items & Services', 'number': 2},
-    {'title': 'Review', 'number': 3},
-  ];
+  // Step 1 controllers
+  final _nameController = TextEditingController();
+  final _descController = TextEditingController();
+  final _minController = TextEditingController();
+  final _maxController = TextEditingController();
+  final _priceController = TextEditingController();
+
+  // Step 2 selections
+  Set<String> _selectedMenuIds = {};
+  Set<String> _selectedServiceIds = {};
+
+  // Live data
+  List<MenuItemModel> _menuItems = [];
+  List<ServiceItemModel> _services = [];
+  bool _loadingItems = true;
+  bool _isSaving = false;
+
+  bool get _isEditing => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefill();
+    _loadItems();
+  }
+
+  void _prefill() {
+    if (!_isEditing) return;
+    final e = widget.existing!;
+    _nameController.text = e.name;
+    _descController.text = e.description;
+    _minController.text = e.capacityMin.toString();
+    _maxController.text = e.capacityMax.toString();
+    _priceController.text = e.price.toStringAsFixed(0);
+    _selectedMenuIds = Set.from(e.menuItemIds);
+    _selectedServiceIds = Set.from(e.serviceItemIds);
+  }
+
+  Future<void> _loadItems() async {
+    final items = await MenuService.getMenuItems(widget.hallId);
+    final services = await ServiceItemService.getServices(widget.hallId);
+    if (mounted) {
+      setState(() {
+        _menuItems = items;
+        _services = services;
+        _loadingItems = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    _minController.dispose();
+    _maxController.dispose();
+    _priceController.dispose();
+    super.dispose();
+  }
 
   void _nextStep() {
     if (_currentStep < 2) setState(() => _currentStep++);
@@ -24,118 +88,73 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
     if (_currentStep > 0) setState(() => _currentStep--);
   }
 
-  void _goToStep(int step) {
-    setState(() => _currentStep = step);
+  void _goTo(int step) => setState(() => _currentStep = step);
+
+  bool _validateStep1() {
+    if (_nameController.text.trim().isEmpty) {
+      _snack('Please enter a package name.');
+      return false;
+    }
+    if (_priceController.text.trim().isEmpty ||
+        double.tryParse(_priceController.text.trim()) == null) {
+      _snack('Please enter a valid price.');
+      return false;
+    }
+    return true;
   }
 
-  Widget _buildStepIndicatorWithTabs() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 800),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-              child: Row(
-                children: _stepData.asMap().entries.map((entry) {
-                  int idx = entry.key;
-                  Map<String, dynamic> step = entry.value;
-                  final isActive = idx == _currentStep;
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
 
-                  return Expanded(
-                    child: Center(
-                      child: Text(
-                        step['title'] as String,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isActive
-                              ? FontWeight.w700
-                              : FontWeight.w400,
-                          color: isActive ? Colors.black : Colors.grey[400],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: List.generate(_stepData.length, (index) {
-                  final stepNumber = index + 1;
-                  final isActive = index == _currentStep;
-                  final isCompleted = index < _currentStep;
+    String? error;
+    if (_isEditing) {
+      error = await PackageService.updatePackage(
+        hallId: widget.hallId,
+        packageId: widget.existing!.packageId,
+        name: _nameController.text.trim(),
+        description: _descController.text.trim(),
+        price: double.parse(_priceController.text.trim()),
+        capacityMin: int.tryParse(_minController.text.trim()) ?? 0,
+        capacityMax: int.tryParse(_maxController.text.trim()) ?? 0,
+        menuItemIds: _selectedMenuIds.toList(),
+        serviceItemIds: _selectedServiceIds.toList(),
+      );
+    } else {
+      error = await PackageService.createPackage(
+        hallId: widget.hallId,
+        name: _nameController.text.trim(),
+        description: _descController.text.trim(),
+        price: double.parse(_priceController.text.trim()),
+        capacityMin: int.tryParse(_minController.text.trim()) ?? 0,
+        capacityMax: int.tryParse(_maxController.text.trim()) ?? 0,
+        menuItemIds: _selectedMenuIds.toList(),
+        serviceItemIds: _selectedServiceIds.toList(),
+      );
+    }
 
-                  return Expanded(
-                    child: Column(
-                      children: [
-                        Container(
-                          height: 4,
-                          margin: EdgeInsets.only(
-                            right: index < _stepData.length - 1 ? 4 : 0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isActive || isCompleted
-                                ? const Color(0xFFF97316)
-                                : const Color(0xFFE5E7EB),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: isCompleted
-                                ? const Color(0xFF10B981)
-                                : isActive
-                                ? const Color(0xFFF97316)
-                                : Colors.grey[300],
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: isCompleted
-                                ? const Icon(
-                                    Icons.check,
-                                    color: Colors.white,
-                                    size: 14,
-                                  )
-                                : Text(
-                                    '$stepNumber',
-                                    style: TextStyle(
-                                      color: isActive
-                                          ? Colors.white
-                                          : Colors.grey[600],
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+
+    if (error != null) {
+      _snack(error, isError: true);
+    } else {
+      _snack(_isEditing ? 'Package updated!' : 'Package created!');
+      Navigator.pop(context);
+    }
+  }
+
+  void _snack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red : const Color(0xFFF47C20),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 700;
-
-    final List<Widget> steps = [
-      PackageDetailsStep(isDesktop: isDesktop),
-      const ItemsServicesStep(),
-      ReviewSaveStep(onEdit: _goToStep, isDesktop: isDesktop),
-    ];
+    final steps = [_buildStep1(), _buildStep2(), _buildReview()];
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -145,24 +164,21 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
         scrolledUnderElevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            if (_currentStep > 0) {
-              _prevStep();
-            } else {
-              Navigator.pop(context);
-            }
-          },
+          onPressed:
+              () => _currentStep > 0 ? _prevStep() : Navigator.pop(context),
         ),
         centerTitle: true,
-        title: const Text(
-          "Create Package",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: Text(
+          _isEditing ? 'Edit Package' : 'Create Package',
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: Column(
         children: [
-          _buildStepIndicatorWithTabs(),
-
+          _buildStepIndicator(),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -172,9 +188,7 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
                   child: Column(
                     children: [
                       steps[_currentStep],
-
                       const SizedBox(height: 30),
-
                       if (_currentStep < 2)
                         Row(
                           children: [
@@ -195,10 +209,9 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
                                             12,
                                           ),
                                         ),
-                                        foregroundColor: Colors.black87,
                                       ),
                                       child: const Text(
-                                        "Previous",
+                                        'Previous',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -215,20 +228,25 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
                                 child: SizedBox(
                                   height: 50,
                                   child: ElevatedButton(
-                                    onPressed: _nextStep,
+                                    onPressed: () {
+                                      if (_currentStep == 0 &&
+                                          !_validateStep1()) {
+                                        return;
+                                      }
+                                      _nextStep();
+                                    },
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFFF47C20),
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                     child: const Text(
-                                      "Next",
+                                      'Next',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
+                                        color: Colors.white,
                                       ),
                                     ),
                                   ),
@@ -248,159 +266,174 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
       ),
     );
   }
-}
 
-class PackageDetailsStep extends StatelessWidget {
-  final bool isDesktop;
-  const PackageDetailsStep({super.key, required this.isDesktop});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Package Details",
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          "Enter the name, price, and details.",
-          style: TextStyle(
-            color: Colors.grey[400],
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 25),
-
-        const RegistrationTextField(
-          label: "Package Name",
-          hintText: "e.g. Wedding Gold Package",
-        ),
-
-        const RegistrationTextField(
-          label: "Description",
-          hintText: "Describe what makes this package special...",
-          maxLines: 5,
-        ),
-
-        const Text(
-          "Guest Capacity",
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
+  // ── Step indicators ────────────────────────────────────────────────────────
+  Widget _buildStepIndicator() {
+    final titles = ['Package Details', 'Items & Services', 'Review'];
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: Column(
           children: [
-            Expanded(child: _buildSimpleField("Min Guest")),
-            const SizedBox(width: 20),
-            Expanded(child: _buildSimpleField("Max Guest")),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+              child: Row(
+                children:
+                    titles.asMap().entries.map((e) {
+                      final isActive = e.key == _currentStep;
+                      return Expanded(
+                        child: Center(
+                          child: Text(
+                            e.value,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight:
+                                  isActive ? FontWeight.w700 : FontWeight.w400,
+                              color: isActive ? Colors.black : Colors.grey[400],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: List.generate(3, (index) {
+                  final isActive = index == _currentStep;
+                  final isCompleted = index < _currentStep;
+                  return Expanded(
+                    child: Column(
+                      children: [
+                        Container(
+                          height: 4,
+                          margin: EdgeInsets.only(right: index < 2 ? 4 : 0),
+                          decoration: BoxDecoration(
+                            color:
+                                isActive || isCompleted
+                                    ? const Color(0xFFF97316)
+                                    : const Color(0xFFE5E7EB),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color:
+                                isCompleted
+                                    ? const Color(0xFF10B981)
+                                    : isActive
+                                    ? const Color(0xFFF97316)
+                                    : Colors.grey[300],
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child:
+                                isCompleted
+                                    ? const Icon(
+                                      Icons.check,
+                                      color: Colors.white,
+                                      size: 14,
+                                    )
+                                    : Text(
+                                      '${index + 1}',
+                                      style: TextStyle(
+                                        color:
+                                            isActive
+                                                ? Colors.white
+                                                : Colors.grey[600],
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 24),
           ],
-        ),
-        const SizedBox(height: 16),
-
-        const RegistrationTextField(
-          label: "Total Price (Rs.)",
-          hintText: "Enter Price",
-          keyboardType: TextInputType.number,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSimpleField(String hint) {
-    return TextFormField(
-      keyboardType: TextInputType.number,
-      style: const TextStyle(fontSize: 14),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-        filled: true,
-        fillColor: Colors.grey[50],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFF97316), width: 1.5),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
         ),
       ),
     );
   }
-}
 
-class ItemsServicesStep extends StatefulWidget {
-  const ItemsServicesStep({super.key});
-
-  @override
-  State<ItemsServicesStep> createState() => _ItemsServicesStepState();
-}
-
-class _ItemsServicesStepState extends State<ItemsServicesStep> {
-  bool _isMenuExpanded = false;
-  bool _isServicesExpanded = false;
-
-  final Set<String> _selectedItems = {};
-
-  final List<Map<String, String>> _allMenuItems = [
-    {
-      "title": "Chicken Cheese Paratha Roll",
-      "price": "400",
-      "priceUnit": "Serving",
-    },
-    {"title": "White Chicken Karahi", "price": "600", "priceUnit": "Serving"},
-    {"title": "Mutton Korma Special", "price": "900", "priceUnit": "Serving"},
-    {"title": "Seekh Kabab Platter", "price": "500", "priceUnit": "Serving"},
-  ];
-
-  final List<Map<String, String>> _allServices = [
-    {"title": "Premium Catering", "price": "5000"},
-    {"title": "Event Photography", "price": "5000"},
-    {"title": "DJ & Sound System", "price": "8000"},
-  ];
-
-  void _toggleSelection(String title) {
-    setState(() {
-      if (_selectedItems.contains(title)) {
-        _selectedItems.remove(title);
-      } else {
-        _selectedItems.add(title);
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final visibleMenuItems = _isMenuExpanded
-        ? _allMenuItems
-        : _allMenuItems.take(2).toList();
-    final visibleServices = _isServicesExpanded
-        ? _allServices
-        : _allServices.take(2).toList();
-
+  // ── Step 1: Package Details ────────────────────────────────────────────────
+  Widget _buildStep1() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          "Items & Services",
+          'Package Details',
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 5),
         Text(
-          "Choose items and services for this bundle.",
+          'Name, price and capacity.',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 25),
+        _field('Package Name', _nameController, 'e.g. Wedding Gold Package'),
+        _field(
+          'Description',
+          _descController,
+          'Describe what makes this package special...',
+          maxLines: 4,
+        ),
+        const Text(
+          'Guest Capacity',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _simpleField(_minController, 'Min Guests')),
+            const SizedBox(width: 20),
+            Expanded(child: _simpleField(_maxController, 'Max Guests')),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _field(
+          'Total Price (Rs.)',
+          _priceController,
+          'Enter price',
+          inputType: TextInputType.number,
+        ),
+      ],
+    );
+  }
+
+  // ── Step 2: Items & Services picker ───────────────────────────────────────
+  Widget _buildStep2() {
+    if (_loadingItems) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(color: Color(0xFFF47C20)),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Items & Services',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          'Choose items for this bundle.',
           style: TextStyle(
             color: Colors.grey[400],
             fontSize: 12,
@@ -410,47 +443,71 @@ class _ItemsServicesStepState extends State<ItemsServicesStep> {
         const SizedBox(height: 25),
 
         const Text(
-          "Select Menu Items",
+          'Select Menu Items',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 10),
-        _buildSelectionContainer(
-          items: visibleMenuItems,
-          isExpanded: _isMenuExpanded,
-          onToggleExpand: () =>
-              setState(() => _isMenuExpanded = !_isMenuExpanded),
-          expandLabel: _isMenuExpanded
-              ? "View Less Items"
-              : "View more Items...",
-        ),
+        _menuItems.isEmpty
+            ? Text(
+              'No menu items found. Add items in Manage Menu first.',
+              style: TextStyle(color: Colors.grey[500], fontSize: 13),
+            )
+            : _selectionBox(
+              items:
+                  _menuItems
+                      .map(
+                        (i) => (id: i.itemId, title: i.name, sub: i.priceLabel),
+                      )
+                      .toList(),
+              selected: _selectedMenuIds,
+              onToggle:
+                  (id) => setState(
+                    () =>
+                        _selectedMenuIds.contains(id)
+                            ? _selectedMenuIds.remove(id)
+                            : _selectedMenuIds.add(id),
+                  ),
+            ),
 
         const SizedBox(height: 25),
-
         const Text(
-          "Select Additional Services",
+          'Select Additional Services',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 10),
-        _buildSelectionContainer(
-          items: visibleServices,
-          isExpanded: _isServicesExpanded,
-          onToggleExpand: () =>
-              setState(() => _isServicesExpanded = !_isServicesExpanded),
-          expandLabel: _isServicesExpanded
-              ? "View Less Services"
-              : "View more Services...",
-          isService: true,
-        ),
+        _services.isEmpty
+            ? Text(
+              'No services found. Add services in Manage Services first.',
+              style: TextStyle(color: Colors.grey[500], fontSize: 13),
+            )
+            : _selectionBox(
+              items:
+                  _services
+                      .map(
+                        (s) => (
+                          id: s.serviceId,
+                          title: s.name,
+                          sub: s.priceLabel,
+                        ),
+                      )
+                      .toList(),
+              selected: _selectedServiceIds,
+              onToggle:
+                  (id) => setState(
+                    () =>
+                        _selectedServiceIds.contains(id)
+                            ? _selectedServiceIds.remove(id)
+                            : _selectedServiceIds.add(id),
+                  ),
+            ),
       ],
     );
   }
 
-  Widget _buildSelectionContainer({
-    required List<Map<String, String>> items,
-    required bool isExpanded,
-    required VoidCallback onToggleExpand,
-    required String expandLabel,
-    bool isService = false,
+  Widget _selectionBox({
+    required List<({String id, String title, String sub})> items,
+    required Set<String> selected,
+    required void Function(String id) onToggle,
   }) {
     return Container(
       padding: const EdgeInsets.all(15),
@@ -459,114 +516,92 @@ class _ItemsServicesStepState extends State<ItemsServicesStep> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ...items.asMap().entries.map((entry) {
-            int idx = entry.key;
-            var item = entry.value;
-            bool isLast = idx == items.length - 1;
-            return Column(
-              children: [
-                _buildSelectableItem(
-                  title: item["title"]!,
-                  price: item["price"]!,
-                  priceUnit: isService ? "" : item["priceUnit"]!,
-                ),
-                if (!isLast) const Divider(height: 20),
-              ],
-            );
-          }),
-          const SizedBox(height: 15),
-          GestureDetector(
-            onTap: onToggleExpand,
-            child: Text(
-              expandLabel,
-              style: const TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-          ),
-        ],
+        children:
+            items.asMap().entries.map((e) {
+              final item = e.value;
+              final isAdded = selected.contains(item.id);
+              final isLast = e.key == items.length - 1;
+              return Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.title,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              item.sub,
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => onToggle(item.id),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 80,
+                          height: 35,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color:
+                                isAdded
+                                    ? Colors.redAccent
+                                    : const Color(0xFFF47C20),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            isAdded ? 'Remove' : 'Add',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!isLast) const Divider(height: 20),
+                ],
+              );
+            }).toList(),
       ),
     );
   }
 
-  Widget _buildSelectableItem({
-    required String title,
-    required String price,
-    String priceUnit = "",
-  }) {
-    bool isAdded = _selectedItems.contains(title);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              (priceUnit.isEmpty) ? "Rs. $price" : "Rs. $price/$priceUnit",
-              style: const TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-        GestureDetector(
-          onTap: () => _toggleSelection(title),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 80,
-            height: 35,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: isAdded ? Colors.redAccent : Color(0xFFF47C20),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              isAdded ? "Remove" : "Add",
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
+  // ── Step 3: Review & Save ──────────────────────────────────────────────────
+  Widget _buildReview() {
+    final selectedMenu =
+        _menuItems.where((i) => _selectedMenuIds.contains(i.itemId)).toList();
+    final selectedSvc =
+        _services
+            .where((s) => _selectedServiceIds.contains(s.serviceId))
+            .toList();
 
-class ReviewSaveStep extends StatelessWidget {
-  final Function(int) onEdit;
-  final bool isDesktop;
-  const ReviewSaveStep({
-    super.key,
-    required this.onEdit,
-    required this.isDesktop,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          "Review & Save",
+          'Review & Save',
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 5),
         Text(
-          "Review your new package and save it.",
+          'Review your new package and save it.',
           style: TextStyle(
             color: Colors.grey[400],
             fontSize: 12,
@@ -575,23 +610,66 @@ class ReviewSaveStep extends StatelessWidget {
         ),
         const SizedBox(height: 25),
 
-        if (isDesktop)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _buildSummaryCard()),
-              const SizedBox(width: 20),
-              Expanded(child: _buildIncludesCard()),
-            ],
-          )
-        else
-          Column(
-            children: [
-              _buildSummaryCard(),
-              const SizedBox(height: 20),
-              _buildIncludesCard(),
-            ],
+        _reviewCard('Package Summary', 0, [
+          _reviewRow(
+            Icons.card_giftcard,
+            'Package Name',
+            _nameController.text.trim().isEmpty
+                ? '—'
+                : _nameController.text.trim(),
           ),
+          _reviewRow(
+            Icons.monetization_on_outlined,
+            'Total Price',
+            'Rs. ${_priceController.text.trim()}',
+            valueColor: const Color(0xFFF47C20),
+          ),
+          _reviewRow(
+            Icons.groups_outlined,
+            'Capacity',
+            '${_minController.text} – ${_maxController.text} Guests',
+          ),
+          if (_descController.text.trim().isNotEmpty)
+            _reviewRow(
+              Icons.description_outlined,
+              'Description',
+              _descController.text.trim(),
+            ),
+        ]),
+        const SizedBox(height: 20),
+
+        _reviewCard('Includes', 1, [
+          if (selectedMenu.isNotEmpty) ...[
+            const Text(
+              'MENU ITEMS',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...selectedMenu.map((i) => _itemRow(i.name, i.priceLabel)),
+            const SizedBox(height: 16),
+          ],
+          if (selectedSvc.isNotEmpty) ...[
+            const Text(
+              'SERVICES',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...selectedSvc.map((s) => _itemRow(s.name, s.priceLabel)),
+          ],
+          if (selectedMenu.isEmpty && selectedSvc.isEmpty)
+            Text(
+              'No items or services selected.',
+              style: TextStyle(color: Colors.grey[400]),
+            ),
+        ]),
 
         const SizedBox(height: 40),
 
@@ -599,259 +677,31 @@ class ReviewSaveStep extends StatelessWidget {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Package Created Successfully!")),
-              );
-              Navigator.pop(context);
-            },
+            onPressed: _isSaving ? null : _save,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFF47C20),
-              foregroundColor: Colors.white,
-              elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
-              "Create Package",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
+            child:
+                _isSaving
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                      _isEditing ? 'Save Changes' : 'Create Package',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.white,
+                      ),
+                    ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSummaryCard() {
-    return _ReviewCard(
-      title: "Package Summary",
-      stepIndex: 0,
-      onEdit: onEdit,
-      children: const [
-        _ReviewRow(
-          icon: Icons.card_giftcard,
-          label: "Package Name",
-          value: "Exclusive Birthday Bundle",
-        ),
-        _ReviewRow(
-          icon: Icons.monetization_on_outlined,
-          label: "Total Price",
-          value: "Rs. 30,000",
-          valueColor: Color(0xFFF47C20),
-        ),
-        _ReviewRow(
-          icon: Icons.description_outlined,
-          label: "Description",
-          value: "Lorem ipsum dolor sit amet...",
-        ),
-      ],
-    );
-  }
-
-  Widget _buildIncludesCard() {
-    return _ReviewCard(
-      title: "Includes",
-      stepIndex: 1,
-      onEdit: onEdit,
-      children: [
-        const _ReviewRow(
-          icon: Icons.groups_outlined,
-          label: "Capacity",
-          value: "300-800 Guests",
-        ),
-        const Divider(height: 24),
-
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.restaurant_menu,
-                size: 18,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              "MENU ITEMS",
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.only(left: 46),
-          child: Column(
-            children: [
-              _itemRow("Chicken Cheese Paratha", "Rs. 400"),
-              _itemRow("White Chicken Karahi", "Rs. 600"),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.room_service_outlined,
-                size: 18,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              "SERVICES",
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.only(left: 46),
-          child: Column(
-            children: [
-              _itemRow("Premium Catering", "Rs. 5000"),
-              _itemRow("Event Photography", "Rs. 5000"),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _itemRow(String name, String price) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            name,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-          ),
-          Text(
-            price,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: Color(0xFFF47C20),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class RegistrationTextField extends StatelessWidget {
-  final String label;
-  final String hintText;
-  final TextInputType? keyboardType;
-  final int maxLines;
-  final TextEditingController? controller;
-
-  const RegistrationTextField({
-    super.key,
-    required this.label,
-    required this.hintText,
-    this.keyboardType,
-    this.maxLines = 1,
-    this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: controller,
-            keyboardType: keyboardType,
-            maxLines: maxLines,
-            style: const TextStyle(fontSize: 14),
-            decoration: InputDecoration(
-              hintText: hintText,
-              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-              filled: true,
-              fillColor: Colors.grey[50],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: Color(0xFFF97316),
-                  width: 1.5,
-                ),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'This field is required';
-              }
-              return null;
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReviewCard extends StatelessWidget {
-  final String title;
-  final int stepIndex;
-  final Function(int) onEdit;
-  final List<Widget> children;
-
-  const _ReviewCard({
-    required this.title,
-    required this.stepIndex,
-    required this.onEdit,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _reviewCard(String title, int step, List<Widget> children) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -882,7 +732,7 @@ class _ReviewCard extends StatelessWidget {
                 ),
               ),
               GestureDetector(
-                onTap: () => onEdit(stepIndex),
+                onTap: () => _goTo(step),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -892,10 +742,10 @@ class _ReviewCard extends StatelessWidget {
                     color: const Color(0xFFFFF3E0),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Row(
-                    children: const [
+                  child: const Row(
+                    children: [
                       Text(
-                        "Edit",
+                        'Edit',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -916,24 +766,15 @@ class _ReviewCard extends StatelessWidget {
       ),
     );
   }
-}
 
-class _ReviewRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color? valueColor;
-  const _ReviewRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _reviewRow(
+    IconData icon,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -974,4 +815,86 @@ class _ReviewRow extends StatelessWidget {
       ),
     );
   }
+
+  Widget _itemRow(String name, String price) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            name,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          ),
+          Text(
+            price,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFFF47C20),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Shared field helpers ───────────────────────────────────────────────────
+  Widget _field(
+    String label,
+    TextEditingController ctrl,
+    String hint, {
+    int maxLines = 1,
+    TextInputType? inputType,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: ctrl,
+            maxLines: maxLines,
+            keyboardType: inputType,
+            style: const TextStyle(fontSize: 14),
+            decoration: _inputDec(hint),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _simpleField(TextEditingController ctrl, String hint) {
+    return TextFormField(
+      controller: ctrl,
+      keyboardType: TextInputType.number,
+      style: const TextStyle(fontSize: 14),
+      decoration: _inputDec(hint),
+    );
+  }
+
+  InputDecoration _inputDec(String hint) => InputDecoration(
+    hintText: hint,
+    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+    filled: true,
+    fillColor: Colors.grey[50],
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: Colors.grey[300]!),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: Colors.grey[300]!),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Color(0xFFF97316), width: 1.5),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+  );
 }

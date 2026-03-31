@@ -1,9 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Screens/Customers/BasicDetailScreen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:venuemate_system/Models/hall_model.dart';
+import 'package:venuemate_system/Models/menu_item_model.dart';
+import 'package:venuemate_system/Models/package_model.dart';
+import 'package:venuemate_system/Models/service_item_model.dart';
+import 'package:venuemate_system/Models/user_model.dart';
+import 'package:venuemate_system/Services/auth_service.dart';
+import 'package:venuemate_system/Services/hall_service.dart';
+import 'package:venuemate_system/Services/menu_service.dart';
+import 'package:venuemate_system/Services/package_service.dart';
+import 'package:venuemate_system/Services/service_item_service.dart';
+import 'package:venuemate_system/Services/user_service.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
+import 'BasicDetailScreen.dart';
+import 'MessagingScreen.dart';
+import 'PackagesDetailScreen.dart';
 
 class VenueDetailsScreen extends StatefulWidget {
-  const VenueDetailsScreen({Key? key}) : super(key: key);
-
+  final String hallId;
+  const VenueDetailsScreen({super.key, required this.hallId});
   @override
   State<VenueDetailsScreen> createState() => _VenueDetailsScreenState();
 }
@@ -11,76 +30,260 @@ class VenueDetailsScreen extends StatefulWidget {
 class _VenueDetailsScreenState extends State<VenueDetailsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+
+  // Data
+  HallModel? _hall;
+  UserModel? _owner;
+  List<MenuItemModel> _menu = [];
+  List<ServiceItemModel> _services = [];
+  List<PackageModel> _packages = [];
+  List<Map<String, dynamic>> _reviews = [];
+  bool _loading = true;
+
+  // Favorites
   bool _isFavorite = false;
+  final String _uid = AuthService.currentUid ?? '';
+
+  // Image swipe
   int _currentImageIndex = 0;
-  final int _totalImages = 5;
+  final PageController _pageCtrl = PageController();
+
+  // Chat loading guard
+  bool _openingChat = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    _loadAll();
+  }
+
+  Future<void> _loadAll() async {
+    final hall = await HallService.getHallById(widget.hallId);
+    if (!mounted) return;
+    if (hall == null) {
+      setState(() => _loading = false);
+      return;
+    }
+
+    // Parallel: sub-collections + owner info + fav check
+    final results = await Future.wait([
+      MenuService.getMenuItems(widget.hallId),
+      ServiceItemService.getServices(widget.hallId),
+      PackageService.getPackages(widget.hallId),
+      UserService.getUserById(hall.ownerId),
+    ]);
+
+    bool isFav = false;
+    if (_uid.isNotEmpty) {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('favorites')
+              .doc(_uid)
+              .collection('halls')
+              .doc(widget.hallId)
+              .get();
+      isFav = doc.exists;
+    }
+
+    // Stream reviews live
+    FirebaseFirestore.instance
+        .collection('halls')
+        .doc(widget.hallId)
+        .collection('reviews')
+        .snapshots()
+        .listen((s) {
+          if (mounted) {
+            setState(() => _reviews = s.docs.map((d) => d.data()).toList());
+          }
+        });
+
+    if (!mounted) return;
+    setState(() {
+      _hall = hall;
+      _owner = results[3] as UserModel?;
+      _menu = results[0] as List<MenuItemModel>;
+      _services = results[1] as List<ServiceItemModel>;
+      _packages = results[2] as List<PackageModel>;
+      _isFavorite = isFav;
+      _loading = false;
+    });
+  }
+
+  // ── Favorite toggle ────────────────────────────────────────────────────
+  Future<void> _toggleFav() async {
+    if (_uid.isEmpty || _hall == null) return;
+    final ref = FirebaseFirestore.instance
+        .collection('favorites')
+        .doc(_uid)
+        .collection('halls')
+        .doc(widget.hallId);
+    setState(() => _isFavorite = !_isFavorite);
+    _isFavorite
+        ? await ref.set({
+          'hallId': widget.hallId,
+          'savedAt': FieldValue.serverTimestamp(),
+        })
+        : await ref.delete();
+  }
+
+  Future _viewDirection({required LatLng hallCords}) async {
+    try {
+      Position userCords = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      final String url =
+          "https://www.google.com/maps/dir/?api=1&origin=${userCords.latitude},${userCords.longitude}&destination=${hallCords.latitude},${hallCords.longitude}&travelmode=driving";
+
+      final Uri uri = Uri.parse(url);
+
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch maps';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Error: Unable to open directions. Please check location permissions.",
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  // ── Open chat with hall owner ──────────────────────────────────────────
+  Future<void> _openChat() async {
+    if (_uid.isEmpty || _owner == null || _openingChat) return;
+    setState(() => _openingChat = true);
+
+    try {
+      // Get current user info for chat metadata
+      final me = await UserService.getUserById(_uid);
+
+      final chatId = await getOrCreateChat(
+        currentUid: _uid,
+        currentName: me?.name ?? 'Customer',
+        currentPhoto: me?.profileImageUrl ?? '',
+        otherId: _owner!.uid,
+        otherName: _owner!.name,
+        otherPhoto: _owner!.profileImageUrl,
+      );
+
+      if (!mounted) return;
+      AppNavigation.push(
+        context,
+        ChattingScreen(
+          chatId: chatId,
+          currentUid: _uid,
+          otherId: _owner!.uid,
+          otherName: _owner!.name,
+          otherPhoto: _owner!.profileImageUrl,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _openingChat = false);
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _pageCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFF47C20)),
+        ),
+      );
+    }
+    if (_hall == null) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          leading: const BackButton(color: Colors.black),
+        ),
+        body: const Center(child: Text('Venue not found.')),
+      );
+    }
+    final h = _hall!;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: Column(
         children: [
-          // 1. Header with Image, Back Button & Like Button
-          _buildHeader(),
-
-          // 2. Venue Title and Contact Info
-          _buildVenueTitleSection(),
-
-          // 3. Tab Bar
+          _buildHeader(h),
+          _buildTitleSection(h),
           _buildTabBar(),
-
-          // 4. Tab Content (Scrollable Area)
-          // The Footer is now INSIDE these tabs, so it scrolls with them.
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildDetailsTab(),
+                _buildDetailsTab(h),
                 _buildMenuTab(),
                 _buildServicesTab(),
-                _buildPackagesTab(),
+                _buildPackagesTab(h),
                 _buildReviewsTab(),
               ],
             ),
           ),
         ],
       ),
+      bottomSheet: _buildFooter(h),
     );
   }
 
-  // --- Header Section ---
-  Widget _buildHeader() {
+  // ══════════════════════════════════════════════════════════════════════
+  //  HEADER — swipeable images, back + heart
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildHeader(HallModel h) {
+    final imgs = h.imageUrls;
     return Stack(
       children: [
-        // Venue Image
-        Container(
+        SizedBox(
           height: 240,
           width: double.infinity,
-          child: Image.asset(
-            'assets/images/cardimage 2.png',
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                color: Colors.grey[300],
-                child: const Icon(Icons.image, size: 60, color: Colors.grey),
-              );
-            },
-          ),
+          child:
+              imgs.isEmpty
+                  ? Container(
+                    color: Colors.grey[300],
+                    child: const Icon(
+                      Icons.image,
+                      size: 60,
+                      color: Colors.grey,
+                    ),
+                  )
+                  : PageView.builder(
+                    controller: _pageCtrl,
+                    itemCount: imgs.length,
+                    onPageChanged:
+                        (i) => setState(() => _currentImageIndex = i),
+                    itemBuilder:
+                        (_, i) => CachedNetworkImage(
+                          imageUrl: imgs[i],
+                          fit: BoxFit.cover,
+                          placeholder:
+                              (_, __) => Container(color: Colors.grey[200]),
+                          errorWidget:
+                              (_, __, ___) => Container(
+                                color: Colors.grey[300],
+                                child: const Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                        ),
+                  ),
         ),
-        // Top Bar
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -98,11 +301,7 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
                 CircleAvatar(
                   backgroundColor: Colors.white,
                   child: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _isFavorite = !_isFavorite;
-                      });
-                    },
+                    onPressed: _toggleFav,
                     icon: Icon(
                       _isFavorite ? Icons.favorite : Icons.favorite_border,
                       color: Colors.red,
@@ -114,174 +313,221 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
             ),
           ),
         ),
-        // Image Counter
-        Positioned(
-          bottom: 16,
-          right: 16,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.6),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '${_currentImageIndex + 1}/$_totalImages',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+        if (imgs.isNotEmpty)
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${_currentImageIndex + 1}/${imgs.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }
 
-  // --- Venue Title Section ---
-  Widget _buildVenueTitleSection() {
-  return Container(
-    color: Colors.white,
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Al Rehman Banquet Hall',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+  // ══════════════════════════════════════════════════════════════════════
+  //  TITLE SECTION — name, address, stars, REAL owner card
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildTitleSection(HallModel h) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            h.hallName,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-        ),
-
-        Row(
-          children: [
-            const Icon(Icons.location_on, size: 14, color: Colors.grey),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                'Model Colony, Street 124, Karachi, Pakistan',
-                style: TextStyle(
-                  color: Colors.grey[600],
+          Row(
+            children: [
+              const Icon(Icons.location_on, size: 14, color: Colors.grey),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  h.address.isNotEmpty ? h.address : '—',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.star, color: Colors.amber, size: 14),
+              const SizedBox(width: 4),
+              Text(
+                h.ratingCount == 0 ? '0.0' : h.ratingAvg.toStringAsFixed(1),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
                   fontSize: 12,
                 ),
               ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 4),
-
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Row(
-                children: const [
-                  Icon(Icons.star, color: Colors.amber, size: 14),
-                  SizedBox(width: 4),
-                  Text(
-                    '4.0',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    '(30)',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 6),
-
-        const Text(
-          "Contact",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-        ),
-
-        // Contact row
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 9),
-          child: Row(
-            children: const [
-              Icon(Icons.person_outline, size: 20),
-              SizedBox(width: 8),
+              const SizedBox(width: 4),
               Text(
-                'Rehman Hussain',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
+                '(${h.ratingCount})',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
               ),
-              Spacer(),
-              Icon(Icons.message_outlined, size: 20),
             ],
           ),
-        ),
-
-        // Divider at bottom
-        const Padding(
-          padding: EdgeInsets.only(top: 1),
-          child: Divider(
-            color: Color(0xFFCCCCCC),
-            thickness: 3,
-            height: 0,
+          const SizedBox(height: 10),
+          const Text(
+            'Contact',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
-        ),
-      ],
-    ),
-  );
-}
+          const SizedBox(height: 8),
 
+          // ── Real owner card ────────────────────────────────────────────
+          _buildOwnerCard(),
 
-  // --- Tab Bar ---
-  Widget _buildTabBar() {
-    return Container(
-      
-      color: Colors.white,
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        labelColor: Colors.black,
-        unselectedLabelColor: Colors.grey,
-        indicatorColor: const Color(0xFFF47C20),
-        indicatorWeight: 3,
-        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        unselectedLabelStyle: const TextStyle(fontSize: 14),
-        tabs: const [
-          Tab(text: 'Details'),
-          Tab(text: 'Menu'),
-          Tab(text: 'Services'),
-          Tab(text: 'Packages'),
-          Tab(text: 'Reviews'),
+          const Padding(
+            padding: EdgeInsets.only(top: 10),
+            child: Divider(color: Color(0xFFCCCCCC), thickness: 3, height: 0),
+          ),
         ],
       ),
     );
   }
 
-  // --- Shared Footer Widget (Scrollable) ---
-  Widget _buildFooter() {
-  return Container(
+  // ── Owner card: photo left, name + phone middle, message icon right ──────
+  Widget _buildOwnerCard() {
+    final owner = _owner;
+
+    // Initials fallback
+    String initials() {
+      final name = owner?.name ?? '';
+      if (name.trim().isEmpty) return '?';
+      return name
+          .trim()
+          .split(' ')
+          .map((w) => w[0].toUpperCase())
+          .take(2)
+          .join();
+    }
+
+    Widget avatar() {
+      final photoUrl = owner?.profileImageUrl ?? '';
+      if (photoUrl.isNotEmpty) {
+        return CircleAvatar(
+          radius: 24,
+          backgroundImage: NetworkImage(photoUrl),
+        );
+      }
+      return CircleAvatar(
+        radius: 24,
+        backgroundColor: Colors.orange.shade50,
+        child: Text(
+          initials(),
+          style: const TextStyle(
+            color: Color(0xFFF47C20),
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+      child: Row(
+        children: [
+          // Owner photo
+          avatar(),
+          const SizedBox(width: 12),
+
+          // Name + phone
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  owner?.name ?? '—',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  owner != null &&
+                          _hall != null &&
+                          _hall!.contactPhone.isNotEmpty
+                      ? _hall!.contactPhone
+                      : '—',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+
+          // Message icon — navigates to ChattingScreen
+          _openingChat
+              ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFFF47C20),
+                ),
+              )
+              : IconButton(
+                onPressed: _openChat,
+                icon: const Icon(Icons.message_outlined, size: 22),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                color: Colors.black87,
+              ),
+        ],
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  TAB BAR
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildTabBar() => Container(
+    color: Colors.white,
+    child: TabBar(
+      controller: _tabController,
+      isScrollable: true,
+      labelColor: Colors.black,
+      unselectedLabelColor: Colors.grey,
+      indicatorColor: const Color(0xFFF47C20),
+      indicatorWeight: 3,
+      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+      unselectedLabelStyle: const TextStyle(fontSize: 14),
+      tabs: const [
+        Tab(text: 'Details'),
+        Tab(text: 'Menu'),
+        Tab(text: 'Services'),
+        Tab(text: 'Packages'),
+        Tab(text: 'Reviews'),
+      ],
+    ),
+  );
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  FOOTER
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildFooter(HallModel h) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    margin: const EdgeInsets.only(top: 20),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(
-        color: Colors.grey,
-        width: 1,
+      borderRadius: BorderRadius.only(
+        topLeft: Radius.circular(18),
+        topRight: Radius.circular(18),
       ),
       boxShadow: [
         BoxShadow(
@@ -297,9 +543,9 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min, // Prevents overflow
-            children: const [
-              Text(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
                 'Starting from',
                 style: TextStyle(
                   fontSize: 16,
@@ -307,10 +553,10 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
-                'Rs. 15,000/Event',
-                style: TextStyle(
+                h.priceLabel,
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFFF47C20),
@@ -321,14 +567,13 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
         ),
         Expanded(
           child: SizedBox(
-            height: 40, // Fits well inside footer
+            height: 40,
             child: ElevatedButton(
-              onPressed: () {
-                 Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => BasicDetailsScreen()),
-            );
-              },
+              onPressed:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => BasicDetailsScreen()),
+                  ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF47C20),
                 shape: RoundedRectangleBorder(
@@ -349,29 +594,31 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
       ],
     ),
   );
-}
 
+  // ══════════════════════════════════════════════════════════════════════
+  //  DETAILS TAB — real description + READ-ONLY Google Map with hall pin
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildDetailsTab(HallModel h) {
+    final hasCoords = h.latitude != 0.0 || h.longitude != 0.0;
+    final hallLatLng = LatLng(h.latitude, h.longitude);
 
-  // --- Details Tab ---
-  Widget _buildDetailsTab() {
     return SingleChildScrollView(
       child: Container(
-        color: Color(0xFFF0F0F0),
+        color: const Color(0xFFF0F0F0),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // About Section
+            // About
             const Text(
               'About',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+              h.description.isNotEmpty
+                  ? h.description
+                  : 'No description available.',
               style: TextStyle(
                 color: Colors.grey[700],
                 fontSize: 14,
@@ -379,72 +626,108 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
               ),
             ),
             const SizedBox(height: 24),
-            // Location Section
+
+            // Location
             const Text(
               'Location',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+
+            Center(
+              child: Text(
+                "Click to view direction",
+                style: TextStyle(fontSize: 8, color: Color(0xFFF47C20)),
               ),
             ),
-            const SizedBox(height: 12),
-            Container(
-              height: 180,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(0),
-                child: Image.asset(
-                  'assets/images/googlemap 2.png',
-                  width: 350,
-                  height: 500,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[200],
-                      child: const Center(
-                        child: Icon(Icons.map, size: 60, color: Colors.grey),
-                      ),
-                    );
-                  },
-                ),
+
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: SizedBox(
+                height: 200,
+                child:
+                    hasCoords
+                        ? GestureDetector(
+                          onTap: () async {
+                            await _viewDirection(hallCords: hallLatLng);
+                          },
+                          child: AbsorbPointer(
+                            absorbing: true,
+                            child: GoogleMap(
+                              initialCameraPosition: CameraPosition(
+                                target: hallLatLng,
+                                zoom: 15,
+                              ),
+                              markers: {
+                                Marker(
+                                  markerId: const MarkerId('hall'),
+                                  position: hallLatLng,
+                                  infoWindow: InfoWindow(title: h.hallName),
+                                ),
+                              },
+                              // Disable all interactive controls
+                              zoomControlsEnabled: false,
+                              zoomGesturesEnabled: false,
+                              scrollGesturesEnabled: false,
+                              rotateGesturesEnabled: false,
+                              tiltGesturesEnabled: false,
+                              myLocationButtonEnabled: false,
+                              compassEnabled: false,
+                              mapToolbarEnabled: false,
+                              liteModeEnabled: false,
+                              onMapCreated: (_) {}, // no controller needed
+                            ),
+                          ),
+                        )
+                        : Container(
+                          color: Colors.grey[200],
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.map,
+                                size: 48,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                h.address.isNotEmpty
+                                    ? h.address
+                                    : 'No location set.',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 13,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
               ),
             ),
-            // Footer Added Here
-            _buildFooter(),
+
+            const SizedBox(height: 60),
           ],
         ),
       ),
     );
   }
 
-  // --- Menu Tab ---
-  Widget _buildMenuTab() {
-  return Container(
-    color: Color(0xFFF0F0F0),
-    child: ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildMenuItem('Chicken Cheese Paratha Roll', 'Rs. 400/Serving',
-            isAvailable: true),
-        _buildMenuItem('Chicken Biryani Special', 'Rs. 400/Serving',
-            isAvailable: true),
-        _buildMenuItem('Beef Kebab Platter', 'Sold Out', isAvailable: false),
-        _buildMenuItem('Vegetable Spring Rolls', 'Rs. 400/Serving',
-            isAvailable: true),
-
-        // Footer Added Here
-        _buildFooter(),
-      ],
-    ),
+  // ══════════════════════════════════════════════════════════════════════
+  //  MENU TAB
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildMenuTab() => Container(
+    color: const Color(0xFFF0F0F0),
+    child:
+        _menu.isEmpty
+            ? _emptyTab('No menu items added yet.')
+            : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [..._menu.map(_menuCard)],
+            ),
   );
-}
 
-
-  Widget _buildMenuItem(String name, String price, {required bool isAvailable}) {
-  return Container(
+  Widget _menuCard(MenuItemModel item) => Container(
     margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
@@ -455,83 +738,91 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- Image ---
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Image.asset('assets/images/karahi.png'),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child:
+              item.imageUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                    imageUrl: item.imageUrl,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => _menuFallback(),
+                  )
+                  : _menuFallback(),
         ),
-
         const SizedBox(width: 12),
-
-        // --- Text Section (Aligned perfectly left) ---
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Item Name
               Text(
-                name,
+                item.name,
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 3),
-
-              // Small Description
-              const Text(
-                "It’s very delicious with creamy Chicken.",
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey,
-                ),
+              Text(
+                item.description.isNotEmpty
+                    ? item.description
+                    : 'Freshly prepared.',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
             ],
           ),
         ),
-
-        // --- Price (right aligned) ---
         Text(
-          price,
+          item.isAvailable ? item.priceLabel : 'Sold Out',
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
-            color: isAvailable ? const Color(0xFFF47C20) : Colors.grey,
+            color: item.isAvailable ? const Color(0xFFF47C20) : Colors.grey,
           ),
         ),
       ],
     ),
   );
-}
 
-
-
-  // --- Services Tab ---
- Widget _buildServicesTab() {
-  return Container(
-     color: Color(0xFFF0F0F0),
-    child: ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildServiceItem('Premium Catering', 'Rs. 5000', 'Full-service dinner & dessert.'),
-        _buildServiceItem('Event Photography', 'Rs. 8000', 'Covers photography for the entire event'),
-        _buildServiceItem('Stage Decoration', 'Rs. 3000', 'Includes floral and lighting setup'),
-        _buildServiceItem('Sound System', 'Rs. 2500', 'Professional sound & mic setup'),
-        // Footer Added Here
-        _buildFooter(),
-      ],
+  Widget _menuFallback() => Container(
+    width: 40,
+    height: 40,
+    decoration: BoxDecoration(
+      color: Colors.grey[200],
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Image.asset(
+      'assets/images/karahi.png',
+      errorBuilder:
+          (_, __, ___) =>
+              const Icon(Icons.fastfood, color: Colors.grey, size: 22),
     ),
   );
-}
 
-// Updated Service Item with small description text
-Widget _buildServiceItem(String name, String price, String description) {
-  return Container(
+  // ══════════════════════════════════════════════════════════════════════
+  //  SERVICES TAB
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildServicesTab() => Container(
+    color: const Color(0xFFF0F0F0),
+    child:
+        _services.isEmpty
+            ? _emptyTab('No services listed.')
+            : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                ..._services.map(
+                  (s) => _serviceCard(
+                    s.name,
+                    'Rs. ${s.price.toStringAsFixed(0)}',
+                    s.description,
+                  ),
+                ),
+              ],
+            ),
+  );
+
+  Widget _serviceCard(String name, String price, String desc) => Container(
     margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
@@ -542,29 +833,20 @@ Widget _buildServiceItem(String name, String price, String description) {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Icon/Image
-        Container(
+        SizedBox(
           width: 40,
           height: 40,
-          decoration: BoxDecoration(
-            // color: const Color(0xFFF47C20).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(6),
-          ),
           child: const Icon(
-            Icons.camera_enhance_outlined,
+            Icons.room_service,
             color: Color(0xFFF47C20),
             size: 30,
           ),
         ),
-
         const SizedBox(width: 12),
-
-        // Name + Description
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Service Name
               Text(
                 name,
                 style: const TextStyle(
@@ -572,22 +854,14 @@ Widget _buildServiceItem(String name, String price, String description) {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-
               const SizedBox(height: 3),
-
-              // Small Description
               Text(
-                description,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
+                desc,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
           ),
         ),
-
-        // Price
         Text(
           price,
           style: const TextStyle(
@@ -599,247 +873,236 @@ Widget _buildServiceItem(String name, String price, String description) {
       ],
     ),
   );
-}
 
+  // ══════════════════════════════════════════════════════════════════════
+  //  PACKAGES TAB
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildPackagesTab(HallModel h) => Container(
+    color: const Color(0xFFF0F0F0),
+    child:
+        _packages.isEmpty
+            ? _emptyTab('No packages available.')
+            : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                ..._packages
+                    .where((p) => p.isActive)
+                    .map((p) => _packageCard(p, h)),
+              ],
+            ),
+  );
 
-  // --- Packages Tab ---
-  Widget _buildPackagesTab() {
-    return Container(
-        color: Color(0xFFF0F0F0),
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildPackageCard(),
-          _buildPackageCard(),
-          // Footer Added Here
-          _buildFooter(),
-        ],
+  Widget _packageCard(PackageModel p, HallModel h) => GestureDetector(
+    onTap:
+        () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Packagesdetailscreen(hall: h, package: p),
+          ),
+        ),
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
       ),
-    );
-  }
-
- Widget _buildPackageCard() {
-  return Container(
-    margin: const EdgeInsets.only(bottom: 16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.grey[300]!),
-    ),
-    child: Stack(
-      children: [
-        // ❤️ Favorite Icon (Top Right)
-        Positioned(
-          top: 15,
-          right: 8,
-          child: CircleAvatar(
-            backgroundColor: Colors.white,
-            radius: 16,
-            child: const Icon(
-              Icons.favorite_border,
-              color: Colors.red,
-              size: 25,
+      child: Stack(
+        children: [
+          Positioned(
+            top: 15,
+            right: 8,
+            child: CircleAvatar(
+              backgroundColor: Colors.white,
+              radius: 16,
+              child: Icon(
+                _isFavorite ? Icons.favorite : Icons.favorite_border,
+                color: Colors.red,
+                size: 25,
+              ),
             ),
           ),
-        ),
-
-        // 🌟 Main Content
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 4), // Small spacing under the heart icon
-
-              const Text(
-                'Exclusive Birthday Celebration Bundle',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.bold,
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  p.name,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-          
-
-
-              const SizedBox(height: 2),
-    const Divider(
-  color:Color(0xFFCCCCCC),
-  thickness: 3,
-  indent: 0,
-  endIndent: 0,
-),
-              const Text(
-                'Includes:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                const SizedBox(height: 2),
+                const Divider(color: Color(0xFFCCCCCC), thickness: 3),
+                const Text(
+                  'Includes:',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
-              ),
-              
-
-              const SizedBox(height: 2),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildIncludeIcon('assets/images/guest.png', '200 Guests \n Capacity'),
-                  _buildIncludeIcon('assets/images/menuitem.png', '12 Menu Items'),
-                  _buildIncludeIcon('assets/images/services.png', '4 Services'),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              const Text(
-                'Rs. 20,000',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFF47C20),
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _includeIcon(
+                      'assets/images/guest.png',
+                      '${p.capacityMax} Guests\nCapacity',
+                    ),
+                    _includeIcon(
+                      'assets/images/menuitem.png',
+                      '${p.menuItemIds.length} Menu Items',
+                    ),
+                    _includeIcon(
+                      'assets/images/services.png',
+                      '${p.serviceItemIds.length} Services',
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Text(
+                  'Rs. ${p.price.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFF47C20),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
-}
 
-
-
-  Widget _buildIncludeIcon(String imagePath, String label) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            // color: const Color(0xFFF47C20).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Image.asset(
-            imagePath,
-            width: 30,
-            height: 30,
-            color: const Color(0xFFF47C20),
-            errorBuilder: (context, error, stackTrace) {
-              return const Icon(
+  Widget _includeIcon(String img, String label) => Column(
+    children: [
+      Container(
+        padding: const EdgeInsets.all(10),
+        child: Image.asset(
+          img,
+          width: 30,
+          height: 30,
+          color: const Color(0xFFF47C20),
+          errorBuilder:
+              (_, __, ___) => const Icon(
                 Icons.fastfood,
                 color: Color(0xFFF47C20),
                 size: 20,
-              );
-            },
-          ),
+              ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // --- Reviews Tab ---
-  Widget _buildReviewsTab() {
-    return Container(
-      color:   Color(0xFFF0F0F0),
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildReviewCard('Muhammad Ahmad', '4.0',
-              'yeh asalaan wala event mana hay menu bohot parta hay location bohot achi ha'),
-          _buildReviewCard('Ali Ahmed', '5.0',
-              'Great venue for weddings and events. Staff was very cooperative and helpful.'),
-          _buildReviewCard('Sarah Khan', '4.5',
-              'Beautiful hall with excellent services. Highly recommended!'),
-          // Footer Added Here
-          _buildFooter(),
-        ],
       ),
-    );
-  }
+      const SizedBox(height: 4),
+      Text(
+        label,
+        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+        textAlign: TextAlign.center,
+      ),
+    ],
+  );
 
-  Widget _buildReviewCard(String name, String rating, String review) {
-  double ratingValue = double.tryParse(rating) ?? 0;
-
-  return Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.grey[50],
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: Colors.grey[200]!),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const CircleAvatar(
-              radius: 18,
-              backgroundColor: Color(0xFFF47C20),
-              child: Icon(Icons.person, color: Colors.white, size: 20),
+  // ══════════════════════════════════════════════════════════════════════
+  //  REVIEWS TAB
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildReviewsTab() => Container(
+    color: const Color(0xFFF0F0F0),
+    child:
+        _reviews.isEmpty
+            ? _emptyTab('No reviews yet. Be the first!')
+            : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [..._reviews.map(_reviewCard)],
             ),
-            const SizedBox(width: 10),
+  );
 
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+  Widget _reviewCard(Map<String, dynamic> r) {
+    final rating = (r['rating'] as num?)?.toDouble() ?? 0;
+    final name = r['customerName'] as String? ?? 'Anonymous';
+    final comment = r['comment'] as String? ?? '';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: const Color(0xFFF47C20),
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
-
-                  Row(
-                    children: [
-                      Text(
-                        rating,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
                       ),
-                      const SizedBox(width: 4),
-
-                      // ⭐ Generate Stars Dynamically
-                      Row(
-                        children: List.generate(
-                          ratingValue.round(),
-                          (index) => const Icon(
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        ...List.generate(
+                          rating.round(),
+                          (_) => const Icon(
                             Icons.star,
                             color: Colors.amber,
                             size: 12,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 8),
-
-        Text(
-          review,
-          style: TextStyle(
-            color: Colors.grey[700],
-            fontSize: 12,
-            height: 1.4,
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            comment,
+            style: TextStyle(
+              color: Colors.grey[700],
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyTab(String msg) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(40),
+      child: Text(
+        msg,
+        style: TextStyle(color: Colors.grey[500], fontSize: 14),
+        textAlign: TextAlign.center,
+      ),
     ),
   );
 }
-    }

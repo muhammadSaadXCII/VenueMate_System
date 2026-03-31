@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
-import 'package:venuemate_system/Screens/HallAdmin/create_package.dart';
+import 'package:venuemate_system/Services/auth_service.dart';
+import 'package:venuemate_system/Services/hall_service.dart';
+import 'package:venuemate_system/Services/package_service.dart';
+import '../../Models/package_model.dart';
+import 'create_package.dart';
 
 class ManagePackagesScreen extends StatefulWidget {
   const ManagePackagesScreen({super.key});
@@ -11,42 +15,57 @@ class ManagePackagesScreen extends StatefulWidget {
 }
 
 class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
-  final List<Map<String, dynamic>> _packages = [
-    {
-      "title": "Exclusive Birthday Celebration Bundle",
-      "price": "30,000",
-      "capacity": "200 Guests",
-      "menuCount": "12 Menu Items",
-      "serviceCount": "4 Services",
-      "isActive": true,
-    },
-    {
-      "title": "Premium Wedding Package",
-      "price": "150,000",
-      "capacity": "500 Guests",
-      "menuCount": "20 Menu Items",
-      "serviceCount": "6 Services",
-      "isActive": true,
-    },
-    {
-      "title": "Corporate Meeting Basic",
-      "price": "50,000",
-      "capacity": "100 Guests",
-      "menuCount": "5 Menu Items",
-      "serviceCount": "2 Services",
-      "isActive": false,
-    },
-  ];
+  String? _hallId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHallId();
+  }
+
+  Future<void> _loadHallId() async {
+    final uid = AuthService.currentUid;
+    if (uid == null) return;
+    final hall = await HallService.getHallByOwnerId(uid);
+    if (mounted) setState(() => _hallId = hall?.hallId);
+  }
+
+  Future<void> _deletePackage(PackageModel pkg) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Delete Package'),
+            content: Text('Delete "${pkg.name}"? This cannot be undone.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+    );
+    if (confirm != true || _hallId == null) return;
+    final error = await PackageService.deletePackage(
+      hallId: _hallId!,
+      packageId: pkg.packageId,
+    );
+    if (error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.red),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 1100;
-    final isTablet = screenWidth >= 650 && screenWidth < 1100;
-
-    final horizontalPadding = isDesktop ? screenWidth * 0.05 : 20.0;
-    int crossAxisCount = isDesktop ? 3 : (isTablet ? 2 : 1);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
@@ -59,7 +78,7 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "Manage Packages",
+          'Manage Packages',
           style: TextStyle(
             color: Colors.black,
             fontSize: 20,
@@ -67,180 +86,200 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
           ),
         ),
       ),
-      body: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1400),
-          child: CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    horizontalPadding,
-                    20,
-                    horizontalPadding,
-                    0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 600),
-                          child: GestureDetector(
-                            onTap: () {
-                              AppNavigation.push(context, CreatePackageScreen());
-                            },
-                            child: Container(
-                              width: double.infinity,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFE0C2),
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.add_circle_outline,
-                                    color: Color(0xFFF47C20),
-                                    size: 24,
+      body:
+          _hallId == null
+              ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFFF47C20)),
+              )
+              : Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1400),
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Center(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 600,
                                   ),
-                                  SizedBox(width: 10),
-                                  Text(
-                                    "Add New Package",
-                                    style: TextStyle(
-                                      color: Color(0xFFF47C20),
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+                                  child: GestureDetector(
+                                    onTap:
+                                        () => AppNavigation.push(
+                                          context,
+                                          CreatePackageScreen(hallId: _hallId!),
+                                        ),
+                                    child: Container(
+                                      width: double.infinity,
+                                      height: 50,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFE0C2),
+                                        borderRadius: BorderRadius.circular(30),
+                                      ),
+                                      child: const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.add_circle_outline,
+                                            color: Color(0xFFF47C20),
+                                            size: 24,
+                                          ),
+                                          SizedBox(width: 10),
+                                          Text(
+                                            'Add New Package',
+                                            style: TextStyle(
+                                              color: Color(0xFFF47C20),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ],
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 30),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 4),
+                                child: Text(
+                                  'Event Packages',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
 
-                      const SizedBox(height: 30),
-
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 4.0),
-                        child: Text(
-                          "Event Packages",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
+                      StreamBuilder<List<PackageModel>>(
+                        stream: PackageService.streamPackages(_hallId!),
+                        builder: (context, snap) {
+                          if (snap.connectionState == ConnectionState.waiting) {
+                            return const SliverToBoxAdapter(
+                              child: Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(40),
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFFF47C20),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          final packages = snap.data ?? [];
+                          if (packages.isEmpty) {
+                            return SliverToBoxAdapter(
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(40),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.card_giftcard_outlined,
+                                        size: 64,
+                                        color: Colors.grey[300],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No packages yet.',
+                                        style: TextStyle(
+                                          color: Colors.grey[500],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          return SliverPadding(
+                            padding: const EdgeInsets.only(
+                              left: 20,
+                              right: 20,
+                              top: 8,
+                              bottom: 40,
+                            ),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                final pkg = packages[index];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Slidable(
+                                      key: ValueKey(pkg.packageId),
+                                      endActionPane: ActionPane(
+                                        motion: const ScrollMotion(),
+                                        children: [
+                                          SlidableAction(
+                                            onPressed:
+                                                (_) => AppNavigation.push(
+                                                  context,
+                                                  CreatePackageScreen(
+                                                    hallId: _hallId!,
+                                                    existing: pkg,
+                                                  ),
+                                                ),
+                                            backgroundColor:
+                                                Colors.blue.shade50,
+                                            foregroundColor: Colors.blue,
+                                            icon: Icons.edit,
+                                            label: 'Edit',
+                                          ),
+                                          SlidableAction(
+                                            onPressed:
+                                                (_) => _deletePackage(pkg),
+                                            backgroundColor: Colors.red.shade50,
+                                            foregroundColor: Colors.red,
+                                            icon: Icons.delete,
+                                            label: 'Delete',
+                                          ),
+                                        ],
+                                      ),
+                                      child: _PackageCard(
+                                        pkg: pkg,
+                                        onToggle:
+                                            (val) =>
+                                                PackageService.togglePackageStatus(
+                                                  hallId: _hallId!,
+                                                  packageId: pkg.packageId,
+                                                  isActive: val,
+                                                ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }, childCount: packages.length),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
                 ),
               ),
-
-              SliverPadding(
-                padding: EdgeInsets.only(
-                  left: horizontalPadding,
-                  right: horizontalPadding,
-                  top: 8.0,
-                  bottom: 40,
-                ),
-                sliver: isDesktop || isTablet
-                    ? SliverGrid(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-
-                          mainAxisExtent: 230,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) => _buildPackageItem(index),
-                          childCount: _packages.length,
-                        ),
-                      )
-                    : SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) => Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: _buildPackageItem(index),
-                          ),
-                          childCount: _packages.length,
-                        ),
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPackageItem(int index) {
-    final pkg = _packages[index];
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: Slidable(
-        key: ValueKey(pkg['title']),
-        endActionPane: ActionPane(
-          motion: const ScrollMotion(),
-          children: [
-            SlidableAction(
-              onPressed: (context) {},
-              backgroundColor: Colors.blue.shade50,
-              foregroundColor: Colors.blue,
-              icon: Icons.edit,
-              label: 'Edit',
-            ),
-            SlidableAction(
-              onPressed: (context) {},
-              backgroundColor: Colors.red.shade50,
-              foregroundColor: Colors.red,
-              icon: Icons.delete,
-              label: 'Delete',
-            ),
-          ],
-        ),
-        child: PackageCard(
-          title: pkg['title'],
-          price: pkg['price'],
-          capacity: pkg['capacity'],
-          menuItems: pkg['menuCount'],
-          services: pkg['serviceCount'],
-          isActive: pkg['isActive'],
-          onToggle: (val) {
-            setState(() {
-              pkg['isActive'] = val;
-            });
-          },
-        ),
-      ),
     );
   }
 }
 
-class PackageCard extends StatelessWidget {
-  final String title;
-  final String price;
-  final String capacity;
-  final String menuItems;
-  final String services;
-  final bool isActive;
+class _PackageCard extends StatelessWidget {
+  final PackageModel pkg;
   final ValueChanged<bool> onToggle;
-
-  const PackageCard({
-    super.key,
-    required this.title,
-    required this.price,
-    required this.capacity,
-    required this.menuItems,
-    required this.services,
-    required this.isActive,
-    required this.onToggle,
-  });
+  const _PackageCard({required this.pkg, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -268,15 +307,18 @@ class PackageCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isActive ? Colors.green.shade50 : Colors.grey.shade100,
+                  color:
+                      pkg.isActive
+                          ? Colors.green.shade50
+                          : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  isActive ? "Active" : "Inactive",
+                  pkg.isActive ? 'Active' : 'Inactive',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: isActive ? Colors.green : Colors.grey,
+                    color: pkg.isActive ? Colors.green : Colors.grey,
                   ),
                 ),
               ),
@@ -285,7 +327,7 @@ class PackageCard extends StatelessWidget {
                 child: Transform.scale(
                   scale: 0.7,
                   child: Switch(
-                    value: isActive,
+                    value: pkg.isActive,
                     onChanged: onToggle,
                     activeColor: const Color(0xFFF47C20),
                     inactiveThumbColor: Colors.grey.shade400,
@@ -298,11 +340,9 @@ class PackageCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 8),
-
           Text(
-            title,
+            pkg.name,
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w800,
@@ -312,31 +352,27 @@ class PackageCard extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-
           const SizedBox(height: 6),
-
           Text(
-            "Rs. $price",
+            pkg.priceLabel,
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w900,
               color: Color(0xFFF47C20),
             ),
           ),
-
           const SizedBox(height: 12),
           const Divider(height: 1, color: Color(0xFFEEEEEE)),
           const SizedBox(height: 12),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildFeatureItem(Icons.groups_outlined, capacity, "Capacity"),
-              _buildFeatureItem(Icons.restaurant_menu, menuItems, "Menu"),
-              _buildFeatureItem(
+              _feature(Icons.groups_outlined, pkg.capacityLabel, 'Capacity'),
+              _feature(Icons.restaurant_menu, pkg.menuCount, 'Menu'),
+              _feature(
                 Icons.room_service_outlined,
-                services,
-                "Services",
+                pkg.serviceCount,
+                'Services',
               ),
             ],
           ),
@@ -345,14 +381,13 @@ class PackageCard extends StatelessWidget {
     );
   }
 
-  Widget _buildFeatureItem(IconData icon, String value, String label) {
-    final displayValue = value.split(' ').first;
+  Widget _feature(IconData icon, String value, String label) {
     return Column(
       children: [
         Icon(icon, size: 20, color: Colors.grey.shade600),
         const SizedBox(height: 4),
         Text(
-          displayValue,
+          value.split(' ').first,
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 13,

@@ -1,210 +1,232 @@
 import 'package:flutter/material.dart';
-import 'MapScreen.dart';
-import 'MessagingScreen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:venuemate_system/Models/hall_model.dart';
+import 'package:venuemate_system/Models/package_model.dart';
+import 'package:venuemate_system/Services/auth_service.dart';
+import 'package:venuemate_system/Services/hall_service.dart';
+import 'package:venuemate_system/Services/package_service.dart';
 import 'NotificationScreen.dart';
-import 'PackagesDetailScreen.dart';
-import 'ProfileScreen.dart';
 import 'SearchingScreen.dart';
 import 'VenueDetailScreen.dart';
-import 'FavoritesScreen.dart';
+import 'PackagesDetailScreen.dart';
 
-// Favorite Item Model
-class FavoriteItem {
-  final String id;
-  final String imagePath;
-  final String title;
-  final String subtitle;
-  final String price;
-  final String rating;
-  final bool isPackage;
-  final String? location;
-  final String? capacity;
-  final String? includes;
+// ══════════════════════════════════════════════════════════════════════════
+//  RECENTLY VIEWED — persisted in SharedPreferences (up to 6 hallIds)
+// ══════════════════════════════════════════════════════════════════════════
+class _RecentlyViewed {
+  static const _key = 'rv_halls';
+  static const _max = 6;
 
-  FavoriteItem({
-    required this.id,
-    required this.imagePath,
-    required this.title,
-    required this.subtitle,
-    required this.price,
-    required this.rating,
-    required this.isPackage,
-    this.location,
-    this.capacity,
-    this.includes,
-  });
+  static Future<void> add(String hallId) async {
+    final p = await SharedPreferences.getInstance();
+    final raw = p.getString(_key) ?? '';
+    var ids =
+        raw.isEmpty
+            ? <String>[]
+            : raw.split(',').where((s) => s.isNotEmpty).toList();
+    ids.remove(hallId);
+    ids.insert(0, hallId);
+    if (ids.length > _max) ids = ids.sublist(0, _max);
+    await p.setString(_key, ids.join(','));
+  }
+
+  static Future<List<String>> get() async {
+    final p = await SharedPreferences.getInstance();
+    final raw = p.getString(_key) ?? '';
+    return raw.isEmpty
+        ? []
+        : raw.split(',').where((s) => s.isNotEmpty).toList();
+  }
 }
 
-// Global list to store favorites
-List<FavoriteItem> favoritesList = [];
+// ══════════════════════════════════════════════════════════════════════════
+//  FAVORITES SERVICE — Firestore: favorites/{uid}/halls/{hallId}
+// ══════════════════════════════════════════════════════════════════════════
+class _FavService {
+  static final _db = FirebaseFirestore.instance;
 
+  static Future<void> add(String uid, String hallId) => _db
+      .collection('favorites')
+      .doc(uid)
+      .collection('halls')
+      .doc(hallId)
+      .set({'hallId': hallId, 'savedAt': FieldValue.serverTimestamp()});
+
+  static Future<void> remove(String uid, String hallId) =>
+      _db
+          .collection('favorites')
+          .doc(uid)
+          .collection('halls')
+          .doc(hallId)
+          .delete();
+
+  static Stream<Set<String>> streamIds(String uid) => _db
+      .collection('favorites')
+      .doc(uid)
+      .collection('halls')
+      .snapshots()
+      .map((s) => s.docs.map((d) => d.id).toSet());
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  HOME SCREEN
+// ══════════════════════════════════════════════════════════════════════════
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
-
+  const HomeScreen({super.key});
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-  int _selectedCategory = 0; // 0 = Venues, 1 = Packages
+  int _selectedCategory = 0; // 0=Venues 1=Packages
 
-  // Track favorites by ID
-  Set<String> _favoriteIds = {};
+  // ── Location ──────────────────────────────────────────────────────────
+  String _locationText = 'Fetching location...';
+  bool _locationLoading = true;
 
-  void _toggleFavorite(FavoriteItem item) {
-    setState(() {
-      if (_favoriteIds.contains(item.id)) {
-        _favoriteIds.remove(item.id);
-        favoritesList.removeWhere((fav) => fav.id == item.id);
-      } else {
-        _favoriteIds.add(item.id);
-        favoritesList.add(item);
+  // ── Favorites ─────────────────────────────────────────────────────────
+  Set<String> _favIds = {};
+  final String _uid = AuthService.currentUid ?? '';
+
+  // ── Recently Viewed halls (loaded on init + refresh after nav back) ────
+  List<HallModel> _recentHalls = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLocation();
+    _loadRecentlyViewed();
+  }
+
+  // ── GPS location ───────────────────────────────────────────────────────
+  Future<void> _fetchLocation() async {
+    try {
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
       }
-    });
+
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (mounted) {
+          setState(() {
+            _locationText = 'Location unavailable';
+            _locationLoading = false;
+          });
+        }
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      );
+      final marks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      if (marks.isNotEmpty && mounted) {
+        final m = marks.first;
+        final parts =
+            [
+              m.subLocality,
+              m.locality,
+            ].where((s) => s != null && s.isNotEmpty).toList();
+        setState(() {
+          _locationText = parts.take(2).join(', ');
+          _locationLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _locationText = 'Karachi, Pakistan';
+          _locationLoading = false;
+        });
+      }
+    }
   }
 
-  bool _isFavorite(String id) {
-    return _favoriteIds.contains(id);
+  // ── Recently viewed ────────────────────────────────────────────────────
+  Future<void> _loadRecentlyViewed() async {
+    final ids = await _RecentlyViewed.get();
+    if (ids.isEmpty || !mounted) return;
+    final halls = await Future.wait(
+      ids.map((id) => HallService.getHallById(id)),
+    );
+    if (mounted) {
+      setState(() => _recentHalls = halls.whereType<HallModel>().toList());
+    }
   }
+
+  // ── Navigate to hall + record recently viewed ──────────────────────────
+  Future<void> _openHall(HallModel h) async {
+    await _RecentlyViewed.add(h.hallId);
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => VenueDetailsScreen(hallId: h.hallId)),
+    );
+    _loadRecentlyViewed(); // refresh strip on return
+  }
+
+  // ── Toggle favorite ────────────────────────────────────────────────────
+  void _toggleFav(String hallId) {
+    if (_uid.isEmpty) return;
+    final isFav = _favIds.contains(hallId);
+    setState(() {
+      isFav ? _favIds.remove(hallId) : _favIds.add(hallId);
+    });
+    isFav ? _FavService.remove(_uid, hallId) : _FavService.add(_uid, hallId);
+  }
+
+  bool _isFav(String id) => _favIds.contains(id);
 
   @override
   Widget build(BuildContext context) {
+    // Stream favorites ids live
+    return StreamBuilder<Set<String>>(
+      stream:
+          _uid.isNotEmpty ? _FavService.streamIds(_uid) : const Stream.empty(),
+      builder: (context, favSnap) {
+        if (favSnap.hasData) _favIds = favSnap.data!;
+        return _buildScaffold();
+      },
+    );
+  }
+
+  Widget _buildScaffold() {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
         child: Column(
           children: [
-            // ===========================
-            //          HEADER
-            // ===========================
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFF47C20), Color.fromARGB(255, 233, 184, 69)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Location + Notification
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Location',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on, size: 16, color: Colors.black),
-                              const SizedBox(width: 4),
-                              const Text(
-                                '123 Anywhere St., Any City',
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      // Notification
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => NotificationScreen()),
-                            );
-                          },
-                          child: const Icon(Icons.notifications_outlined,
-                              color: Colors.black, size: 28),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Search Box
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => FilterSearchScreen()),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF4E9),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const AbsorbPointer(
-                        child: TextField(
-                          readOnly: true,
-                          decoration: InputDecoration(
-                            icon: Icon(Icons.search, color: Colors.grey),
-                            border: InputBorder.none,
-                            hintText: "Search...",
-                            hintStyle: TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                ],
-              ),
-            ),
-
-            // ===========================
-            //        MAIN CONTENT
-            // ===========================
+            _buildHeader(),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(6),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Category Icons with Active Indicator
+                    // ── Category toggle ────────────────────────────────────────
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         _buildCategoryItem(
-                          "assets/images/venuses logo1 1.png",
-                          "Venues",
+                          'assets/images/venuses logo1 1.png',
+                          'Venues',
                           0,
                         ),
                         _buildCategoryItem(
-                          "assets/images/pacakgeslogo1 1.png",
-                          "Packages",
+                          'assets/images/pacakgeslogo1 1.png',
+                          'Packages',
                           1,
                         ),
                       ],
                     ),
-
                     Divider(color: Colors.grey[600]),
                     const SizedBox(height: 4),
-
-                    // Show content based on selected category
-                    _selectedCategory == 0 
-                        ? _buildVenuesContent() 
+                    _selectedCategory == 0
+                        ? _buildVenuesContent()
                         : _buildPackagesContent(),
                   ],
                 ),
@@ -213,74 +235,110 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-
-      // ===========================
-      //   BOTTOM NAVIGATION BAR
-      // ===========================
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFFF47C20),
-        unselectedItemColor: Colors.black,
-        backgroundColor: Colors.white,
-        items: [
-          _navBarItem(Icons.home, "Home", 0, unselectedColor: Colors.black),
-          _navBarItem(Icons.favorite_border, "Favorites", 1, unselectedColor: Colors.black),
-          _navBarItem(Icons.map_outlined, "Map", 2, unselectedColor: Colors.black),
-          _navBarItem(Icons.message_outlined, "Messages", 3, unselectedColor: Colors.black),
-          _navBarItem(Icons.person_outline, "Profile", 4, unselectedColor: Colors.black),
-        ],
-        onTap: (index) {
-          if (index == 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => FavoritesScreen()),
-            );
-          } else if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => MapScreen()),
-            );
-          } else if (index == 4) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => Profilescreen()),
-            );
-          } else if (index == 3) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ChatListScreen()),
-            );
-          } else {
-            setState(() => _selectedIndex = index);
-          }
-        },
-      ),
     );
   }
 
-  // Bottom Nav Item
-  BottomNavigationBarItem _navBarItem(
-      IconData icon, String label, int index,
-      {Color unselectedColor = Colors.black}) {
-    bool isActive = _selectedIndex == index;
-
-    return BottomNavigationBarItem(
-      label: label,
-      icon: Column(
+  // ══════════════════════════════════════════════════════════════════════
+  //  HEADER
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFF47C20), Color.fromARGB(255, 233, 184, 69)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            color: isActive ? const Color(0xFFF47C20) : unselectedColor,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Location',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        size: 16,
+                        color: Colors.black,
+                      ),
+                      const SizedBox(width: 4),
+                      _locationLoading
+                          ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.black,
+                            ),
+                          )
+                          : Text(
+                            _locationText,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 12,
+                            ),
+                          ),
+                    ],
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap:
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => NotificationScreen()),
+                    ),
+                child: const Icon(
+                  Icons.notifications_outlined,
+                  color: Colors.black,
+                  size: 28,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            height: 3,
-            width: isActive ? 25 : 0,
-            decoration: BoxDecoration(
-              color: isActive ? const Color(0xFFF47C20) : Colors.transparent,
-              borderRadius: BorderRadius.circular(20),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => FilterSearchScreen()),
+                ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF4E9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const AbsorbPointer(
+                child: TextField(
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    icon: Icon(Icons.search, color: Colors.grey),
+                    border: InputBorder.none,
+                    hintText: 'Search...',
+                    hintStyle: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -288,25 +346,26 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ===========================
-  //       CATEGORY ITEM (WITH ACTIVE INDICATOR)
-  // ===========================
-  Widget _buildCategoryItem(String imagePath, String label, int index) {
-    bool isActive = _selectedCategory == index;
-
+  // ══════════════════════════════════════════════════════════════════════
+  //  CATEGORY ITEM
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildCategoryItem(String img, String label, int index) {
+    final isActive = _selectedCategory == index;
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedCategory = index;
-        });
-      },
+      onTap: () => setState(() => _selectedCategory = index),
       child: Column(
         children: [
           Image.asset(
-            imagePath,
+            img,
             width: 40,
             height: 40,
             fit: BoxFit.contain,
+            errorBuilder:
+                (_, __, ___) => Icon(
+                  Icons.business,
+                  size: 40,
+                  color: isActive ? Colors.black : Colors.grey,
+                ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -318,7 +377,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          // Active Indicator Line
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             height: 3,
@@ -333,430 +391,261 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ===========================
-  //     VENUES CONTENT
-  // ===========================
+  // ══════════════════════════════════════════════════════════════════════
+  //  VENUES CONTENT
+  // ══════════════════════════════════════════════════════════════════════
   Widget _buildVenuesContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Recently Viewed
-        const Text(
-          "Recently Viewed",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 185,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _buildRecentlyViewedCard("venue_1", false),
-              _buildRecentlyViewedCard("venue_2", false),
+    return StreamBuilder<List<HallModel>>(
+      stream: HallService.streamApprovedHalls(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(color: Color(0xFFF47C20)),
+            ),
+          );
+        }
+        final halls = snap.data ?? [];
+        if (halls.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(40),
+            child: Center(
+              child: Text(
+                'No venues available yet.',
+                style: TextStyle(color: Colors.grey[500]),
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Recently Viewed — only if user has visited halls before
+            if (_recentHalls.isNotEmpty) ...[
+              const Text(
+                'Recently Viewed',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 185,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _recentHalls.length,
+                  itemBuilder:
+                      (_, i) =>
+                          _buildRecentlyViewedCard(_recentHalls[i], false),
+                ),
+              ),
+              const SizedBox(height: 10),
             ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        // Featured Venues
-        const Text(
-          "Featured Venues",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        _buildFeaturedVenueCard(),
-      ],
+
+            // Featured Venues
+            const Text(
+              'Featured Venues',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ...halls.map((h) => _buildFeaturedVenueCard(h)),
+          ],
+        );
+      },
     );
   }
 
-  // ===========================
-  //     PACKAGES CONTENT
-  // ===========================
+  // ══════════════════════════════════════════════════════════════════════
+  //  PACKAGES CONTENT
+  // ══════════════════════════════════════════════════════════════════════
   Widget _buildPackagesContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Recently Viewed Packages
-        const Text(
-          "Recently Viewed",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 185,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _buildRecentlyViewedCard("package_1", true),
-              _buildRecentlyViewedCard("package_2", true),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        // Featured Packages
-        const Text(
-          "Featured Packages",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        _buildFeaturedPackageCard(),
-      ],
-    );
-  }
-
-  // ===========================
-  //     FEATURED PACKAGE CARD (NEW DESIGN)
-  // ===========================
-  Widget _buildFeaturedPackageCard() {
-    String cardId = "featured_package_1";
-    FavoriteItem packageItem = FavoriteItem(
-      id: cardId,
-      imagePath: "assets/images/cardimage 2.png",
-      title: "Exclusive Birthday Celebration Bundle",
-      subtitle: "Al Rehmat Banquet Hall",
-      price: "Rs. 20,000",
-      rating: "4.0",
-      isPackage: true,
-      includes: "200 Guests • 12 Menu Items • 4 Services",
-    );
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.shade400,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.12),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image Section
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                ),
-                child: InkWell(
-                  onTap: (){
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => Packagesdetailscreen()),
-                    );
-                  },
-                  child: Image.asset(
-                    "assets/images/cardimage 2.png",
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+    return StreamBuilder<List<HallModel>>(
+      stream: HallService.streamApprovedHalls(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(color: Color(0xFFF47C20)),
+            ),
+          );
+        }
+        final halls = snap.data ?? [];
+        return FutureBuilder<List<_HallPackage>>(
+          future: _loadAllPackages(halls),
+          builder: (context, pSnap) {
+            final packages = pSnap.data ?? [];
+            if (packages.isEmpty &&
+                pSnap.connectionState != ConnectionState.waiting) {
+              return Padding(
+                padding: const EdgeInsets.all(40),
+                child: Center(
+                  child: Text(
+                    'No packages available yet.',
+                    style: TextStyle(color: Colors.grey[500]),
                   ),
                 ),
-              ),
-              // Heart Icon - TOP LEFT
-              Positioned(
-                top: 8,
-                left: 8,
-                child: GestureDetector(
-                  onTap: () => _toggleFavorite(packageItem),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _isFavorite(cardId) ? Icons.favorite : Icons.favorite_border,
-                      color: Colors.red,
-                      size: 18,
-                    ),
-                  ),
+              );
+            }
+            if (pSnap.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: CircularProgressIndicator(color: Color(0xFFF47C20)),
                 ),
-              ),
-            ],
-          ),
-          
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
+              );
+            }
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Title
-                const Text(
-                  "Exclusive Birthday Celebration Bundle",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                // Recently Viewed strip (package tab also shows recently viewed halls)
+                if (_recentHalls.isNotEmpty) ...[
+                  const Text(
+                    'Recently Viewed',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                ),
-                const SizedBox(height: 6),
-                
-                // Marquee Logo with Location
-                Row(
-                  children: [
-                    // Small Marquee Logo
-                    Image.asset(
-                      "assets/images/hallpic.png",
-                      width: 25,
-                      height: 25,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(Icons.location_on, size: 14, color: Colors.grey);
-                      },
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 185,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _recentHalls.length,
+                      itemBuilder:
+                          (_, i) =>
+                              _buildRecentlyViewedCard(_recentHalls[i], true),
                     ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      "Al Rehmat Banquet Hall",
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Divider(
-                  color: Color(0xFFCCCCCC),
-                  thickness: 5,
-                  indent: 16,
-                  endIndent: 16,
-                ),
-                
-                // Includes Section
-                const Text(
-                  "Includes:",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
                   ),
+                  const SizedBox(height: 10),
+                ],
+                const Text(
+                  'Featured Packages',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                
-                // Icons Row with Asset Images
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildIncludeItemWithImage("assets/images/guest.png", "200 Guests \n Capacity"),
-                    _buildIncludeItemWithImage("assets/images/menuitem.png", "12 Menu Items"),
-                    _buildIncludeItemWithImage("assets/images/services.png", "4 Services"),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                
-                // Price
-                const Text(
-                  "Rs. 20,000",
-                  style: TextStyle(
-                    color: Color(0xFFF47C20),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
+                ...packages.map((p) => _buildFeaturedPackageCard(p)),
               ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<List<_HallPackage>> _loadAllPackages(List<HallModel> halls) async {
+    final result = <_HallPackage>[];
+    for (final h in halls) {
+      final pkgs = await PackageService.getPackages(h.hallId);
+      for (final p in pkgs) {
+        if (p.isActive) result.add(_HallPackage(h, p));
+      }
+    }
+    return result;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  RECENTLY VIEWED CARD  (same design as original small card)
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildRecentlyViewedCard(HallModel h, bool isPackage) {
+    final img = h.imageUrls.isNotEmpty ? h.imageUrls.first : '';
+    final isFav = _isFav(h.hallId);
+    return GestureDetector(
+      onTap: () => _openHall(h),
+      child: Container(
+        width: 165,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade400, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.12),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Helper widget for includes items with asset images
-  Widget _buildIncludeItemWithImage(String imagePath, String label) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          child: Image.asset(
-            imagePath,
-            width: 35,
-            height: 35,
-            fit: BoxFit.contain,
-            color: const Color(0xFFF47C20),
-            errorBuilder: (context, error, stackTrace) {
-              IconData fallbackIcon = Icons.fastfood;
-              if (label.contains("Guests")) fallbackIcon = Icons.people;
-              if (label.contains("Menu")) fallbackIcon = Icons.restaurant_menu;
-              if (label.contains("Services")) fallbackIcon = Icons.business_center;
-              
-              return Icon(
-                fallbackIcon,
-                color: const Color(0xFFF47C20),
-                size: 24,
-              );
-            },
-          ),
+          ],
         ),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  // ===========================
-  //     RECENTLY VIEWED CARD
-  // ===========================
-  Widget _buildRecentlyViewedCard(String id, bool isPackage) {
-    FavoriteItem item = FavoriteItem(
-      id: id,
-      imagePath: "assets/images/cardimage 2.png",
-      title: "Al Rehman Marquee",
-      subtitle: "300 Capacity",
-      price: "Rs. 15,000",
-      rating: "4.0",
-      isPackage: isPackage,
-      capacity: "300 Capacity",
-    );
-
-    return Container(
-      width: 165,
-      margin: const EdgeInsets.only(right: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.shade400,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.12),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                ),
-                child: Image.asset(
-                  "assets/images/cardimage 2.png",
-                  height: 120,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: GestureDetector(
-                  onTap: () => _toggleFavorite(item),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _isFavorite(id) ? Icons.favorite : Icons.favorite_border,
-                      size: 18,
-                      color: Colors.red,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
               children: [
-                const Text(
-                  "Al Rehman Marquee...",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
                   ),
+                  child: _netImg(img, 120, double.infinity),
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: const [
-                    Text(
-                      "300 Capacity",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    SizedBox(width: 6),
-                    Icon(Icons.star, size: 13, color: Colors.amber),
-                    SizedBox(width: 3),
-                    Text(
-                      "4.0",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: _favBtn(h.hallId, isFav, small: true),
                 ),
               ],
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    h.hallName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '${h.capacityMin}–${h.capacityMax}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.star, size: 13, color: Colors.amber),
+                      const SizedBox(width: 3),
+                      Text(
+                        h.ratingCount == 0
+                            ? '—'
+                            : h.ratingAvg.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ===========================
-  //     FEATURED VENUE CARD
-  // ===========================
-  Widget _buildFeaturedVenueCard() {
-    String cardId = "featured_venue_1";
-    FavoriteItem venueItem = FavoriteItem(
-      id: cardId,
-      imagePath: "assets/images/cardimage 2.png",
-      title: "Al Rehman Banquet Hall",
-      subtitle: "Model Colony, Street 124, Karachi, Pakistan",
-      price: "Rs. 15,000/Event",
-      rating: "4.0",
-      isPackage: false,
-      location: "Model Colony, Street 124, Karachi, Pakistan",
-      capacity: "300–1000 Capacity",
-      includes: "4 Services • 20 Different Menu Items",
-    );
-
+  // ══════════════════════════════════════════════════════════════════════
+  //  FEATURED VENUE CARD  (same design as original big card)
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildFeaturedVenueCard(HallModel h) {
+    final img = h.imageUrls.isNotEmpty ? h.imageUrls.first : '';
+    final isFav = _isFav(h.hallId);
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.shade400,
-          width: 1,
-        ),
+        border: Border.all(color: Colors.grey.shade400, width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.12),
@@ -776,55 +665,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   topRight: Radius.circular(12),
                 ),
                 child: InkWell(
-                  onTap: (){
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => VenueDetailsScreen()),
-                    );
-                  },
-                  child: Image.asset(
-                    "assets/images/cardimage 2.png",
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
+                  onTap: () => _openHall(h),
+                  child: _netImg(img, 200, double.infinity),
                 ),
               ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: GestureDetector(
-                  onTap: () => _toggleFavorite(venueItem),
-                  child: Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _isFavorite(cardId) ? Icons.favorite : Icons.favorite_border,
-                      color: Colors.red,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ),
+              // Heart — top right
+              Positioned(top: 12, right: 12, child: _favBtn(h.hallId, isFav)),
+              // Rating badge — top left
               Positioned(
                 top: 12,
                 left: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
-                    children: const [
-                      Icon(Icons.star, size: 14, color: Colors.amber),
-                      SizedBox(width: 3),
+                    children: [
+                      const Icon(Icons.star, size: 14, color: Colors.amber),
+                      const SizedBox(width: 3),
                       Text(
-                        "4.0",
-                        style: TextStyle(
+                        h.ratingCount == 0
+                            ? 'New'
+                            : h.ratingAvg.toStringAsFixed(1),
+                        style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
@@ -839,34 +707,28 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.all(8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  "Al Rehman Banquet Hall",
-                  style: TextStyle(
+                  h.hallName,
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  "Model Colony, Street 124, Karachi, Pakistan • 30 Reviews",
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
+                  '${h.address} • ${h.ratingCount} Reviews',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  "300–1000 Capacity • 4 Services • 20 Different Menu Items",
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
+                  '${h.capacityMin}–${h.capacityMax} Capacity',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
-                  "Rs. 15,000/Event",
-                  style: TextStyle(
+                  h.priceLabel,
+                  style: const TextStyle(
                     color: Colors.orange,
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
@@ -879,4 +741,224 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  FEATURED PACKAGE CARD  (same design as original)
+  // ══════════════════════════════════════════════════════════════════════
+  Widget _buildFeaturedPackageCard(_HallPackage hp) {
+    final img = hp.hall.imageUrls.isNotEmpty ? hp.hall.imageUrls.first : '';
+    final isFav = _isFav(hp.hall.hallId);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade400, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.12),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image section
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+                child: InkWell(
+                  onTap: () async {
+                    await _RecentlyViewed.add(hp.hall.hallId);
+                    if (!mounted) return;
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) => Packagesdetailscreen(
+                              hall: hp.hall,
+                              package: hp.package,
+                            ),
+                      ),
+                    );
+                    _loadRecentlyViewed();
+                  },
+                  child: _netImg(img, 200, double.infinity),
+                ),
+              ),
+              // Heart — top left (original design)
+              Positioned(
+                top: 8,
+                left: 8,
+                child: _favBtn(hp.hall.hallId, isFav),
+              ),
+            ],
+          ),
+
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Package name
+                Text(
+                  hp.package.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Hall name with logo
+                Row(
+                  children: [
+                    Image.asset(
+                      'assets/images/hallpic.png',
+                      width: 25,
+                      height: 25,
+                      fit: BoxFit.contain,
+                      errorBuilder:
+                          (_, __, ___) => const Icon(
+                            Icons.location_on,
+                            size: 14,
+                            color: Colors.grey,
+                          ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      hp.hall.hallName,
+                      style: const TextStyle(color: Colors.grey, fontSize: 14),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(
+                  color: Color(0xFFCCCCCC),
+                  thickness: 5,
+                  indent: 16,
+                  endIndent: 16,
+                ),
+                // Includes
+                const Text(
+                  'Includes:',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildIncludeItemWithImage(
+                      'assets/images/guest.png',
+                      '${hp.package.capacityMax} Guests\nCapacity',
+                    ),
+                    _buildIncludeItemWithImage(
+                      'assets/images/menuitem.png',
+                      '${hp.package.menuItemIds.length} Menu Items',
+                    ),
+                    _buildIncludeItemWithImage(
+                      'assets/images/services.png',
+                      '${hp.package.serviceItemIds.length} Services',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Rs. ${hp.package.price.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    color: Color(0xFFF47C20),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Include item widget (original design) ────────────────────────────────
+  Widget _buildIncludeItemWithImage(String imagePath, String label) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          child: Image.asset(
+            imagePath,
+            width: 35,
+            height: 35,
+            fit: BoxFit.contain,
+            color: const Color(0xFFF47C20),
+            errorBuilder: (_, __, ___) {
+              IconData icon = Icons.fastfood;
+              if (label.contains('Guest')) icon = Icons.people;
+              if (label.contains('Menu')) icon = Icons.restaurant_menu;
+              if (label.contains('Serv')) icon = Icons.business_center;
+              return Icon(icon, color: const Color(0xFFF47C20), size: 24);
+            },
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  // ── Shared helpers ────────────────────────────────────────────────────────
+  Widget _favBtn(String hallId, bool isFav, {bool small = false}) =>
+      GestureDetector(
+        onTap: () => _toggleFav(hallId),
+        child: Container(
+          padding: EdgeInsets.all(small ? 4 : 5),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            isFav ? Icons.favorite : Icons.favorite_border,
+            color: Colors.red,
+            size: small ? 18 : 20,
+          ),
+        ),
+      );
+
+  Widget _netImg(String url, double height, double width) {
+    if (url.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: url,
+        height: height,
+        width: width,
+        fit: BoxFit.cover,
+        placeholder:
+            (_, __) => Container(height: height, color: Colors.grey[200]),
+        errorWidget: (_, __, ___) => _placeholder(height),
+      );
+    }
+    return _placeholder(height);
+  }
+
+  Widget _placeholder(double h) => Container(
+    height: h,
+    color: Colors.grey[200],
+    child: const Center(
+      child: Icon(Icons.business, color: Colors.grey, size: 40),
+    ),
+  );
+}
+
+// Helper data class
+class _HallPackage {
+  final HallModel hall;
+  final PackageModel package;
+  _HallPackage(this.hall, this.package);
 }

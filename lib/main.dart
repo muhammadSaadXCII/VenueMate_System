@@ -1,18 +1,20 @@
+import 'firebase_options.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
 import 'package:venuemate_system/Screens/Customers/SplashScreen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   // Platform-specific FirebaseOptions
   FirebaseOptions? firebaseOptions;
 
   if (kIsWeb) {
     // Web Firebase configuration
+    print("Web");
     firebaseOptions = const FirebaseOptions(
-      apiKey: "AIzaSyCBhqiCr1HZCyEV6HqfKS1ijxAP-GDQbpM", // Yahan apni asli Web API Key likhna na bhulein
+      apiKey:
+          "AIzaSyCBhqiCr1HZCyEV6HqfKS1ijxAP-GDQbpM", // Yahan apni asli Web API Key likhna na bhulein
       authDomain: "venuemate-system.firebaseapp.com",
       projectId: "venuemate-system",
       storageBucket: "venuemate-system.appspot.com",
@@ -21,7 +23,8 @@ Future<void> main() async {
       measurementId: "G-9Z5R49TE23",
     );
   } else {
-    // Mobile (Android/iOS) ke liye
+    // Mobile (Android) ke liye
+    print("Mobile (Android)");
     firebaseOptions = const FirebaseOptions(
       apiKey: "", // Yahan apni asli Mobile API Key likhna na bhulein
       appId: "1:1023649558072:android:15d3fe7330b9eb35a840cd",
@@ -46,7 +49,6 @@ Future<void> main() async {
     // Yeh line confirm karegi ke waqai connection ban gaya hai
     print("🚀 Connected to Project ID: ${Firebase.app().options.projectId}");
     // ------------------------
-
   } on FirebaseException catch (e) {
     // Agar duplicate app ka error aaye, to use ignore karein
     if (e.code == 'duplicate-app') {
@@ -56,11 +58,10 @@ Future<void> main() async {
     } else {
       // Agar koi aur error hai to print karein
       print("❌ Firebase Init Error: $e");
-      rethrow; 
+      rethrow;
     }
   }
   // ------------------------
-
   runApp(const MyApp());
 }
 
@@ -70,7 +71,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'VenueMate Application',
+      title: 'VenueMate',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFF47C20)),

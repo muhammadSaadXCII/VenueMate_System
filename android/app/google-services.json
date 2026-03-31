@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1023649558072",
+    "project_id": "venuemate-system",
+    "storage_bucket": "venuemate-system.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1023649558072:android:933b565c4ac7d3afa840cd",
+        "android_client_info": {
+          "package_name": "com.example.venuemate_system"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1023649558072-knn11o7c0cgqemrha34mlpshg85q24b7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.venuemate_system",
+            "certificate_hash": "ec34613a160554e56dc9e4dd0bc604b4fc77c9b9"
+          }
+        },
+        {
+          "client_id": "1023649558072-veqnkkfe9ksgfuebu5jc8tuiji8jkpq3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1E9vnjm0DQhimZG1KHvbzQzlOkbUQkfQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1023649558072-veqnkkfe9ksgfuebu5jc8tuiji8jkpq3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

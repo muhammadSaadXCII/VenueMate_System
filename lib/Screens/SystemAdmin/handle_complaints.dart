@@ -1,179 +1,151 @@
+// ═══════════════════════════════════════════════════════════════════════════
+//  handle_complaints.dart  — System Admin complaint list (Firestore-wired)
+// ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
-import 'package:venuemate_system/Screens/SystemAdmin/complaint_details.dart';
+import 'complaint_details.dart';
 
 class ComplaintsScreen extends StatefulWidget {
   const ComplaintsScreen({super.key});
-
   @override
   State<ComplaintsScreen> createState() => _ComplaintsScreenState();
 }
 
 class _ComplaintsScreenState extends State<ComplaintsScreen> {
-  String _selectedFilter = "New";
+  String _selectedFilter = 'New';
 
-  final List<Map<String, dynamic>> _complaints = [
-    {
-      "id": "#CMP-2025-001",
-      "user": "Zulhaq Hussain",
-      "role": "Customer",
-      "subject": "Booking Cancelled without Refund",
-      "hallName": "Al Rehman Banquet Hall",
-      "date": "2 mins ago",
-      "status": "New",
-      "priority": "High",
-    },
-    {
-      "id": "#CMP-2025-002",
-      "user": "Ali Akbar",
-      "role": "Hall Owner",
-      "subject": "Payout not received for Oct",
-      "date": "1 hour ago",
-      "status": "New",
-      "priority": "Medium",
-    },
-    {
-      "id": "#CMP-2025-003",
-      "user": "Usman Ghani",
-      "role": "Customer",
-      "subject": "Hall AC was not working",
-      "date": "1 day ago",
-      "status": "Resolved",
-      "priority": "Low",
-    },
-  ];
+  Stream<QuerySnapshot> get _stream =>
+      FirebaseFirestore.instance
+          .collection('complaints')
+          .orderBy('createdAt', descending: true)
+          .snapshots();
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 1100;
-    final isTablet = screenWidth >= 600 && screenWidth < 1100;
-    final isMobile = screenWidth < 600;
-
-    final filteredList = _selectedFilter == "All"
-        ? _complaints
-        : _complaints.where((c) => c['status'] == _selectedFilter).toList();
-
-    final horizontalPadding = isDesktop
-        ? screenWidth * 0.15
-        : isTablet
-        ? 40.0
-        : 20.0;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: !isDesktop,
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        automaticallyImplyLeading: isMobile,
-        title: Text(
-          "User Complaints",
+        title: const Text(
+          'User Complaints',
           style: TextStyle(
             color: Colors.black,
-            fontSize: isDesktop ? 24 : 20,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            color: Colors.white,
-            padding: EdgeInsets.symmetric(
-              vertical: 16,
-              horizontal: horizontalPadding,
-            ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1000),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _stream,
+        builder: (context, snap) {
+          if (snap.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: Color(0xFFF47C20)),
+            );
+          }
+          final all = snap.data?.docs ?? [];
+
+          // Filter
+          final filtered =
+              _selectedFilter == 'All'
+                  ? all
+                  : all.where((d) {
+                    final status = (d.data() as Map)['status'] as String? ?? '';
+                    if (_selectedFilter == 'New') {
+                      return status == 'Pending' || status == 'In Progress';
+                    }
+                    return status == _selectedFilter;
+                  }).toList();
+
+          final newCount =
+              all.where((d) {
+                final s = (d.data() as Map)['status'] as String? ?? '';
+                return s == 'Pending';
+              }).length;
+
+          return Column(
+            children: [
+              // Filter chips
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                  horizontal: 20,
+                ),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    mainAxisAlignment: isDesktop
-                        ? MainAxisAlignment.center
-                        : MainAxisAlignment.start,
                     children: [
-                      _buildFilterChip("New", isDesktop: isDesktop),
+                      _chip('New', count: newCount),
                       const SizedBox(width: 12),
-                      _buildFilterChip("Resolved", isDesktop: isDesktop),
+                      _chip('Resolved'),
                       const SizedBox(width: 12),
-                      _buildFilterChip("All", isDesktop: isDesktop),
+                      _chip('All'),
                     ],
                   ),
                 ),
               ),
-            ),
-          ),
 
-          Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding,
-                    vertical: 20,
-                  ),
-                  child: isDesktop
-                      ? GridView.builder(
-                          itemCount: filteredList.length,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 24,
-                                mainAxisSpacing: 24,
-
-                                mainAxisExtent: 260,
+              // List
+              Expanded(
+                child:
+                    filtered.isEmpty
+                        ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.inbox_outlined,
+                                size: 64,
+                                color: Colors.grey[300],
                               ),
-                          itemBuilder: (context, index) {
-                            return _ComplaintCard(
-                              data: filteredList[index],
-                              isDesktop: true,
-                              onComplaintTap: () => _navigateToDetails(
-                                context,
-                                filteredList[index],
+                              const SizedBox(height: 12),
+                              Text(
+                                'No complaints found.',
+                                style: TextStyle(color: Colors.grey[500]),
                               ),
-                            );
-                          },
+                            ],
+                          ),
                         )
-                      : ListView.separated(
-                          itemCount: filteredList.length,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 16),
-                          itemBuilder: (context, index) {
+                        : ListView.separated(
+                          padding: const EdgeInsets.all(20),
+                          itemCount: filtered.length,
+                          separatorBuilder:
+                              (_, __) => const SizedBox(height: 16),
+                          itemBuilder: (_, i) {
+                            final doc = filtered[i];
+                            final data = doc.data() as Map<String, dynamic>;
                             return _ComplaintCard(
-                              data: filteredList[index],
-                              isDesktop: false,
-                              onComplaintTap: () => _navigateToDetails(
-                                context,
-                                filteredList[index],
-                              ),
+                              data: data,
+                              onTap:
+                                  () => AppNavigation.push(
+                                    context,
+                                    ComplaintDetailsScreen(
+                                      complaintId: doc.id,
+                                      data: data,
+                                    ),
+                                  ),
                             );
                           },
                         ),
-                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
 
-  void _navigateToDetails(BuildContext context, Map<String, dynamic> item) {
-    AppNavigation.push(context, ComplaintDetailsScreen(complaint: item));
-  }
-
-  Widget _buildFilterChip(String label, {int? count, required bool isDesktop}) {
-    bool isSelected = _selectedFilter == label;
-
+  Widget _chip(String label, {int count = 0}) {
+    final isSelected = _selectedFilter == label;
     return GestureDetector(
       onTap: () => setState(() => _selectedFilter = label),
       child: AnimatedContainer(
@@ -197,16 +169,16 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                 fontSize: 14,
               ),
             ),
-            if (count != null && count > 0) ...[
+            if (count > 0) ...[
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
                   color: isSelected ? Colors.white : Colors.redAccent,
                   shape: BoxShape.circle,
                 ),
                 child: Text(
-                  count.toString(),
+                  '$count',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -224,31 +196,24 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
 
 class _ComplaintCard extends StatelessWidget {
   final Map<String, dynamic> data;
-  final VoidCallback onComplaintTap;
-  final bool isDesktop;
-
-  const _ComplaintCard({
-    required this.data,
-    required this.onComplaintTap,
-    required this.isDesktop,
-  });
+  final VoidCallback onTap;
+  const _ComplaintCard({required this.data, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    Color priorityColor;
-    switch (data['priority']) {
-      case 'High':
-        priorityColor = Colors.redAccent;
-        break;
-      case 'Medium':
-        priorityColor = Colors.orange;
-        break;
-      default:
-        priorityColor = Colors.green;
-    }
+    final priority = data['priority'] as String? ?? 'Medium';
+    // final status = data['status'] as String? ?? 'Pending';
+    final ts = data['createdAt'] as Timestamp?;
+    final dateStr = ts != null ? _fmt(ts.toDate()) : '—';
+
+    Color priorityColor = switch (priority) {
+      'High' => Colors.redAccent,
+      'Medium' => Colors.orange,
+      _ => Colors.green,
+    };
 
     return GestureDetector(
-      onTap: onComplaintTap,
+      onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -264,9 +229,8 @@ class _ComplaintCard extends StatelessWidget {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // ID + date
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               child: Row(
@@ -282,7 +246,7 @@ class _ComplaintCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      data['id'],
+                      '#${(data['userId'] as String? ?? '').substring(0, 6).toUpperCase()}',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -291,7 +255,7 @@ class _ComplaintCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    data['date'],
+                    dateStr,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[500],
@@ -301,18 +265,17 @@ class _ComplaintCard extends StatelessWidget {
                 ],
               ),
             ),
-
             const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
-
+            // Content
             Padding(
               padding: const EdgeInsets.all(20),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
+                  const CircleAvatar(
                     radius: 22,
-                    backgroundColor: const Color(0xFFF1F5F9),
-                    child: const Icon(Icons.person, color: Color(0xFF94A3B8)),
+                    backgroundColor: Color(0xFFF1F5F9),
+                    child: Icon(Icons.person, color: Color(0xFF94A3B8)),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -320,7 +283,7 @@ class _ComplaintCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          data['subject'],
+                          data['subject'] ?? '—',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -332,13 +295,11 @@ class _ComplaintCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          "${data['user']} (${data['role']})",
+                          '${data['userName'] ?? '—'} (${data['userRole'] ?? '—'})',
                           style: const TextStyle(
                             fontSize: 13,
                             color: Color(0xFF64748B),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -346,9 +307,7 @@ class _ComplaintCard extends StatelessWidget {
                 ],
               ),
             ),
-
-            if (isDesktop) const Spacer(),
-
+            // Footer
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: const BoxDecoration(
@@ -365,7 +324,7 @@ class _ComplaintCard extends StatelessWidget {
                       Icon(Icons.flag, size: 16, color: priorityColor),
                       const SizedBox(width: 6),
                       Text(
-                        "${data['priority']} Priority",
+                        '$priority Priority',
                         style: TextStyle(
                           color: priorityColor,
                           fontWeight: FontWeight.bold,
@@ -377,7 +336,7 @@ class _ComplaintCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        "Review Details",
+                        'Review Details',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -399,5 +358,14 @@ class _ComplaintCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _fmt(DateTime d) {
+    final now = DateTime.now();
+    final diff = now.difference(d);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${d.day}/${d.month}/${d.year}';
   }
 }

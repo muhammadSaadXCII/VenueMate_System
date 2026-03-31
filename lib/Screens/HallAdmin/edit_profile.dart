@@ -1,292 +1,424 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:venuemate_system/Widgets/common_button.dart';
+import 'package:venuemate_system/Services/auth_service.dart';
+import 'package:venuemate_system/Services/user_service.dart';
+import 'package:venuemate_system/Services/storage_service.dart';
+import 'package:venuemate_system/Models/user_model.dart';
 
-class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key});
+const Color kPrimaryColor = Color(0xFFF47C20);
+
+class HallAdminEditProfileScreen extends StatefulWidget {
+  const HallAdminEditProfileScreen({super.key});
 
   @override
-  State<EditProfileScreen> createState() => _EditProfileScreenState();
+  State<HallAdminEditProfileScreen> createState() => _HallAdminEditProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen> {
-  late TextEditingController _nameController;
-  late TextEditingController _phoneController;
-  late TextEditingController _emailController;
-  late TextEditingController _cnicController;
+class _HallAdminEditProfileScreenState extends State<HallAdminEditProfileScreen> {
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+
+  UserModel? _userModel;
+  File? _newProfileImage;
+  bool _isLoading = true;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: "Muhammad Ahmed");
-    _phoneController = TextEditingController(text: "+92 300 1234567");
-    _emailController = TextEditingController(text: "m.ahmed@email.com");
-    _cnicController = TextEditingController(text: "42201-1234567-1");
+    _loadUser();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    _emailController.dispose();
-    _cnicController.dispose();
     super.dispose();
+  }
+
+  String _getInitials(String name) {
+    if (name.trim().isEmpty) return '';
+
+    List<String> parts = name.trim().split(' ');
+
+    if (parts.length == 1) {
+      return parts[0][0].toUpperCase();
+    }
+
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  // ── Load current user data from Firestore ─────────────────────────────────
+  Future<void> _loadUser() async {
+    final user = await AuthService.getCurrentUser();
+    if (!mounted) return;
+    setState(() {
+      _userModel = user;
+      _nameController.text = user?.name ?? '';
+      _phoneController.text = user?.phone ?? '';
+      _isLoading = false;
+    });
+  }
+
+  // ── Pick a new profile image from gallery ─────────────────────────────────
+  Future<void> _pickImage() async {
+    final File? file = await StorageService.pickImageFromGallery();
+    if (file != null && mounted) {
+      setState(() => _newProfileImage = file);
+    }
+  }
+
+  // ── Save changes to Firestore (and Storage if image changed) ──────────────
+  Future<void> _saveChanges() async {
+    final uid = AuthService.currentUid;
+    if (uid == null) return;
+
+    setState(() => _isSaving = true);
+
+    // 1. Upload new profile image if selected
+    if (_newProfileImage != null) {
+      final String? imgError = await UserService.updateProfileImage(
+        uid: uid,
+        imageFile: _newProfileImage!,
+      );
+      if (imgError != null && mounted) {
+        _showSnack(imgError, isError: true);
+        setState(() => _isSaving = false);
+        return;
+      }
+    }
+
+    // 2. Update name and phone
+    final String? profileError = await UserService.updateProfile(
+      uid: uid,
+      name: _nameController.text.trim(),
+      phone: _phoneController.text.trim(),
+    );
+
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+
+    if (profileError != null) {
+      _showSnack(profileError, isError: true);
+    } else {
+      _showSnack('Profile updated successfully!');
+      Navigator.pop(context); // go back to ProfileScreen
+    }
+  }
+
+  void _showSnack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red : kPrimaryColor,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 700;
-
-    final contentPadding = isDesktop ? 40.0 : 20.0;
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: Colors.black, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "Edit Profile",
+          'Edit Profile',
           style: TextStyle(
             color: Colors.black,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
+        centerTitle: true,
       ),
+      body:
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: kPrimaryColor),
+              )
+              : SafeArea(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 10,
+                        ),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 20),
 
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 900),
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(contentPadding),
-            child: Column(
-              children: [
-                const SizedBox(height: 10),
-                _buildProfileImageSection(),
+                            // ── Profile Picture ───────────────────────────────
+                            Center(
+                              child: GestureDetector(
+                                onTap: _pickImage,
+                                child: Stack(
+                                  children: [
+                                    Container(
+                                      width: 130,
+                                      height: 130,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 4,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.1,
+                                            ),
+                                            blurRadius: 20,
+                                            offset: const Offset(0, 10),
+                                          ),
+                                        ],
+                                      ),
+                                      child:
+                                          _newProfileImage != null ||
+                                                  (_userModel
+                                                          ?.profileImageUrl
+                                                          .isNotEmpty ==
+                                                      true)
+                                              ? ClipOval(
+                                                child: Image(
+                                                  fit: BoxFit.cover,
+                                                  image:
+                                                      _newProfileImage != null
+                                                          ? FileImage(
+                                                            _newProfileImage!,
+                                                          )
+                                                          : NetworkImage(
+                                                                _userModel!
+                                                                    .profileImageUrl,
+                                                              )
+                                                              as ImageProvider,
+                                                ),
+                                              )
+                                              : Container(
+                                                alignment: Alignment.center,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color:
+                                                      Colors
+                                                          .primaries[(_userModel
+                                                                  ?.name
+                                                                  .hashCode ??
+                                                              0) %
+                                                          Colors
+                                                              .primaries
+                                                              .length],
+                                                ),
+                                                child: Text(
+                                                  _getInitials(
+                                                    _userModel?.name ?? '',
+                                                  ),
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 40,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                    ),
+                                    // Camera badge
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: Container(
+                                        height: 40,
+                                        width: 40,
+                                        decoration: BoxDecoration(
+                                          color: kPrimaryColor,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 3,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.camera_alt_outlined,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _userModel?.email ?? '',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 32),
 
-                SizedBox(height: isDesktop ? 50 : 40),
+                            // ── Form Fields ───────────────────────────────────
+                            _buildSectionHeader('Personal Information'),
+                            const SizedBox(height: 15),
 
-                if (isDesktop) _buildDesktopLayout() else _buildMobileLayout(),
+                            _buildField(
+                              controller: _nameController,
+                              label: 'Full Name',
+                              icon: Icons.person_outline,
+                            ),
+                            const SizedBox(height: 20),
 
-                const SizedBox(height: 50),
+                            _buildField(
+                              controller: _phoneController,
+                              label: 'Phone Number',
+                              icon: Icons.phone_outlined,
+                              inputType: TextInputType.phone,
+                            ),
+                            const SizedBox(height: 20),
 
-                SizedBox(
-                  width: isDesktop ? 400 : double.infinity,
-                  child: CommonButton(
-                    text: "Save Changes",
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+                            // Email is read-only (Firebase Auth email)
+                            _buildField(
+                              controller: TextEditingController(
+                                text: _userModel?.email ?? '',
+                              ),
+                              label: 'Email Address',
+                              icon: Icons.email_outlined,
+                              readOnly: true,
+                            ),
 
-  Widget _buildProfileImageSection() {
-    return Center(
-      child: Stack(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: const CircleAvatar(
-              radius: 60,
-              backgroundColor: Colors.white,
-              backgroundImage: NetworkImage(
-                "https://img.freepik.com/free-psd/3d-illustration-person-with-sunglasses_23-2149436188.jpg",
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: InkWell(
-              onTap: () {},
-              child: Container(
-                height: 40,
-                width: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey.shade200),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 5,
-                      offset: const Offset(0, 2),
+                            const SizedBox(height: 100),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // ── Save Button ───────────────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, -5),
+                          ),
+                        ],
+                      ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _isSaving ? null : _saveChanges,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kPrimaryColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child:
+                              _isSaving
+                                  ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                  : const Text(
+                                    'Update Profile',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.camera_alt_outlined,
-                  color: Color(0xFFF47C20),
-                  size: 22,
-                ),
               ),
-            ),
-          ),
-        ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey[800],
+        ),
       ),
     );
   }
 
-  Widget _buildDesktopLayout() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildFieldGroup(
-                "Full Name",
-                _nameController,
-                "Enter your full name",
-                Icons.person_outline,
-              ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              child: _buildFieldGroup(
-                "Email Address",
-                _emailController,
-                "Enter your email",
-                Icons.email_outlined,
-              ),
-            ),
-          ],
+  Widget _buildField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType inputType = TextInputType.text,
+    bool readOnly = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.06),
+            spreadRadius: 2,
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: inputType,
+        readOnly: readOnly,
+        style: const TextStyle(
+          fontWeight: FontWeight.w500,
+          color: Colors.black87,
         ),
-        const SizedBox(height: 24),
-        Row(
-          children: [
-            Expanded(
-              child: _buildFieldGroup(
-                "Phone Number",
-                _phoneController,
-                "Enter phone number",
-                Icons.phone_outlined,
-              ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              child: _buildFieldGroup(
-                "CNIC",
-                _cnicController,
-                "Enter CNIC number",
-                Icons.badge_outlined,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMobileLayout() {
-    return Column(
-      children: [
-        _buildFieldGroup(
-          "Full Name",
-          _nameController,
-          "Enter your full name",
-          Icons.person_outline,
-        ),
-        const SizedBox(height: 20),
-        _buildFieldGroup(
-          "Email Address",
-          _emailController,
-          "Enter your email",
-          Icons.email_outlined,
-        ),
-        const SizedBox(height: 20),
-        _buildFieldGroup(
-          "Phone Number",
-          _phoneController,
-          "Enter phone number",
-          Icons.phone_outlined,
-        ),
-        const SizedBox(height: 20),
-        _buildFieldGroup(
-          "CNIC",
-          _cnicController,
-          "Enter CNIC number",
-          Icons.badge_outlined,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFieldGroup(
-    String label,
-    TextEditingController controller,
-    String hint,
-    IconData icon,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8.0),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+        cursorColor: kPrimaryColor,
+        decoration: InputDecoration(
+          prefixIcon: Icon(
+            icon,
+            color: readOnly ? Colors.grey[400] : Colors.grey[400],
+          ),
+          labelText: label,
+          labelStyle: TextStyle(color: Colors.grey[500]),
+          floatingLabelStyle: TextStyle(
+            color: readOnly ? Colors.grey : kPrimaryColor,
+            fontWeight: FontWeight.bold,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: readOnly ? Colors.grey[300]! : kPrimaryColor,
+              width: 1.5,
             ),
           ),
+          fillColor: readOnly ? Colors.grey[50] : null,
+          filled: readOnly,
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: TextFormField(
-            controller: controller,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-              prefixIcon: Icon(icon, color: Colors.grey[500], size: 22),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: Color(0xFFF97316),
-                  width: 1.5,
-                ),
-              ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

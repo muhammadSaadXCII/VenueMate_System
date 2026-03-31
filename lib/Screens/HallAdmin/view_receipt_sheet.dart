@@ -170,13 +170,6 @@ class ViewReceiptSheet extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
                   borderRadius: BorderRadius.circular(12),
-
-                  image: const DecorationImage(
-                    image: NetworkImage(
-                      "https://example.com/receipt_placeholder.jpg",
-                    ),
-                    fit: BoxFit.cover,
-                  ),
                 ),
                 alignment: Alignment.center,
 

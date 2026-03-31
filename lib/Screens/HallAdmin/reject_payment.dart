@@ -20,16 +20,13 @@ class _RejectPaymentScreenState extends State<RejectPaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= 1000;
-
     return Scaffold(
-      backgroundColor: isDesktop ? const Color(0xFFF5F7FA) : Colors.white,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: isDesktop ? const Color(0xFFF5F7FA) : Colors.white,
+        backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: !isDesktop,
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
@@ -38,100 +35,43 @@ class _RejectPaymentScreenState extends State<RejectPaymentScreen> {
           "Reject Payment",
           style: TextStyle(
             color: Colors.black,
-            fontSize: isDesktop ? 24 : 20,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
       ),
 
-      bottomNavigationBar: !isDesktop ? _buildMobileBottomBar() : null,
+      bottomNavigationBar: _buildMobileBottomBar(),
       body: Center(
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(isDesktop ? 32 : 20),
+          padding: EdgeInsets.all(20),
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: 600),
-            child: isDesktop
-                ? _buildDesktopCard()
-                : _buildFormContent(isDesktop: false),
+            child: _buildFormContent(),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildDesktopCard() {
-    return Container(
-      padding: const EdgeInsets.all(40),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.gpp_bad_outlined,
-              color: Colors.red.shade400,
-              size: 40,
-            ),
-          ),
-          const SizedBox(height: 24),
-          _buildFormContent(isDesktop: true),
-          const SizedBox(height: 32),
-
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: _buildSubmitButton(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFormContent({required bool isDesktop}) {
+  Widget _buildFormContent() {
     bool isOtherSelected = _selectedReason == "Another reason";
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!isDesktop) ...[
-          const Text(
-            "Please select a reason for rejection",
+        const Center(
+          child: Text(
+            "Reason for Rejection",
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 24),
-        ] else
-          const Center(
-            child: Text(
-              "Reason for Rejection",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-          ),
-        if (isDesktop) const SizedBox(height: 32),
+        ),
 
-        ..._reasons.map((reason) => _buildRadioOption(reason, isDesktop)),
+        ..._reasons.map((reason) => _buildRadioOption(reason)),
 
         const SizedBox(height: 24),
 
@@ -177,7 +117,7 @@ class _RejectPaymentScreenState extends State<RejectPaymentScreen> {
     );
   }
 
-  Widget _buildRadioOption(String label, bool isDesktop) {
+  Widget _buildRadioOption(String label) {
     bool isSelected = _selectedReason == label;
 
     return GestureDetector(
@@ -201,19 +141,20 @@ class _RejectPaymentScreenState extends State<RejectPaymentScreen> {
               height: 24,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isSelected
-                    ? const Color(0xFFF47C20)
-                    : Colors.transparent,
+                color:
+                    isSelected ? const Color(0xFFF47C20) : Colors.transparent,
                 border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFFF47C20)
-                      : Colors.grey.shade400,
+                  color:
+                      isSelected
+                          ? const Color(0xFFF47C20)
+                          : Colors.grey.shade400,
                   width: 2,
                 ),
               ),
-              child: isSelected
-                  ? const Icon(Icons.check, size: 16, color: Colors.white)
-                  : null,
+              child:
+                  isSelected
+                      ? const Icon(Icons.check, size: 16, color: Colors.white)
+                      : null,
             ),
             const SizedBox(width: 16),
             Expanded(

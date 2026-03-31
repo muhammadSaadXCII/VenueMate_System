@@ -1,11 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:venuemate_system/Services/auth_service.dart';
 import 'package:venuemate_system/Widgets/common_button.dart';
-import 'package:venuemate_system/Screens/Shared/file_complaint.dart';
-import 'package:venuemate_system/Screens/Shared/user_complaint_details.dart';
+import 'user_complaint_details.dart';
+import 'file_complaint.dart';
+
+// ══════════════════════════════════════════════════════════════════════════
+//  Firestore structure:
+//
+//  complaints/{complaintId}
+//    userId        : String   — UID of the user who filed it
+//    userName      : String
+//    userRole      : String   — 'Customer' | 'Hall Admin'
+//    subject       : String
+//    category      : String
+//    priority      : String   — 'High' | 'Medium' | 'Low'
+//    description   : String
+//    attachmentUrl : String   — optional screenshot URL
+//    status        : String   — 'Pending' | 'In Progress' | 'Resolved'
+//    adminResponse : String   — set by System Admin when resolving
+//    createdAt     : Timestamp
+//    updatedAt     : Timestamp
+// ══════════════════════════════════════════════════════════════════════════
 
 class UserComplaintCenterScreen extends StatefulWidget {
   const UserComplaintCenterScreen({super.key});
-
   @override
   State<UserComplaintCenterScreen> createState() =>
       _UserComplaintCenterScreenState();
@@ -14,43 +33,14 @@ class UserComplaintCenterScreen extends StatefulWidget {
 class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final String _uid = AuthService.currentUid ?? '';
 
-  Map<String, dynamic>? _selectedTicket;
-
-  final List<Map<String, dynamic>> _allTickets = [
-    {
-      "id": "#TKT-9921",
-      "subject": "Payout not received for Oct",
-      "category": "Payment",
-      "date": "1 hour ago",
-      "status": "Pending",
-      "priority": "High",
-    },
-    {
-      "id": "#TKT-8802",
-      "subject": "Update Hall Location Error",
-      "category": "Technical",
-      "date": "2 days ago",
-      "status": "Pending",
-      "priority": "Medium",
-    },
-    {
-      "id": "#TKT-7500",
-      "subject": "Verification Documents Upload",
-      "category": "Account",
-      "date": "1 week ago",
-      "status": "Resolved",
-      "priority": "Low",
-    },
-    {
-      "id": "#TKT-6200",
-      "subject": "Change Registered Phone Number",
-      "category": "Account",
-      "date": "2 weeks ago",
-      "status": "Resolved",
-      "priority": "Low",
-    },
-  ];
+  // Stream only THIS user's complaints, newest first
+  Stream<QuerySnapshot> get _complaintsStream =>
+      FirebaseFirestore.instance
+          .collection('complaints')
+          .where('userId', isEqualTo: _uid)
+          .snapshots();
 
   @override
   void initState() {
@@ -62,21 +52,6 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
-  }
-
-  void _onTicketTap(Map<String, dynamic> ticket, bool isDesktop) {
-    if (isDesktop) {
-      setState(() {
-        _selectedTicket = ticket;
-      });
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => UserComplaintDetailsScreen(ticketData: ticket),
-        ),
-      );
-    }
   }
 
   @override
@@ -93,7 +68,7 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "Complaints Center",
+          'Complaints Center',
           style: TextStyle(
             color: Colors.black,
             fontSize: 20,
@@ -101,200 +76,119 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
           ),
         ),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isDesktop = constraints.maxWidth >= 700;
 
-          if (isDesktop) {
-            return _buildDesktopLayout();
-          } else {
-            return _buildMobileLayout(isDesktop);
-          }
-        },
+      body:
+          _uid.isEmpty
+              ? const Center(child: Text('Please log in to view complaints.'))
+              : StreamBuilder<QuerySnapshot>(
+                stream: _complaintsStream,
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFF47C20),
+                      ),
+                    );
+                  }
+                  final all = snap.data?.docs ?? [];
+
+                  final pending =
+                      all
+                          .where(
+                            (d) => (d.data() as Map)['status'] != 'Resolved',
+                          )
+                          .toList();
+                  final resolved =
+                      all
+                          .where(
+                            (d) => (d.data() as Map)['status'] == 'Resolved',
+                          )
+                          .toList();
+
+                  return Column(
+                    children: [
+                      const SizedBox(height: 20),
+
+                      // ── Pill TabBar ──────────────────────────────────────
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 20),
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: TabBar(
+                          controller: _tabController,
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          dividerColor: Colors.transparent,
+                          indicator: BoxDecoration(
+                            color: const Color(0xFFF47C20),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFF47C20).withOpacity(0.3),
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          labelColor: Colors.white,
+                          unselectedLabelColor: Colors.grey,
+                          labelStyle: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                          tabs: [
+                            Tab(text: 'Pending (${pending.length})'),
+                            Tab(text: 'Resolved (${resolved.length})'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      Expanded(
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _TicketList(docs: pending),
+                            _TicketList(docs: resolved),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+
+      // ── File new complaint button ──────────────────────────────────────
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+        ),
+        child: CommonButton(
+          text: 'File New Complaint',
+          onTap:
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FileComplaintScreen()),
+              ),
+        ),
       ),
-
-      bottomNavigationBar:
-          MediaQuery.of(context).size.width < 700
-              ? Container(
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
-                ),
-                child: CommonButton(
-                  text: "File New Complaint",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FileComplaintScreen(),
-                      ),
-                    );
-                  },
-                ),
-              )
-              : null,
     );
   }
+}
 
-  Widget _buildDesktopLayout() {
-    final pendingTickets =
-        _allTickets.where((t) => t['status'] != 'Resolved').toList();
-    final resolvedTickets =
-        _allTickets.where((t) => t['status'] == 'Resolved').toList();
+// ── Ticket list ────────────────────────────────────────────────────────────
+class _TicketList extends StatelessWidget {
+  final List<QueryDocumentSnapshot> docs;
+  const _TicketList({required this.docs});
 
-    return Row(
-      children: [
-        Container(
-          width: 400,
-          decoration: BoxDecoration(
-            border: Border(right: BorderSide(color: Colors.grey.shade300)),
-            color: Colors.white,
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                height: 45,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  dividerColor: Colors.transparent,
-                  indicator: BoxDecoration(
-                    color: Color(0xFFF47C20),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.grey,
-                  labelStyle: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                  tabs: const [Tab(text: "Pending"), Tab(text: "Resolved")],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildTicketList(pendingTickets, isDesktop: true),
-                    _buildTicketList(resolvedTickets, isDesktop: true),
-                  ],
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: CommonButton(
-                  text: "File New Complaint",
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FileComplaintScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        Expanded(
-          child:
-              _selectedTicket == null
-                  ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.touch_app_outlined,
-                          size: 60,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          "Select a complaint to view details",
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  )
-                  : UserComplaintDetailsScreen(ticketData: _selectedTicket!),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMobileLayout(bool isDesktop) {
-    final pendingTickets =
-        _allTickets.where((t) => t['status'] != 'Resolved').toList();
-    final resolvedTickets =
-        _allTickets.where((t) => t['status'] == 'Resolved').toList();
-
-    return Column(
-      children: [
-        const SizedBox(height: 20),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: TabBar(
-            controller: _tabController,
-            indicatorSize: TabBarIndicatorSize.tab,
-            dividerColor: Colors.transparent,
-            indicator: BoxDecoration(
-              color: Color(0xFFF47C20),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0xFFF47C20).withOpacity(0.3),
-                  blurRadius: 5,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.grey,
-            labelStyle: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-            tabs: const [Tab(text: "Pending"), Tab(text: "Resolved")],
-          ),
-        ),
-        const SizedBox(height: 20),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildTicketList(pendingTickets, isDesktop: isDesktop),
-              _buildTicketList(resolvedTickets, isDesktop: isDesktop),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTicketList(
-    List<Map<String, dynamic>> tickets, {
-    required bool isDesktop,
-  }) {
-    if (tickets.isEmpty) {
+  @override
+  Widget build(BuildContext context) {
+    if (docs.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -305,53 +199,59 @@ class _UserComplaintCenterScreenState extends State<UserComplaintCenterScreen>
               color: Colors.grey[300],
             ),
             const SizedBox(height: 10),
-            Text("No tickets found", style: TextStyle(color: Colors.grey[500])),
+            Text('No tickets found', style: TextStyle(color: Colors.grey[500])),
           ],
         ),
       );
     }
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: tickets.length,
-      itemBuilder: (context, index) {
-        final ticket = tickets[index];
-        final bool isSelected = isDesktop && _selectedTicket == ticket;
-
+      itemCount: docs.length,
+      itemBuilder: (_, i) {
+        final data = docs[i].data() as Map<String, dynamic>;
+        final id = docs[i].id;
         return _TicketCard(
-          data: ticket,
-          isSelected: isSelected,
-          onTap: () => _onTicketTap(ticket, isDesktop),
+          complaintId: id,
+          data: data,
+          onTap:
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (_) => UserComplaintDetailsScreen(
+                        complaintId: id,
+                        data: data,
+                      ),
+                ),
+              ),
         );
       },
     );
   }
 }
 
+// ── Ticket card ────────────────────────────────────────────────────────────
 class _TicketCard extends StatelessWidget {
+  final String complaintId;
   final Map<String, dynamic> data;
-  final bool isSelected;
   final VoidCallback onTap;
-
   const _TicketCard({
+    required this.complaintId,
     required this.data,
     required this.onTap,
-    this.isSelected = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    Color statusColor;
-    Color statusBg;
+    final status = data['status'] as String? ?? 'Pending';
+    final priority = data['priority'] as String? ?? 'Medium';
+    final ts = data['createdAt'] as Timestamp?;
+    final dateStr = ts != null ? _fmt(ts.toDate()) : '—';
 
-    switch (data['status']) {
-      case 'Resolved':
-        statusColor = Colors.green;
-        statusBg = Colors.green.shade50;
-        break;
-      default:
-        statusColor = const Color(0xFFF47C20);
-        statusBg = const Color(0xFFFFF3E0);
-    }
+    final (statusColor, statusBg) = _statusColors(status);
+
+    // Short ticket ID from the full Firestore doc ID
+    final shortId = '#TKT-${complaintId.substring(0, 6).toUpperCase()}';
 
     return GestureDetector(
       onTap: onTap,
@@ -360,7 +260,7 @@ class _TicketCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.orange.shade50 : Colors.white,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -370,14 +270,12 @@ class _TicketCard extends StatelessWidget {
               offset: const Offset(0, 4),
             ),
           ],
-          border: Border.all(
-            color: isSelected ? Color(0xFFF47C20) : Colors.grey.shade200,
-            width: isSelected ? 1.5 : 1,
-          ),
+          border: Border.all(color: Colors.grey.shade200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ID + date row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -391,7 +289,7 @@ class _TicketCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    data['id'],
+                    shortId,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -400,7 +298,7 @@ class _TicketCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  data['date'],
+                  dateStr,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[500],
@@ -410,8 +308,10 @@ class _TicketCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+
+            // Subject
             Text(
-              data['subject'],
+              data['subject'] ?? '—',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -422,12 +322,14 @@ class _TicketCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              "Category: ${data['category']}",
+              'Category: ${data['category'] ?? '—'}',
               style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             ),
             const SizedBox(height: 16),
             Divider(height: 1, color: Colors.grey[200]),
             const SizedBox(height: 12),
+
+            // Status + View button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -445,7 +347,7 @@ class _TicketCard extends StatelessWidget {
                       Icon(Icons.circle, size: 8, color: statusColor),
                       const SizedBox(width: 6),
                       Text(
-                        data['status'],
+                        status,
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -456,17 +358,34 @@ class _TicketCard extends StatelessWidget {
                   ),
                 ),
                 Row(
-                  children: const [
+                  children: [
                     Text(
-                      "View",
+                      _priorityLabel(priority),
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
+                        fontWeight: FontWeight.w600,
+                        color: _priorityColor(priority),
                       ),
                     ),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+                    const SizedBox(width: 12),
+                    Row(
+                      children: const [
+                        Text(
+                          'View',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 12,
+                          color: Colors.grey,
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ],
@@ -475,5 +394,28 @@ class _TicketCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  (Color, Color) _statusColors(String status) => switch (status) {
+    'Resolved' => (Colors.green, Colors.green.shade50),
+    'In Progress' => (Colors.blue, Colors.blue.shade50),
+    _ => (const Color(0xFFF47C20), const Color(0xFFFFF3E0)),
+  };
+
+  Color _priorityColor(String p) => switch (p) {
+    'High' => Colors.redAccent,
+    'Medium' => Colors.orange,
+    _ => Colors.green,
+  };
+
+  String _priorityLabel(String p) => '$p Priority';
+
+  String _fmt(DateTime d) {
+    final now = DateTime.now();
+    final diff = now.difference(d);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${d.day}/${d.month}/${d.year}';
   }
 }
