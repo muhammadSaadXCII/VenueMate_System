@@ -1,10 +1,9 @@
-// ═══════════════════════════════════════════════════════════════════════════
-//  handle_complaints.dart  — System Admin complaint list (Firestore-wired)
-// ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'complaint_details.dart';
+
+const double _kWebBreak = 900;
 
 class ComplaintsScreen extends StatefulWidget {
   const ComplaintsScreen({super.key});
@@ -15,6 +14,10 @@ class ComplaintsScreen extends StatefulWidget {
 class _ComplaintsScreenState extends State<ComplaintsScreen> {
   String _selectedFilter = 'New';
 
+  // Web: selected complaint shown inline in right pane
+  String? _selectedId;
+  Map<String, dynamic>? _selectedData;
+
   Stream<QuerySnapshot> get _stream =>
       FirebaseFirestore.instance
           .collection('complaints')
@@ -23,131 +26,223 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width >= _kWebBreak;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'User Complaints',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _stream,
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFFF47C20)),
-            );
-          }
-          final all = snap.data?.docs ?? [];
-
-          // Filter
-          final filtered =
-              _selectedFilter == 'All'
-                  ? all
-                  : all.where((d) {
-                    final status = (d.data() as Map)['status'] as String? ?? '';
-                    if (_selectedFilter == 'New') {
-                      return status == 'Pending' || status == 'In Progress';
-                    }
-                    return status == _selectedFilter;
-                  }).toList();
-
-          final newCount =
-              all.where((d) {
-                final s = (d.data() as Map)['status'] as String? ?? '';
-                return s == 'Pending';
-              }).length;
-
-          return Column(
-            children: [
-              // Filter chips
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 16,
-                  horizontal: 20,
+      appBar:
+          isWide
+              ? null
+              : AppBar(
+                backgroundColor: Colors.white,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                centerTitle: true,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _chip('New', count: newCount),
-                      const SizedBox(width: 12),
-                      _chip('Resolved'),
-                      const SizedBox(width: 12),
-                      _chip('All'),
-                    ],
+                title: const Text(
+                  'User Complaints',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _stream,
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFF47C20)),
+                  );
+                }
+                final all = snap.data?.docs ?? [];
 
-              // List
+                final filtered =
+                    _selectedFilter == 'All'
+                        ? all
+                        : all.where((d) {
+                          final s =
+                              (d.data() as Map)['status'] as String? ?? '';
+                          if (_selectedFilter == 'New') {
+                            return s == 'Pending' || s == 'In Progress';
+                          }
+                          return s == _selectedFilter;
+                        }).toList();
+
+                final newCount =
+                    all.where((d) {
+                      final s = (d.data() as Map)['status'] as String? ?? '';
+                      return s == 'Pending';
+                    }).length;
+
+                return isWide
+                    ? _buildWebLayout(filtered, newCount, all)
+                    : _buildMobileLayout(filtered, newCount);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  MOBILE layout — original single-column list
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildMobileLayout(
+    List<QueryDocumentSnapshot> filtered,
+    int newCount,
+  ) {
+    return Column(
+      children: [
+        _filterBar(newCount, false),
+        Expanded(
+          child:
+              filtered.isEmpty
+                  ? _emptyState()
+                  : ListView.separated(
+                    padding: const EdgeInsets.all(20),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemBuilder: (_, i) {
+                      final doc = filtered[i];
+                      final data = doc.data() as Map<String, dynamic>;
+                      return _ComplaintCard(
+                        data: data,
+                        isSelected: false,
+                        onTap:
+                            () => AppNavigation.push(
+                              context,
+                              ComplaintDetailsScreen(
+                                complaintId: doc.id,
+                                data: data,
+                              ),
+                            ),
+                      );
+                    },
+                  ),
+        ),
+      ],
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  WEB layout — left list + right detail pane
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildWebLayout(
+    List<QueryDocumentSnapshot> filtered,
+    int newCount,
+    List<QueryDocumentSnapshot> all,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Left list (fixed width 420px) ─────────────────────────────────
+        SizedBox(
+          width: 420,
+          child: Column(
+            children: [
+              _filterBar(newCount, true),
               Expanded(
                 child:
                     filtered.isEmpty
-                        ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.inbox_outlined,
-                                size: 64,
-                                color: Colors.grey[300],
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No complaints found.',
-                                style: TextStyle(color: Colors.grey[500]),
-                              ),
-                            ],
-                          ),
-                        )
+                        ? _emptyState()
                         : ListView.separated(
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(16),
                           itemCount: filtered.length,
                           separatorBuilder:
-                              (_, __) => const SizedBox(height: 16),
+                              (_, __) => const SizedBox(height: 12),
                           itemBuilder: (_, i) {
                             final doc = filtered[i];
                             final data = doc.data() as Map<String, dynamic>;
                             return _ComplaintCard(
                               data: data,
+                              isSelected: _selectedId == doc.id,
                               onTap:
-                                  () => AppNavigation.push(
-                                    context,
-                                    ComplaintDetailsScreen(
-                                      complaintId: doc.id,
-                                      data: data,
-                                    ),
-                                  ),
+                                  () => setState(() {
+                                    _selectedId = doc.id;
+                                    _selectedData = data;
+                                  }),
                             );
                           },
                         ),
               ),
             ],
-          );
-        },
-      ),
+          ),
+        ),
+
+        // Vertical divider
+        Container(width: 1, color: Colors.grey.shade200),
+
+        // ── Right detail pane ──────────────────────────────────────────────
+        Expanded(
+          child:
+              _selectedId == null
+                  ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.touch_app_outlined,
+                          size: 64,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Select a complaint to view details',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                  : ComplaintDetailsScreen(
+                    complaintId: _selectedId!,
+                    data: _selectedData!,
+                    inlineMode: true,
+                  ),
+        ),
+      ],
     );
   }
+
+  // ── Shared filter bar ─────────────────────────────────────────────────────
+  Widget _filterBar(int newCount, bool isWide) => Container(
+    color: isWide ? null : Colors.white,
+    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _chip('New', count: newCount),
+          const SizedBox(width: 12),
+          _chip('Resolved'),
+          const SizedBox(width: 12),
+          _chip('All'),
+        ],
+      ),
+    ),
+  );
 
   Widget _chip(String label, {int count = 0}) {
     final isSelected = _selectedFilter == label;
     return GestureDetector(
-      onTap: () => setState(() => _selectedFilter = label),
+      onTap:
+          () => setState(() {
+            _selectedFilter = label;
+            // Clear detail pane when filter changes
+            _selectedId = null;
+            _selectedData = null;
+          }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
@@ -192,21 +287,38 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       ),
     );
   }
+
+  Widget _emptyState() => Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[300]),
+        const SizedBox(height: 12),
+        Text('No complaints found.', style: TextStyle(color: Colors.grey[500])),
+      ],
+    ),
+  );
 }
 
+// ── Complaint card ─────────────────────────────────────────────────────────
 class _ComplaintCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final VoidCallback onTap;
-  const _ComplaintCard({required this.data, required this.onTap});
+  final bool isSelected;
+
+  const _ComplaintCard({
+    required this.data,
+    required this.onTap,
+    required this.isSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
     final priority = data['priority'] as String? ?? 'Medium';
-    // final status = data['status'] as String? ?? 'Pending';
     final ts = data['createdAt'] as Timestamp?;
     final dateStr = ts != null ? _fmt(ts.toDate()) : '—';
 
-    Color priorityColor = switch (priority) {
+    final priorityColor = switch (priority) {
       'High' => Colors.redAccent,
       'Medium' => Colors.orange,
       _ => Colors.green,
@@ -214,9 +326,10 @@ class _ComplaintCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isSelected ? const Color(0xFFFFF4EC) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -225,12 +338,14 @@ class _ComplaintCard extends StatelessWidget {
               offset: const Offset(0, 4),
             ),
           ],
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFF47C20) : Colors.grey.shade200,
+            width: isSelected ? 1.5 : 1,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ID + date
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               child: Row(
@@ -266,7 +381,6 @@ class _ComplaintCard extends StatelessWidget {
               ),
             ),
             const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
-            // Content
             Padding(
               padding: const EdgeInsets.all(20),
               child: Row(
@@ -285,7 +399,7 @@ class _ComplaintCard extends StatelessWidget {
                         Text(
                           data['subject'] ?? '—',
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF1E293B),
                             height: 1.3,
@@ -307,7 +421,6 @@ class _ComplaintCard extends StatelessWidget {
                 ],
               ),
             ),
-            // Footer
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: const BoxDecoration(

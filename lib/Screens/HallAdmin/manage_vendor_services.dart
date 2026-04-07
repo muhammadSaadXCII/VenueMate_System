@@ -5,9 +5,10 @@ import 'package:venuemate_system/Services/hall_service.dart';
 import '../../Models/service_item_model.dart';
 import '../../Services/service_item_service.dart';
 
+const double _kSvcWebBreak = 900;
+
 class ManageServicesScreen extends StatefulWidget {
   const ManageServicesScreen({super.key});
-
   @override
   State<ManageServicesScreen> createState() => _ManageServicesScreenState();
 }
@@ -74,6 +75,7 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width >= _kSvcWebBreak;
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -152,7 +154,6 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-
                         Expanded(
                           child: StreamBuilder<List<ServiceItemModel>>(
                             stream: ServiceItemService.streamServices(_hallId!),
@@ -187,48 +188,26 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
                                   ),
                                 );
                               }
+                              if (isWide) {
+                                return GridView.builder(
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        crossAxisSpacing: 16,
+                                        mainAxisSpacing: 16,
+                                        childAspectRatio: 5.4,
+                                      ),
+                                  itemCount: services.length,
+                                  itemBuilder:
+                                      (_, i) => _buildServiceCard(services[i]),
+                                );
+                              }
                               return ListView.separated(
                                 itemCount: services.length,
                                 separatorBuilder:
                                     (_, __) => const SizedBox(height: 16),
-                                itemBuilder: (context, index) {
-                                  final service = services[index];
-                                  return ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Slidable(
-                                      key: ValueKey(service.serviceId),
-                                      endActionPane: ActionPane(
-                                        motion: const ScrollMotion(),
-                                        children: [
-                                          SlidableAction(
-                                            onPressed:
-                                                (_) => _showAddSheet(service),
-                                            backgroundColor:
-                                                Colors.blue.shade50,
-                                            foregroundColor: Colors.blue,
-                                            icon: Icons.edit,
-                                            label: 'Edit',
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          SlidableAction(
-                                            onPressed:
-                                                (_) => _deleteService(service),
-                                            backgroundColor: Colors.red.shade50,
-                                            foregroundColor: Colors.red,
-                                            icon: Icons.delete,
-                                            label: 'Delete',
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      child: _ServiceCard(service: service),
-                                    ),
-                                  );
-                                },
+                                itemBuilder:
+                                    (_, i) => _buildServiceCard(services[i]),
                               );
                             },
                           ),
@@ -240,12 +219,40 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
               ),
     );
   }
+
+  Widget _buildServiceCard(ServiceItemModel service) => ClipRRect(
+    borderRadius: BorderRadius.circular(16),
+    child: Slidable(
+      key: ValueKey(service.serviceId),
+      endActionPane: ActionPane(
+        motion: const ScrollMotion(),
+        children: [
+          SlidableAction(
+            onPressed: (_) => _showAddSheet(service),
+            backgroundColor: Colors.blue.shade50,
+            foregroundColor: Colors.blue,
+            icon: Icons.edit,
+            label: 'Edit',
+            borderRadius: BorderRadius.circular(12),
+          ),
+          SlidableAction(
+            onPressed: (_) => _deleteService(service),
+            backgroundColor: Colors.red.shade50,
+            foregroundColor: Colors.red,
+            icon: Icons.delete,
+            label: 'Delete',
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ],
+      ),
+      child: _ServiceCard(service: service),
+    ),
+  );
 }
 
 class _ServiceCard extends StatelessWidget {
   final ServiceItemModel service;
   const _ServiceCard({required this.service});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -307,12 +314,10 @@ class _ServiceCard extends StatelessWidget {
   }
 }
 
-// ── Add / Edit bottom sheet ────────────────────────────────────────────────
 class _AddServiceSheet extends StatefulWidget {
   final String hallId;
   final ServiceItemModel? existing;
   const _AddServiceSheet({required this.hallId, this.existing});
-
   @override
   State<_AddServiceSheet> createState() => _AddServiceSheetState();
 }
@@ -322,7 +327,6 @@ class _AddServiceSheetState extends State<_AddServiceSheet> {
   final _descController = TextEditingController();
   final _priceController = TextEditingController();
   bool _isSaving = false;
-
   bool get _isEditing => widget.existing != null;
 
   @override
@@ -355,9 +359,7 @@ class _AddServiceSheetState extends State<_AddServiceSheet> {
       _snack('Please enter a valid price.');
       return;
     }
-
     setState(() => _isSaving = true);
-
     String? error;
     if (_isEditing) {
       error = await ServiceItemService.updateService(
@@ -375,7 +377,6 @@ class _AddServiceSheetState extends State<_AddServiceSheet> {
         description: _descController.text.trim(),
       );
     }
-
     if (!mounted) return;
     setState(() => _isSaving = false);
     if (error != null) {
@@ -385,14 +386,13 @@ class _AddServiceSheetState extends State<_AddServiceSheet> {
     }
   }
 
-  void _snack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? Colors.red : const Color(0xFFF47C20),
-      ),
-    );
-  }
+  void _snack(String msg, {bool isError = false}) =>
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: isError ? Colors.red : const Color(0xFFF47C20),
+        ),
+      );
 
   InputDecoration _inputDec(String hint) => InputDecoration(
     hintText: hint,
@@ -417,17 +417,15 @@ class _AddServiceSheetState extends State<_AddServiceSheet> {
   );
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+    child: Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-        ),
+      child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -508,6 +506,6 @@ class _AddServiceSheetState extends State<_AddServiceSheet> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }

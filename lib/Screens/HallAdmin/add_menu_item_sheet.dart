@@ -1,5 +1,7 @@
-import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:venuemate_system/Services/storage_service.dart';
 import 'package:venuemate_system/Widgets/common_button.dart';
 
@@ -7,10 +9,9 @@ import 'package:venuemate_system/Widgets/common_button.dart';
 ///   1. HallRegistrationScreen Step 4 — collects items locally
 ///   2. ManageMenuScreen — saves directly to Firestore
 ///
-/// Changes from original:
-///   - Image upload is now MANDATORY (cannot Add without an image)
-///   - Image preview uses Image.file() — shows immediately after picking
-///   - Red border + "Required" label shown when user tries to Add without image
+/// Image is stored as a base64 data-URI in the 'imageUrl' map key so that
+/// the same Map<String, String> interface works on web and mobile without
+/// dart:io File.
 class AddMenuItemSheet extends StatefulWidget {
   final Map<String, String>? existing;
   final void Function(Map<String, String> item) onSave;
@@ -26,7 +27,11 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
   final _descController = TextEditingController();
   final _priceController = TextEditingController();
   String _selectedUnit = '/Serving';
-  File? _imageFile;
+
+  // Cross-platform image holder — bytes work on web + mobile
+  XFile? _pickedXFile;
+  Uint8List? _imageBytes;
+
   bool _isSaving = false;
   bool _imageRequired = false; // turns true after a failed save attempt
 
@@ -44,8 +49,14 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
       _priceController.text = e['price'] ?? '';
       _selectedUnit =
           e['priceUnit'] != null ? '/${e['priceUnit']}' : '/Serving';
-      // If editing and there was a previously picked local path, don't pre-load
-      // the file (we don't have it in memory). Treat image as optional for edits.
+      // Restore previously picked image if it was stored as a data-URI
+      final url = e['imageUrl'] ?? '';
+      if (url.startsWith('data:image')) {
+        try {
+          final base64Str = url.substring(url.indexOf(',') + 1);
+          _imageBytes = base64Decode(base64Str);
+        } catch (_) {}
+      }
     }
   }
 
@@ -58,20 +69,20 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
   }
 
   Future<void> _pickImage() async {
-    final file = await StorageService.pickImageFromGallery();
-    if (file != null && mounted) {
-      setState(() {
-        _imageFile = file;
-        _imageRequired = false; // clear the error once image is picked
-      });
-    }
+    final xf = await StorageService.pickImageXFile();
+    if (xf == null || !mounted) return;
+    final bytes = await xf.readAsBytes();
+    setState(() {
+      _pickedXFile = xf;
+      _imageBytes = bytes;
+      _imageRequired = false;
+    });
   }
 
   void _save() {
     final name = _nameController.text.trim();
     final price = _priceController.text.trim();
 
-    // ── Validation ──────────────────────────────────────────────────────────
     if (name.isEmpty) {
       _snack('Please enter item name.');
       return;
@@ -80,8 +91,9 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
       _snack('Please enter a valid price.');
       return;
     }
+
     // Image is mandatory for new items (not editing)
-    if (!_isEditing && _imageFile == null) {
+    if (!_isEditing && _imageBytes == null) {
       setState(() => _imageRequired = true);
       _snack('Please upload an image for this item.');
       return;
@@ -89,12 +101,21 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
 
     setState(() => _isSaving = true);
 
+    // Encode bytes as a base64 data-URI so MenuItemCard can display it
+    // on both web and mobile without needing dart:io File.
+    String imageUrl = '';
+    if (_imageBytes != null) {
+      imageUrl = 'data:image/jpeg;base64,${base64Encode(_imageBytes!)}';
+    } else if (_isEditing) {
+      imageUrl = widget.existing?['imageUrl'] ?? '';
+    }
+
     widget.onSave({
       'name': name,
       'description': _descController.text.trim(),
       'price': price,
-      'priceUnit': _selectedUnit.replaceFirst('/', ''), // 'Serving'
-      'imageUrl': _imageFile?.path ?? '', // local file path
+      'priceUnit': _selectedUnit.replaceFirst('/', ''),
+      'imageUrl': imageUrl,
     });
 
     Navigator.pop(context);
@@ -172,7 +193,7 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
               ),
               const SizedBox(height: 20),
 
-              // ── Image picker + Name row ──────────────────────────────────
+              // ── Image picker + Name row ────────────────────────────────────
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -188,26 +209,25 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
                             color: Colors.grey[200],
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              // Red border when image is required but missing
                               color:
                                   _imageRequired
                                       ? Colors.red
-                                      : _imageFile != null
+                                      : _imageBytes != null
                                       ? const Color(0xFFF47C20)
                                       : Colors.grey[400]!,
                               width:
-                                  (_imageRequired || _imageFile != null)
+                                  (_imageRequired || _imageBytes != null)
                                       ? 2
                                       : 1,
                             ),
                           ),
                           child:
-                              _imageFile != null
-                                  // ✅ Image.file — shows the local picked image
+                              _imageBytes != null
+                                  // ✅ Image.memory — works on web + mobile
                                   ? ClipRRect(
                                     borderRadius: BorderRadius.circular(11),
-                                    child: Image.file(
-                                      _imageFile!,
+                                    child: Image.memory(
+                                      _imageBytes!,
                                       fit: BoxFit.cover,
                                       width: 100,
                                       height: 100,
@@ -241,7 +261,6 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
                                   ),
                         ),
                       ),
-                      // "Required" label below image box
                       if (_imageRequired)
                         const Padding(
                           padding: EdgeInsets.only(top: 4),
@@ -292,7 +311,7 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
               ),
               const SizedBox(height: 16),
 
-              // ── Price + Unit ─────────────────────────────────────────────
+              // ── Price + Unit ──────────────────────────────────────────────
               Row(
                 children: [
                   Expanded(

@@ -1,15 +1,17 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
 import 'package:venuemate_system/Services/menu_service.dart';
 import 'package:venuemate_system/Services/hall_service.dart';
 import 'package:venuemate_system/Services/storage_service.dart';
 import '../../Models/menu_item_model.dart';
 
+const double _kMenuWebBreak = 900;
+
 class ManageMenuScreen extends StatefulWidget {
   const ManageMenuScreen({super.key});
-
   @override
   State<ManageMenuScreen> createState() => _ManageMenuScreenState();
 }
@@ -86,6 +88,7 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width >= _kMenuWebBreak;
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
@@ -119,7 +122,6 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── Add Button ────────────────────────────────────────
                         Center(
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 600),
@@ -165,8 +167,6 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-
-                        // ── Live List ─────────────────────────────────────────
                         Expanded(
                           child: StreamBuilder<List<MenuItemModel>>(
                             stream: MenuService.streamMenuItems(_hallId!),
@@ -209,47 +209,26 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                                   ),
                                 );
                               }
+                              // Grid on web, list on mobile
+                              if (isWide) {
+                                return GridView.builder(
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        crossAxisSpacing: 16,
+                                        mainAxisSpacing: 16,
+                                        childAspectRatio: 3.2,
+                                      ),
+                                  itemCount: items.length,
+                                  itemBuilder:
+                                      (_, i) => _buildMenuCard(items[i]),
+                                );
+                              }
                               return ListView.separated(
                                 itemCount: items.length,
                                 separatorBuilder:
                                     (_, __) => const SizedBox(height: 16),
-                                itemBuilder: (context, index) {
-                                  final item = items[index];
-                                  return ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Slidable(
-                                      key: ValueKey(item.itemId),
-                                      endActionPane: ActionPane(
-                                        motion: const ScrollMotion(),
-                                        children: [
-                                          SlidableAction(
-                                            onPressed:
-                                                (_) => _showEditSheet(item),
-                                            backgroundColor:
-                                                Colors.blue.shade50,
-                                            foregroundColor: Colors.blue,
-                                            icon: Icons.edit,
-                                            label: 'Edit',
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          SlidableAction(
-                                            onPressed: (_) => _deleteItem(item),
-                                            backgroundColor: Colors.red.shade50,
-                                            foregroundColor: Colors.red,
-                                            icon: Icons.delete,
-                                            label: 'Delete',
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      child: _MenuItemCard(item: item),
-                                    ),
-                                  );
-                                },
+                                itemBuilder: (_, i) => _buildMenuCard(items[i]),
                               );
                             },
                           ),
@@ -261,13 +240,40 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
               ),
     );
   }
+
+  Widget _buildMenuCard(MenuItemModel item) => ClipRRect(
+    borderRadius: BorderRadius.circular(12),
+    child: Slidable(
+      key: ValueKey(item.itemId),
+      endActionPane: ActionPane(
+        motion: const ScrollMotion(),
+        children: [
+          SlidableAction(
+            onPressed: (_) => _showEditSheet(item),
+            backgroundColor: Colors.blue.shade50,
+            foregroundColor: Colors.blue,
+            icon: Icons.edit,
+            label: 'Edit',
+            borderRadius: BorderRadius.circular(12),
+          ),
+          SlidableAction(
+            onPressed: (_) => _deleteItem(item),
+            backgroundColor: Colors.red.shade50,
+            foregroundColor: Colors.red,
+            icon: Icons.delete,
+            label: 'Delete',
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ],
+      ),
+      child: _MenuItemCard(item: item),
+    ),
+  );
 }
 
-// ── Menu item card ─────────────────────────────────────────────────────────
 class _MenuItemCard extends StatelessWidget {
   final MenuItemModel item;
   const _MenuItemCard({required this.item});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -344,7 +350,6 @@ class _MenuItemCard extends StatelessWidget {
               ],
             ),
           ),
-          // Availability toggle
           Switch(
             value: item.isAvailable,
             onChanged:
@@ -361,12 +366,11 @@ class _MenuItemCard extends StatelessWidget {
   }
 }
 
-// ── Add / Edit bottom sheet ────────────────────────────────────────────────
+// ── Add/Edit sheet with XFile image picker ─────────────────────────────────
 class _AddMenuItemSheet extends StatefulWidget {
   final String hallId;
   final MenuItemModel? existing;
   const _AddMenuItemSheet({required this.hallId, this.existing});
-
   @override
   State<_AddMenuItemSheet> createState() => _AddMenuItemSheetState();
 }
@@ -376,11 +380,10 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
   final _descController = TextEditingController();
   final _priceController = TextEditingController();
   String _selectedUnit = '/Serving';
-  File? _imageFile;
+  XFile? _pickedXFile;
+  Uint8List? _imageBytes;
   bool _isSaving = false;
-
   final List<String> _units = ['/Plate', '/Serving', '/Head', '/Pcs'];
-
   bool get _isEditing => widget.existing != null;
 
   @override
@@ -404,8 +407,13 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
   }
 
   Future<void> _pickImage() async {
-    final file = await StorageService.pickImageFromGallery();
-    if (file != null && mounted) setState(() => _imageFile = file);
+    final xf = await StorageService.pickImageXFile();
+    if (xf == null || !mounted) return;
+    final bytes = await xf.readAsBytes();
+    setState(() {
+      _pickedXFile = xf;
+      _imageBytes = bytes;
+    });
   }
 
   Future<void> _save() async {
@@ -419,9 +427,7 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
       _snack('Please enter a valid price.');
       return;
     }
-
     setState(() => _isSaving = true);
-
     String? error;
     if (_isEditing) {
       error = await MenuService.updateMenuItem(
@@ -433,16 +439,15 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
         description: _descController.text.trim(),
       );
     } else {
-      error = await MenuService.addMenuItem(
+      error = await MenuService.addMenuItemXFile(
         hallId: widget.hallId,
         name: name,
         price: price,
         priceUnit: _selectedUnit,
         description: _descController.text.trim(),
-        imageFile: _imageFile,
+        imageXFile: _pickedXFile,
       );
     }
-
     if (!mounted) return;
     setState(() => _isSaving = false);
     if (error != null) {
@@ -452,14 +457,13 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
     }
   }
 
-  void _snack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? Colors.red : const Color(0xFFF47C20),
-      ),
-    );
-  }
+  void _snack(String msg, {bool isError = false}) =>
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: isError ? Colors.red : const Color(0xFFF47C20),
+        ),
+      );
 
   InputDecoration _inputDec(String hint) => InputDecoration(
     hintText: hint,
@@ -515,8 +519,6 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Image + Name row
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -530,33 +532,41 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child:
-                          _imageFile != null
+                          _imageBytes != null
                               ? ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: Image.file(
-                                  _imageFile!,
+                                child: Image.memory(
+                                  _imageBytes!,
                                   fit: BoxFit.cover,
                                 ),
                               )
-                              : const Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.cloud_upload_outlined,
-                                    size: 32,
-                                    color: Colors.black54,
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Tap to upload',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.black54,
+                              : (widget.existing?.imageUrl.isNotEmpty == true
+                                  ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      widget.existing!.imageUrl,
+                                      fit: BoxFit.cover,
                                     ),
-                                  ),
-                                ],
-                              ),
+                                  )
+                                  : const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.cloud_upload_outlined,
+                                        size: 32,
+                                        color: Colors.black54,
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Tap to upload',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
+                                    ],
+                                  )),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -579,7 +589,6 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
                 ],
               ),
               const SizedBox(height: 16),
-
               const Text(
                 'Description',
                 style: TextStyle(fontWeight: FontWeight.bold),
@@ -591,7 +600,6 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
                 decoration: _inputDec("Enter item's description"),
               ),
               const SizedBox(height: 16),
-
               Row(
                 children: [
                   Expanded(
@@ -648,7 +656,6 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
                 ],
               ),
               const SizedBox(height: 30),
-
               SizedBox(
                 width: double.infinity,
                 height: 52,

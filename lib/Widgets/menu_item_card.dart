@@ -1,11 +1,15 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 /// Smart image-aware MenuItemCard.
 /// [imageUrl] can be:
-///   - A local file path (starts with '/' or contains '/data/') → Image.file
-///   - A Firebase Storage https:// URL → Image.network
-///   - Empty string → grey placeholder
+///   - A base64 data-URI  (starts with 'data:image') → Image.memory  ✅ web+mobile
+///   - A Firebase Storage https:// URL               → Image.network  ✅ web+mobile
+///   - A local file path  (starts with '/')          → Image.file     ✅ mobile only
+///   - Empty string                                   → grey placeholder
 class MenuItemCard extends StatelessWidget {
   final String name;
   final String price;
@@ -41,7 +45,6 @@ class MenuItemCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Smart image ──────────────────────────────────────────────────
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: _buildImage(),
@@ -91,14 +94,39 @@ class MenuItemCard extends StatelessWidget {
 
   Widget _buildImage() {
     const double size = 60;
+    if (imageUrl.isEmpty) return _placeholder(size);
 
-    // Empty → placeholder
-    if (imageUrl.isEmpty) {
-      return _placeholder(size);
+    // Base64 data-URI — works on web + mobile (set by AddMenuItemSheet)
+    if (imageUrl.startsWith('data:image')) {
+      try {
+        final base64Str = imageUrl.substring(imageUrl.indexOf(',') + 1);
+        final Uint8List bytes = base64Decode(base64Str);
+        return Image.memory(
+          bytes,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _placeholder(size),
+        );
+      } catch (_) {
+        return _placeholder(size);
+      }
     }
 
-    // Local file path (picked from gallery, not yet uploaded)
-    if (imageUrl.startsWith('/') || imageUrl.startsWith('file://')) {
+    // Remote Firebase Storage URL — works on web + mobile
+    if (imageUrl.startsWith('http')) {
+      return Image.network(
+        imageUrl,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholder(size),
+      );
+    }
+
+    // Local file path — mobile only (legacy path from before web support)
+    if (!kIsWeb &&
+        (imageUrl.startsWith('/') || imageUrl.startsWith('file://'))) {
       final file = File(imageUrl.replaceFirst('file://', ''));
       if (file.existsSync()) {
         return Image.file(
@@ -109,17 +137,9 @@ class MenuItemCard extends StatelessWidget {
           errorBuilder: (_, __, ___) => _placeholder(size),
         );
       }
-      return _placeholder(size);
     }
 
-    // Remote URL (Firebase Storage)
-    return Image.network(
-      imageUrl,
-      width: size,
-      height: size,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => _placeholder(size),
-    );
+    return _placeholder(size);
   }
 
   Widget _placeholder(double size) => Container(

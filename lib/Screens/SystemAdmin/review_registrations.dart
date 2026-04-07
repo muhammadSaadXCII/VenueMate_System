@@ -6,6 +6,8 @@ import 'package:venuemate_system/Services/hall_service.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'reject_registration.dart';
 
+const double _kWebBreak = 840;
+
 class ReviewRegistrationScreen extends StatefulWidget {
   final HallModel hall;
   const ReviewRegistrationScreen({super.key, required this.hall});
@@ -17,10 +19,9 @@ class ReviewRegistrationScreen extends StatefulWidget {
 
 class _ReviewRegistrationScreenState extends State<ReviewRegistrationScreen> {
   bool _isApproving = false;
-
   HallModel get h => widget.hall;
 
-  // ── Approve ────────────────────────────────────────────────────────────────
+  // ── Approve ─────────────────────────────────────────────────────────────────
   Future<void> _approve() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -41,11 +42,11 @@ class _ReviewRegistrationScreenState extends State<ReviewRegistrationScreen> {
               ],
             ),
             content: Text(
-              'Approve "${h.hallName}"?\n\n'
-              'The hall will go live and the owner will be notified.',
+              'Approve "${h.hallName}"?\n\nThe hall will go live and the owner will be notified.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[600], height: 1.5),
             ),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             actions: [
               Row(
                 children: [
@@ -92,38 +93,34 @@ class _ReviewRegistrationScreenState extends State<ReviewRegistrationScreen> {
                 ],
               ),
             ],
-            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           ),
     );
 
     if (confirmed != true) return;
-
     setState(() => _isApproving = true);
     final error = await HallService.approveHall(h.hallId);
     if (!mounted) return;
     setState(() => _isApproving = false);
-
     if (error != null) {
       _snack(error, isError: true);
     } else {
       _snack('Hall approved successfully! Owner has been notified.');
-
       Navigator.pop(context);
     }
   }
 
-  void _snack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? Colors.red : Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+  void _snack(String msg, {bool isError = false}) =>
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: isError ? Colors.red : Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width >= _kWebBreak;
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -143,158 +140,145 @@ class _ReviewRegistrationScreenState extends State<ReviewRegistrationScreen> {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: isWide ? _buildWebLayout() : _buildMobileLayout(),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  MOBILE layout — original stacked single column
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildMobileLayout() => Column(
+    children: [
+      Expanded(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (h.imageUrls.isNotEmpty) ...[
+                _sectionTitle('Hall Photos'),
+                _imageGallery(),
+                const SizedBox(height: 24),
+              ],
+              _sectionTitle('Hall & Owner Info'),
+              _infoCard(
                 children: [
-                  // ── Hall Photos ───────────────────────────────────────────────
-                  if (h.imageUrls.isNotEmpty) ...[
-                    _sectionTitle('Hall Photos'),
-                    _buildImageGallery(),
-                    const SizedBox(height: 24),
-                  ],
+                  _labelRow('Hall Name', h.hallName, isLarge: true),
+                  _divider(),
+                  _labelRow('Contact Phone', h.contactPhone),
+                  _divider(),
+                  _labelRow('Location', h.address),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _sectionTitle('Hall Details'),
+              _detailsCard(),
+              const SizedBox(height: 20),
+              _sectionTitle('Banking Information'),
+              _bankingCard(),
+              const SizedBox(height: 20),
+              _sectionTitle('Verification Documents'),
+              _buildDocuments(),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+      _bottomBar(context),
+    ],
+  );
 
-                  // ── Applicant Info ────────────────────────────────────────────
-                  _sectionTitle('Hall & Owner Info'),
-                  _infoCard(
-                    children: [
-                      _labelRow('Hall Name', h.hallName, isLarge: true),
-                      _divider(),
-                      _labelRow('Contact Phone', h.contactPhone),
-                      _divider(),
-                      _labelRow('Location', h.address),
+  // ══════════════════════════════════════════════════════════════════════════
+  //  WEB layout — left column (photos + docs) | right column (info + actions)
+  // ══════════════════════════════════════════════════════════════════════════
+  Widget _buildWebLayout() {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1400),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── LEFT: photos + documents ─────────────────────────────────────
+            Expanded(
+              flex: 5,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (h.imageUrls.isNotEmpty) ...[
+                      _sectionTitle('Hall Photos'),
+                      _imageGalleryWeb(),
+                      const SizedBox(height: 28),
                     ],
-                  ),
-                  const SizedBox(height: 20),
+                    _sectionTitle('Verification Documents'),
+                    _buildDocuments(),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
 
-                  // ── Hall Details ──────────────────────────────────────────────
-                  _sectionTitle('Hall Details'),
-                  _infoCard(
-                    children: [
-                      _detailRow(Icons.groups, 'Capacity', h.capacityLabel),
-                      const SizedBox(height: 12),
-                      _detailRow(
-                        Icons.payments,
-                        'Price Per Event',
-                        h.priceLabel,
-                      ),
-                      if (h.description.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+            // Vertical divider
+            Container(width: 1, color: Colors.grey.shade200),
+
+            // ── RIGHT: info + sticky actions ────────────────────────────────
+            Expanded(
+              flex: 4,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(28),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _sectionTitle('Hall & Owner Info'),
+                          _infoCard(
                             children: [
-                              Text(
-                                'DESCRIPTION',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey[500],
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                h.description,
-                                style: const TextStyle(
-                                  height: 1.5,
-                                  fontSize: 14,
-                                ),
-                              ),
+                              _labelRow('Hall Name', h.hallName, isLarge: true),
+                              _divider(),
+                              _labelRow('Contact Phone', h.contactPhone),
+                              _divider(),
+                              _labelRow('Location', h.address),
                             ],
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ── Banking ───────────────────────────────────────────────────
-                  _sectionTitle('Banking Information'),
-                  _infoCard(
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.teal.shade50,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.account_balance,
-                              color: Colors.teal.shade700,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _labelRow(
-                                  'Bank',
-                                  h.bankName.isNotEmpty ? h.bankName : '—',
-                                ),
-                                const SizedBox(height: 8),
-                                _labelRow(
-                                  'Account Number',
-                                  h.bankAccountNumber.isNotEmpty
-                                      ? h.bankAccountNumber
-                                      : '—',
-                                ),
-                              ],
-                            ),
-                          ),
+                          const SizedBox(height: 20),
+                          _sectionTitle('Hall Details'),
+                          _detailsCard(),
+                          const SizedBox(height: 20),
+                          _sectionTitle('Banking Information'),
+                          _bankingCard(),
+                          const SizedBox(height: 20),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 20),
-
-                  // ── Documents ─────────────────────────────────────────────────
-                  _sectionTitle('Verification Documents'),
-                  _buildDocuments(),
-                  const SizedBox(height: 8),
+                  // Sticky approve/reject at bottom of right panel
+                  _bottomBar(context),
                 ],
               ),
             ),
-          ),
-
-          // ── Bottom bar ────────────────────────────────────────────────────
-          _buildBottomBar(context),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  // ── Image gallery ──────────────────────────────────────────────────────────
-  Widget _buildImageGallery() {
-    return SizedBox(
-      height: 160,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: h.imageUrls.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, i) {
-          final url = h.imageUrls[i];
-          return GestureDetector(
+  // ── Photo gallery — mobile (horizontal scroll) ────────────────────────────
+  Widget _imageGallery() => SizedBox(
+    height: 160,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: h.imageUrls.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      itemBuilder:
+          (context, i) => GestureDetector(
             onTap: () => _openImageViewer(context, h.imageUrls, i),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: CachedNetworkImage(
-                imageUrl: url,
+                imageUrl: h.imageUrls[i],
                 width: 200,
                 height: 160,
                 fit: BoxFit.cover,
@@ -319,16 +303,206 @@ class _ReviewRegistrationScreenState extends State<ReviewRegistrationScreen> {
                     ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+    ),
+  );
+
+  // ── Photo gallery — web (wrap grid) ──────────────────────────────────────
+  Widget _imageGalleryWeb() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        for (int i = 0; i < h.imageUrls.length; i++)
+          GestureDetector(
+            onTap: () => _openImageViewer(context, h.imageUrls, i),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CachedNetworkImage(
+                imageUrl: h.imageUrls[i],
+                width: 180,
+                height: 130,
+                fit: BoxFit.cover,
+                placeholder:
+                    (_, __) => Container(
+                      width: 180,
+                      height: 130,
+                      color: Colors.grey[200],
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFF47C20),
+                        ),
+                      ),
+                    ),
+                errorWidget:
+                    (_, __, ___) => Container(
+                      width: 180,
+                      height: 130,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
-  // ── Documents (CNIC, NTN, License) ────────────────────────────────────────
+  // ── Details card ──────────────────────────────────────────────────────────
+  Widget _detailsCard() => _infoCard(
+    children: [
+      _detailRow(Icons.groups, 'Capacity', h.capacityLabel),
+      const SizedBox(height: 12),
+      _detailRow(Icons.payments, 'Price Per Event', h.priceLabel),
+      if (h.description.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'DESCRIPTION',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[500],
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                h.description,
+                style: const TextStyle(height: 1.5, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ],
+  );
+
+  // ── Banking card ──────────────────────────────────────────────────────────
+  Widget _bankingCard() => _infoCard(
+    children: [
+      Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.teal.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.account_balance,
+              color: Colors.teal.shade700,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _labelRow('Bank', h.bankName.isNotEmpty ? h.bankName : '—'),
+                const SizedBox(height: 8),
+                _labelRow(
+                  'Account Number',
+                  h.bankAccountNumber.isNotEmpty ? h.bankAccountNumber : '—',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+
+  // ── Bottom approve/reject bar ─────────────────────────────────────────────
+  Widget _bottomBar(BuildContext context) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, -5),
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: 52,
+            child: OutlinedButton(
+              onPressed:
+                  () => AppNavigation.push(
+                    context,
+                    RejectRegistrationScreen(hallId: h.hallId),
+                  ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFFD92D20)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                foregroundColor: const Color(0xFFD92D20),
+              ),
+              child: const Text(
+                'Reject',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: SizedBox(
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _isApproving ? null : _approve,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF47C20),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child:
+                  _isApproving
+                      ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                      : const Text(
+                        'Approve',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  // ── Documents ─────────────────────────────────────────────────────────────
   Widget _buildDocuments() {
     final docs = <Map<String, String>>[];
-
     if (h.cnicFrontUrl.isNotEmpty) {
       docs.add({
         'label': 'CNIC — Front Side',
@@ -411,108 +585,26 @@ class _ReviewRegistrationScreenState extends State<ReviewRegistrationScreen> {
 
   String _docType(String url) {
     final lower = url.toLowerCase();
-    if (lower.contains('.pdf') || lower.contains('pdf')) return 'pdf';
-    return 'image';
+    return (lower.contains('.pdf') || lower.contains('pdf')) ? 'pdf' : 'image';
   }
 
-  // ── Bottom approve/reject bar ──────────────────────────────────────────────
-  Widget _buildBottomBar(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: SizedBox(
-              height: 52,
-              child: OutlinedButton(
-                onPressed:
-                    () => AppNavigation.push(
-                      context,
-                      RejectRegistrationScreen(hallId: h.hallId),
-                    ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFD92D20)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  foregroundColor: const Color(0xFFD92D20),
-                ),
-                child: const Text(
-                  'Reject',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _isApproving ? null : _approve,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF47C20),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child:
-                    _isApproving
-                        ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
-                        )
-                        : const Text(
-                          'Approve',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  void _openImageViewer(BuildContext context, List<String> urls, int initial) =>
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _ImageViewerScreen(urls: urls, initialIndex: initial),
+        ),
+      );
 
-  // ── Image full-screen viewer ───────────────────────────────────────────────
-  void _openImageViewer(BuildContext context, List<String> urls, int initial) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _ImageViewerScreen(urls: urls, initialIndex: initial),
-      ),
-    );
-  }
+  void _openPdfViewer(BuildContext context, String url, String title) =>
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _PdfViewerScreen(url: url, title: title),
+        ),
+      );
 
-  // ── PDF viewer ────────────────────────────────────────────────────────────
-  void _openPdfViewer(BuildContext context, String url, String title) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _PdfViewerScreen(url: url, title: title),
-      ),
-    );
-  }
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Widget helpers ─────────────────────────────────────────────────────────
   Widget _sectionTitle(String t) => Padding(
     padding: const EdgeInsets.only(bottom: 12, left: 4),
     child: Text(
@@ -594,13 +686,10 @@ class _ReviewRegistrationScreenState extends State<ReviewRegistrationScreen> {
   );
 }
 
-// ── Document tile ────────────────────────────────────────────────────────────
+// ── Document tile ─────────────────────────────────────────────────────────
 class _DocumentTile extends StatelessWidget {
-  final String label;
-  final String url;
-  final String type;
+  final String label, url, type;
   final VoidCallback onTap;
-
   const _DocumentTile({
     required this.label,
     required this.url,
@@ -611,9 +700,7 @@ class _DocumentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPdf = type == 'pdf';
-    final iconData = isPdf ? Icons.picture_as_pdf : Icons.image_outlined;
     final iconClr = isPdf ? Colors.red : Colors.blue;
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -632,7 +719,11 @@ class _DocumentTile extends StatelessWidget {
               color: iconClr.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(iconData, color: iconClr, size: 24),
+            child: Icon(
+              isPdf ? Icons.picture_as_pdf : Icons.image_outlined,
+              color: iconClr,
+              size: 24,
+            ),
           ),
           title: Text(
             label,
@@ -648,9 +739,9 @@ class _DocumentTile extends StatelessWidget {
               color: const Color(0xFFF47C20).withOpacity(0.08),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Icon(
                   Icons.visibility_outlined,
                   color: Color(0xFFF47C20),
@@ -674,9 +765,7 @@ class _DocumentTile extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  FULL-SCREEN IMAGE VIEWER  (swipeable gallery)
-// ══════════════════════════════════════════════════════════════════════════════
+// ── Full-screen image viewer ─────────────────────────────────────────────
 class _ImageViewerScreen extends StatefulWidget {
   final List<String> urls;
   final int initialIndex;
@@ -704,126 +793,119 @@ class _ImageViewerScreenState extends State<_ImageViewerScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.black,
+    appBar: AppBar(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          '${_currentIndex + 1} / ${widget.urls.length}',
-          style: const TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
+      leading: IconButton(
+        icon: const Icon(Icons.close, color: Colors.white),
+        onPressed: () => Navigator.pop(context),
       ),
-      body: PageView.builder(
-        controller: _pageCtrl,
-        itemCount: widget.urls.length,
-        onPageChanged: (i) => setState(() => _currentIndex = i),
-        itemBuilder:
-            (context, i) => InteractiveViewer(
-              minScale: 0.5,
-              maxScale: 4.0,
-              child: Center(
-                child: CachedNetworkImage(
-                  imageUrl: widget.urls[i],
-                  fit: BoxFit.contain,
-                  placeholder:
-                      (_, __) => const CircularProgressIndicator(
-                        color: Color(0xFFF47C20),
-                      ),
-                  errorWidget:
-                      (_, __, ___) => Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(
-                            Icons.broken_image,
-                            color: Colors.white54,
-                            size: 64,
-                          ),
-                          SizedBox(height: 12),
-                          Text(
-                            'Image failed to load',
-                            style: TextStyle(color: Colors.white54),
-                          ),
-                        ],
-                      ),
-                ),
+      title: Text(
+        '${_currentIndex + 1} / ${widget.urls.length}',
+        style: const TextStyle(color: Colors.white),
+      ),
+      centerTitle: true,
+    ),
+    body: PageView.builder(
+      controller: _pageCtrl,
+      itemCount: widget.urls.length,
+      onPageChanged: (i) => setState(() => _currentIndex = i),
+      itemBuilder:
+          (context, i) => InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Center(
+              child: CachedNetworkImage(
+                imageUrl: widget.urls[i],
+                fit: BoxFit.contain,
+                placeholder:
+                    (_, __) => const CircularProgressIndicator(
+                      color: Color(0xFFF47C20),
+                    ),
+                errorWidget:
+                    (_, __, ___) => const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image,
+                          color: Colors.white54,
+                          size: 64,
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Image failed to load',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      ],
+                    ),
               ),
             ),
-      ),
-    );
-  }
+          ),
+    ),
+  );
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  PDF VIEWER  (opens URL in webview / external browser)
-// ══════════════════════════════════════════════════════════════════════════════
+// ── PDF viewer ──────────────────────────────────────────────────────────────
 class _PdfViewerScreen extends StatelessWidget {
-  final String url;
-  final String title;
+  final String url, title;
   const _PdfViewerScreen({required this.url, required this.title});
 
   @override
-  Widget build(BuildContext context) {
-    // Option A: Use url_launcher to open in browser/PDF viewer app
-    // Option B: Use flutter_pdfview with a downloaded file
-    // For now we show a preview card with an "Open" button using url_launcher.
-    return Scaffold(
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.black,
+    appBar: AppBar(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(color: Colors.white),
-          overflow: TextOverflow.ellipsis,
-        ),
+      leading: IconButton(
+        icon: const Icon(Icons.close, color: Colors.white),
+        onPressed: () => Navigator.pop(context),
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(28),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade900.withOpacity(0.5),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.picture_as_pdf,
-                  color: Colors.white,
-                  size: 72,
-                ),
+      title: Text(
+        title,
+        style: const TextStyle(color: Colors.white),
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: Colors.red.shade900.withOpacity(0.5),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 24),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
+              child: const Icon(
+                Icons.picture_as_pdf,
+                color: Colors.white,
+                size: 72,
               ),
-              const SizedBox(height: 8),
-              Text(
-                'PDF Document',
-                style: TextStyle(color: Colors.grey[400], fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 32),
-              SizedBox(
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'PDF Document',
+              style: TextStyle(color: Colors.grey[400], fontSize: 13),
+            ),
+            const SizedBox(height: 32),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 320),
+              child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _launchUrl(context, url),
+                  onPressed: () => _launch(context, url),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFF47C20),
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -842,20 +924,20 @@ class _PdfViewerScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Opens in your device\'s PDF viewer or browser',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Opens in your device\'s PDF viewer or browser',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
 
-  Future<void> _launchUrl(BuildContext context, String url) async {
+  Future<void> _launch(BuildContext context, String url) async {
     try {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } catch (e) {

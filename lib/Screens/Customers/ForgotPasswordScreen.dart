@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 
 class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({Key? key}) : super(key: key);
+  const ForgotPasswordScreen({super.key});
 
   @override
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
@@ -112,8 +112,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFFF47C20)),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFF47C20)),
           onPressed: () => Navigator.pop(context),
         ),
       ),

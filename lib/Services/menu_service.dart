@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../Models/menu_item_model.dart';
 import 'storage_service.dart';
@@ -56,6 +57,44 @@ class MenuService {
 
       await _menuRef(hallId).doc(itemId).set(item.toMap());
       return null; // success
+    } catch (_) {
+      return 'Failed to add menu item. Please try again.';
+    }
+  }
+
+  /// Web-safe: add menu item using XFile (works on web + mobile).
+  static Future<String?> addMenuItemXFile({
+    required String hallId,
+    required String name,
+    required double price,
+    required String priceUnit,
+    String description = '',
+    XFile? imageXFile,
+  }) async {
+    try {
+      final String itemId = _uuid.v4();
+      String imageUrl = '';
+      if (imageXFile != null) {
+        imageUrl =
+            await StorageService.uploadHallImageXFile(
+              hallId: hallId,
+              xFile: imageXFile,
+            ) ??
+            '';
+      }
+      final MenuItemModel item = MenuItemModel(
+        itemId: itemId,
+        hallId: hallId,
+        name: name,
+        description: description,
+        price: price,
+        priceUnit: priceUnit,
+        imageUrl: imageUrl,
+        isAvailable: true,
+        createdAt: DateTime.now(),
+      );
+      await _menuRef(hallId).doc(itemId).set(item.toMap());
+      return null;
     } catch (_) {
       return 'Failed to add menu item. Please try again.';
     }

@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:venuemate_system/Screens/Customers/LoginScreen.dart';
 import 'SignUpScreen.dart';
 
-class RoleSelectionScreen extends StatefulWidget {
-  const RoleSelectionScreen({Key? key}) : super(key: key);
+const double _kRoleWebBreak = 900;
 
+class RoleSelectionScreen extends StatefulWidget {
+  const RoleSelectionScreen({super.key});
   @override
   State<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
 }
 
 class _RoleSelectionScreenState extends State<RoleSelectionScreen>
     with SingleTickerProviderStateMixin {
-  int? _selectedRole; // 0 = Customer, 1 = Venue Owner
+  int? _selectedRole;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -23,18 +24,15 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
-
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-
     _animationController.forward();
   }
 
@@ -44,103 +42,351 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
     super.dispose();
   }
 
-  // Updated Navigation Function with Validation
   void _navigateToSignUp() {
-    // Check if role is selected
     if (_selectedRole == null) {
-      // Show popup if no role is selected
       _showRoleSelectionAlert();
       return;
     }
-
-    // Convert role to string for database
-    String roleString = _selectedRole == 1 ? "venue_owner" : "customer";
-
-    // Navigate to SignUp Screen
+    final roleString = _selectedRole == 1 ? "venue_owner" : "customer";
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => SignUpScreen(selectedRole: roleString),
-      ),
+      MaterialPageRoute(builder: (_) => SignUpScreen(selectedRole: roleString)),
     );
   }
 
-  // Popup Alert for Role Selection
   void _showRoleSelectionAlert() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          backgroundColor: Colors.white,
-          contentPadding: const EdgeInsets.all(20),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Warning Icon
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.orange,
-                  size: 50,
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Role Required',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Please select a role to continue.\nChoose either Customer or Venue Owner.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 24),
-              // OK Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(); // Close Dialog
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF47C20),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+      builder:
+          (_) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            backgroundColor: Colors.white,
+            contentPadding: const EdgeInsets.all(20),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    shape: BoxShape.circle,
                   ),
-                  child: const Text(
-                    'OK',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  child: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange,
+                    size: 50,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Role Required',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Please select a role to continue.\nChoose either Customer or Venue Owner.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF47C20),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        );
-      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width >= _kRoleWebBreak;
+    return isWide ? _buildWebLayout() : _buildMobileLayout();
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  WEB LAYOUT — centered card with max-width, roles side by side
+  // ════════════════════════════════════════════════════════════════════════════
+  Widget _buildWebLayout() {
+    return Scaffold(
+      body: Row(
+        children: [
+          // Left branding panel
+          Expanded(
+            flex: 5,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFF47C20),
+                    Color(0xFFFF9D5C),
+                    Color(0xFFFFD166),
+                  ],
+                  stops: [0.0, 0.5, 1.0],
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 60,
+                    right: 50,
+                    child: Container(
+                      width: 140,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 100,
+                    left: 40,
+                    child: Container(
+                      width: 90,
+                      height: 90,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(48),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: Image.asset(
+                              'assets/images/venuemate.png',
+                              height: 72,
+                              width: 72,
+                              errorBuilder:
+                                  (_, __, ___) => const Icon(
+                                    Icons.location_city,
+                                    size: 72,
+                                    color: Color(0xFFF47C20),
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          const Text(
+                            'VenueMate',
+                            style: TextStyle(
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Find Your Perfect Venue',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                          const SizedBox(height: 48),
+                          Text(
+                            'Join thousands of customers and venue owners\nalready using VenueMate.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.white.withOpacity(0.85),
+                              height: 1.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Right — role selection card
+          Expanded(
+            flex: 4,
+            child: Container(
+              color: const Color(0xFFF8F9FA),
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 32,
+                  ),
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: Container(
+                        padding: const EdgeInsets.all(36),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.07),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Select Your Role',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Choose how you want to continue',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            _buildRoleCard(
+                              index: 0,
+                              title: 'Customer',
+                              subtitle: 'Find and book venues for your events',
+                              icon: Icons.person_outline,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFF47C20), Color(0xFFFF9D5C)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildRoleCard(
+                              index: 1,
+                              title: 'Venue Owner',
+                              subtitle: 'List your venues and manage bookings',
+                              icon: Icons.business_outlined,
+                              gradient: LinearGradient(
+                                colors: [Colors.grey[800]!, Colors.grey[600]!],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 54,
+                              child: ElevatedButton(
+                                onPressed: _navigateToSignUp,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFF47C20),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Continue',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Icon(
+                                      Icons.arrow_forward,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Center(
+                              child: TextButton(
+                                onPressed:
+                                    () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => LoginScreen(),
+                                      ),
+                                    ),
+                                child: Text(
+                                  'Already have an account? Sign in',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  MOBILE LAYOUT (unchanged)
+  // ════════════════════════════════════════════════════════════════════════════
+  Widget _buildMobileLayout() {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -164,7 +410,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                 child: Column(
                   children: [
                     const SizedBox(height: 40),
-                    // Logo and Title Section
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -182,13 +427,12 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                         'assets/images/venuemate.png',
                         height: 80,
                         width: 80,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.location_city,
-                            size: 80,
-                            color: Color(0xFFF47C20),
-                          );
-                        },
+                        errorBuilder:
+                            (_, __, ___) => const Icon(
+                              Icons.location_city,
+                              size: 80,
+                              color: Color(0xFFF47C20),
+                            ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -211,7 +455,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                       ),
                     ),
                     const SizedBox(height: 60),
-                    // Selection Title
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 24),
                       child: Text(
@@ -232,7 +475,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                       ),
                     ),
                     const SizedBox(height: 40),
-                    // Role Cards
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Column(
@@ -264,7 +506,6 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                       ),
                     ),
                     const SizedBox(height: 40),
-                    // Continue Button
                     Padding(
                       padding: const EdgeInsets.all(24),
                       child: Column(
@@ -303,14 +544,13 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                           ),
                           const SizedBox(height: 16),
                           TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => LoginScreen(),
+                            onPressed:
+                                () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => LoginScreen(),
+                                  ),
                                 ),
-                              );
-                            },
                             child: const Text(
                               'Skip for now',
                               style: TextStyle(
@@ -340,13 +580,8 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
     required Gradient gradient,
   }) {
     bool isSelected = _selectedRole == index;
-
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedRole = index;
-        });
-      },
+      onTap: () => setState(() => _selectedRole = index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
