@@ -139,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _locationText = 'Karachi, Pakistan';
+          _locationText = 'No Location';
           _locationLoading = false;
         });
       }

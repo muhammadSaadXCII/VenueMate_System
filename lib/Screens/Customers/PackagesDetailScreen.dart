@@ -598,6 +598,9 @@ class _PackagesDetailState extends State<Packagesdetailscreen>
                                   markerId: const MarkerId('hall'),
                                   position: hallLatLng,
                                   infoWindow: InfoWindow(title: h.hallName),
+                                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                                    BitmapDescriptor.hueOrange,
+                                  ),
                                 ),
                               },
                               zoomControlsEnabled: false,

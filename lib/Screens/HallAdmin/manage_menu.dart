@@ -209,7 +209,6 @@ class _ManageMenuScreenState extends State<ManageMenuScreen> {
                                   ),
                                 );
                               }
-                              // Grid on web, list on mobile
                               if (isWide) {
                                 return GridView.builder(
                                   gridDelegate:
@@ -366,7 +365,6 @@ class _MenuItemCard extends StatelessWidget {
   }
 }
 
-// ── Add/Edit sheet with XFile image picker ─────────────────────────────────
 class _AddMenuItemSheet extends StatefulWidget {
   final String hallId;
   final MenuItemModel? existing;
@@ -430,6 +428,7 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
     setState(() => _isSaving = true);
     String? error;
     if (_isEditing) {
+      // FIX INTEGRATED HERE: Added imageXFile and oldImageUrl parameters
       error = await MenuService.updateMenuItem(
         hallId: widget.hallId,
         itemId: widget.existing!.itemId,
@@ -437,6 +436,8 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
         price: price,
         priceUnit: _selectedUnit,
         description: _descController.text.trim(),
+        imageXFile: _pickedXFile,             // Send the new photo if picked
+        oldImageUrl: widget.existing!.imageUrl, // Send old URL to cleanup Storage
       );
     } else {
       error = await MenuService.addMenuItemXFile(

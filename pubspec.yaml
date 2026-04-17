@@ -58,7 +58,7 @@ dependencies:
   shared_preferences:
   http: 
   firebase_messaging: ^16.2.0
-  googleapis_auth: ^2.3.0
+  googleapis_auth: 
 
 dependency_overrides: 
   vector_math: ^2.2.0

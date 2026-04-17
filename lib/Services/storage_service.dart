@@ -75,6 +75,7 @@ class StorageService {
       await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
       return await ref.getDownloadURL();
     } catch (e) {
+      print('❌ uploadHallImageXFile error: $e');
       return null;
     }
   }

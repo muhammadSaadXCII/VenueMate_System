@@ -16,19 +16,18 @@ class PendingRegistrationsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      appBar:
-          isWide
-              ? null
-              : AppBar(
-                backgroundColor: Colors.white,
-                elevation: 0,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.black),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                title: _buildTitleStream(),
-                centerTitle: true,
+      appBar: isWide
+          ? null
+          : AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () => Navigator.pop(context),
               ),
+              title: _buildTitleStream(),
+              centerTitle: true,
+            ),
       body: Column(
         children: [
           if (isWide)
@@ -57,50 +56,43 @@ class PendingRegistrationsScreen extends StatelessWidget {
                 return Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1400),
-                    child:
-                        isWide
-                            ? GridView.builder(
-                              padding: const EdgeInsets.all(32),
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: screenWidth > 1500 ? 3 : 2,
-                                    crossAxisSpacing: 24,
-                                    mainAxisSpacing: 24,
-                                    // LOWERED RATIO = TALLER CARDS to prevent overflow
-                                    childAspectRatio:
-                                        screenWidth > 1500 ? 1.7 : 1.9,
-                                  ),
-                              itemCount: halls.length,
-                              itemBuilder:
-                                  (context, i) => _RegistrationCard(
-                                    hall: halls[i],
-                                    onTap:
-                                        () => AppNavigation.push(
-                                          context,
-                                          ReviewRegistrationScreen(
-                                            hall: halls[i],
-                                          ),
-                                        ),
-                                  ),
-                            )
-                            : ListView.builder(
-                              padding: const EdgeInsets.all(20),
-                              itemCount: halls.length,
-                              itemBuilder:
-                                  (context, i) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 16),
-                                    child: _RegistrationCard(
-                                      hall: halls[i],
-                                      onTap:
-                                          () => AppNavigation.push(
-                                            context,
-                                            ReviewRegistrationScreen(
-                                              hall: halls[i],
-                                            ),
-                                          ),
-                                    ),
-                                  ),
+                    child: isWide
+                        ? GridView.builder(
+                            padding: const EdgeInsets.all(32),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: screenWidth > 1500 ? 3 : 2,
+                              crossAxisSpacing: 24,
+                              mainAxisSpacing: 24,
+                              childAspectRatio: screenWidth > 1500 ? 1.7 : 1.9,
                             ),
+                            itemCount: halls.length,
+                            itemBuilder: (context, i) => _RegistrationCard(
+                              hall: halls[i],
+                              onTap: () => AppNavigation.push(
+                                context,
+                                ReviewRegistrationScreen(
+                                  hall: halls[i],
+                                ),
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(20),
+                            itemCount: halls.length,
+                            itemBuilder: (context, i) => Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: _RegistrationCard(
+                                hall: halls[i],
+                                onTap: () => AppNavigation.push(
+                                  context,
+                                  ReviewRegistrationScreen(
+                                    hall: halls[i],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                   ),
                 );
               },
@@ -180,6 +172,7 @@ class _RegistrationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final image = hall.imageUrls.isNotEmpty ? hall.imageUrls.first : '';
     final isWide = MediaQuery.of(context).size.width >= _kWebBreak;
+    final double imgSize = isWide ? 110 : 90;
 
     return InkWell(
       onTap: onTap,
@@ -202,26 +195,43 @@ class _RegistrationCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child:
-                  image.isNotEmpty
-                      ? Image.network(
-                        image,
-                        width:
-                            isWide
-                                ? 110
-                                : 90, // Slightly smaller image to save space
-                        height: isWide ? 110 : 90,
-                        fit: BoxFit.cover,
-                      )
-                      : _placeholder(isWide ? 110 : 90),
+              child: image.isNotEmpty
+                  ? Image.network(
+                      image,
+                      width: imgSize,
+                      height: imgSize,
+                      fit: BoxFit.cover,
+                      // FIX FOR OVERFLOW: Handles "StatusCode 0" or failed requests
+                      errorBuilder: (context, error, stackTrace) {
+                        return _placeholder(imgSize);
+                      },
+                      // OPTIONAL: Shows a loader while downloading
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          width: imgSize,
+                          height: imgSize,
+                          color: Colors.grey[100],
+                          child: const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFFF47C20),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : _placeholder(imgSize),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment:
-                    MainAxisAlignment
-                        .center, // Centering helps distribute space better
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     hall.hallName,
@@ -242,9 +252,7 @@ class _RegistrationCard extends StatelessWidget {
                     Icons.calendar_today_outlined,
                     _formatDate(hall.createdAt),
                   ),
-                  const SizedBox(
-                    height: 8,
-                  ), // Replaced spaceBetween logic with fixed gap
+                  const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.bottomRight,
                     child: Container(
@@ -304,26 +312,16 @@ class _RegistrationCard extends StatelessWidget {
   }
 
   Widget _placeholder(double size) => Container(
-    width: size,
-    height: size,
-    color: Colors.grey[100],
-    child: const Icon(Icons.business, color: Colors.grey, size: 36),
-  );
+        width: size,
+        height: size,
+        color: Colors.grey[100],
+        child: const Icon(Icons.business, color: Colors.grey, size: 36),
+      );
 
   String _formatDate(DateTime d) {
     const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${d.day} ${months[d.month - 1]}, ${d.year}';
   }
