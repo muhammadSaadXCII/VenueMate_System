@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:venuemate_system/Screens/Customers/MainNavigation.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
 import 'package:venuemate_system/Models/user_model.dart';
@@ -8,6 +9,10 @@ import 'package:venuemate_system/Screens/HallAdmin/hall_registration_intro.dart'
 import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
 
 const double _kLoginWebBreak = 900;
+
+// SharedPreferences keys
+const String _kRememberMe = 'remember_me';
+const String _kSavedEmail = 'saved_email';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,9 +27,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
+  // ── Remember Me state ────────────────────────────────────────────────────────
+  bool _rememberMe = false;
+
   @override
   void initState() {
     super.initState();
+    _loadRememberMe(); // 1️⃣ Load saved email on initState if "Remember Me" was previously checked
     _checkAlreadyLoggedIn();
   }
 
@@ -33,6 +42,31 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  // ── Load saved credentials ───────────────────────────────────────────────────
+  Future<void> _loadRememberMe() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rememberMe = prefs.getBool(_kRememberMe) ?? false;
+    if (rememberMe) {
+      final savedEmail = prefs.getString(_kSavedEmail) ?? '';
+      setState(() {
+        _rememberMe = true;
+        _emailController.text = savedEmail;
+      });
+    }
+  }
+
+  // ── Save or clear credentials based on checkbox state ───────────────────────
+  Future<void> _saveRememberMe() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe) {
+      await prefs.setBool(_kRememberMe, true);
+      await prefs.setString(_kSavedEmail, _emailController.text.trim());
+    } else {
+      await prefs.remove(_kRememberMe);
+      await prefs.remove(_kSavedEmail);
+    }
   }
 
   void _checkAlreadyLoggedIn() async {
@@ -168,6 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (result.error != null) {
       _showErrorDialog('Login Failed', result.error!);
     } else if (result.user != null) {
+      await _saveRememberMe(); // 3️⃣ Save or clear credentials based on checkbox state
       _navigateByRole(result.user!);
     }
   }
@@ -334,7 +369,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Logo
                           Row(
                             children: [
                               Container(
@@ -470,7 +504,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  //  MOBILE LAYOUT (unchanged)
+  //  MOBILE LAYOUT
   // ════════════════════════════════════════════════════════════════════════════
   Widget _buildMobileLayout() {
     return Scaffold(
@@ -479,7 +513,6 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Header
               Container(
                 height: MediaQuery.of(context).size.height * 0.4,
                 width: double.infinity,
@@ -634,26 +667,69 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? 'Please enter your password'
                         : null,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
 
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed:
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => ForgotPasswordScreen()),
+          // ── 2️⃣ Remember Me checkbox + Forgot Password row ──────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Remember Me
+              Row(
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: _rememberMe,
+                      activeColor: const Color(0xFFF47C20),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      onChanged:
+                          (val) => setState(() => _rememberMe = val ?? false),
+                    ),
                   ),
-              child: const Text(
-                'Forgot Password?',
-                style: TextStyle(
-                  color: Color(0xFFF47C20),
-                  fontWeight: FontWeight.w600,
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => setState(() => _rememberMe = !_rememberMe),
+                    child: Text(
+                      'Remember me',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Forgot Password
+              TextButton(
+                onPressed:
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ForgotPasswordScreen()),
+                    ),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Forgot Password?',
+                  style: TextStyle(
+                    color: Color(0xFFF47C20),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: 16),
+
+          // ───────────────────────────────────────────────────────────────────
+          const SizedBox(height: 20),
 
           SizedBox(
             width: double.infinity,

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'storage_service.dart';
 import '../Models/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -81,6 +82,25 @@ class UserService {
       await _usersRef.doc(uid).update({'profileImageUrl': downloadUrl});
 
       return null; // success
+    } catch (e) {
+      return 'Failed to update profile image.';
+    }
+  }
+
+  /// Web-safe: update profile image using XFile.
+  static Future<String?> updateProfileImageXFile({
+    required String uid,
+    required XFile xFile,
+  }) async {
+    try {
+      final String? downloadUrl = await StorageService.uploadProfileImageXFile(
+        uid: uid,
+        xFile: xFile,
+      );
+      if (downloadUrl == null)
+        return 'Failed to upload image. Please try again.';
+      await _usersRef.doc(uid).update({'profileImageUrl': downloadUrl});
+      return null;
     } catch (e) {
       return 'Failed to update profile image.';
     }

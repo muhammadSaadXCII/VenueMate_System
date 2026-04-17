@@ -1,8 +1,8 @@
-import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:venuemate_system/Screens/Customers/SplashScreen.dart';
+import 'package:venuemate_system/Utils/theme_notifier.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +17,7 @@ Future<void> main() async {
           "AIzaSyCBhqiCr1HZCyEV6HqfKS1ijxAP-GDQbpM", // Yahan apni asli Web API Key likhna na bhulein
       authDomain: "venuemate-system.firebaseapp.com",
       projectId: "venuemate-system",
-      storageBucket: "venuemate-system.appspot.com",
+      storageBucket: "venuemate-system.firebasestorage.app",
       messagingSenderId: "1023649558072",
       appId: "1:1023649558072:web:15d3fe7330b9eb35a840cd",
       measurementId: "G-9Z5R49TE23",
@@ -30,7 +30,7 @@ Future<void> main() async {
       appId: "1:1023649558072:android:15d3fe7330b9eb35a840cd",
       messagingSenderId: "1023649558072",
       projectId: "venuemate-system",
-      storageBucket: "venuemate-system.appspot.com",
+      storageBucket: "venuemate-system.firebasestorage.app",
     );
   }
 
@@ -62,6 +62,7 @@ Future<void> main() async {
     }
   }
   // ------------------------
+  await ThemeNotifier.instance.init();
   runApp(const MyApp());
 }
 
@@ -70,15 +71,51 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'VenueMate',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFF47C20)),
-        fontFamily: "Roboto",
-        useMaterial3: true,
-      ),
-      home: const SplashScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeNotifier.instance,
+      builder: (context, themeMode, _) {
+        return MaterialApp(
+          title: 'VenueMate',
+          debugShowCheckedModeBanner: false,
+          themeMode: themeMode,
+          // ── Light theme ────────────────────────────────────────────────────
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFFF47C20),
+            ),
+            fontFamily: "Roboto",
+            useMaterial3: true,
+            brightness: Brightness.light,
+            scaffoldBackgroundColor: Colors.white,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black87,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+            ),
+            cardColor: Colors.white,
+          ),
+          // ── Dark theme ─────────────────────────────────────────────────────
+          darkTheme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFFF47C20),
+              brightness: Brightness.dark,
+            ),
+            fontFamily: "Roboto",
+            useMaterial3: true,
+            brightness: Brightness.dark,
+            scaffoldBackgroundColor: const Color(0xFF1A1A2E),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFF16213E),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+            ),
+            cardColor: const Color(0xFF16213E),
+          ),
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }
