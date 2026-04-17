@@ -1,4 +1,3 @@
-import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -6,62 +5,67 @@ import 'package:venuemate_system/Screens/Customers/SplashScreen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Platform-specific FirebaseOptions
-  FirebaseOptions? firebaseOptions;
 
-  if (kIsWeb) {
-    // Web Firebase configuration
-    print("Web");
-    firebaseOptions = const FirebaseOptions(
-      apiKey:
-          "AIzaSyCBhqiCr1HZCyEV6HqfKS1ijxAP-GDQbpM", // Yahan apni asli Web API Key likhna na bhulein
-      authDomain: "venuemate-system.firebaseapp.com",
-      projectId: "venuemate-system",
-      storageBucket: "venuemate-system.appspot.com",
-      messagingSenderId: "1023649558072",
-      appId: "1:1023649558072:web:15d3fe7330b9eb35a840cd",
-      measurementId: "G-9Z5R49TE23",
-    );
-  } else {
-    // Mobile (Android) ke liye
-    print("Mobile (Android)");
-    firebaseOptions = const FirebaseOptions(
-      apiKey: "", // Yahan apni asli Mobile API Key likhna na bhulein
-      appId: "1:1023649558072:android:15d3fe7330b9eb35a840cd",
-      messagingSenderId: "1023649558072",
-      projectId: "venuemate-system",
-      storageBucket: "venuemate-system.appspot.com",
-    );
-  }
-
-  // --- MAIN FIX & VERIFICATION IS HERE ---
   try {
-    // Pehle check karein agar koi app already initialized nahi hai
     if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(options: firebaseOptions);
-      print("✅ SUCCESS: Firebase Manually Initialized");
+      if (kIsWeb) {
+        // ── Web Configuration ──────────────────────────────────────────────
+        await Firebase.initializeApp(
+          options: const FirebaseOptions(
+            apiKey: "AIzaSyCBhqiCr1HZCyEV6HqfKS1ijxAP-GDQbpM",
+            authDomain: "venuemate-system.firebaseapp.com",
+            projectId: "venuemate-system",
+            storageBucket: "venuemate-system.firebasestorage.app",
+            messagingSenderId: "1023649558072",
+            appId: "1:1023649558072:web:15d3fe7330b9eb35a840cd",
+            measurementId: "G-9Z5R49TE23",
+          ),
+        );
+        print("✅ Firebase Initialized (Web)");
+      } else {
+        // ── Android / iOS Configuration ────────────────────────────────────
+        // ⚠️  FIX: The apiKey was EMPTY before — this caused EVERY Firestore
+        //          and Storage write to silently fail, returning null and
+        //          showing "Failed to submit booking. Check your connection."
+        //
+        // HOW TO GET YOUR ANDROID API KEY:
+        //   1. Go to Firebase Console → Project Settings → General
+        //   2. Under "Your apps" find your Android app
+        //   3. Download google-services.json
+        //   4. Open the file and copy the value of "current_key" inside
+        //      client[0].api_key[0].current_key
+        //   5. Paste it below replacing "PASTE_YOUR_ANDROID_API_KEY_HERE"
+        //
+        // ALTERNATIVE (recommended): Delete the manual init below entirely
+        // and use the google-services.json method instead:
+        //   - Place google-services.json in android/app/
+        //   - Run: flutterfire configure
+        //   - Use: await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+        await Firebase.initializeApp(
+          options: const FirebaseOptions(
+            apiKey: "AIzaSyB1E9vnjm0DQhimZG1KHvbzQzlOkbUQkfQ", // ← REPLACE THIS
+            appId: "1:1023649558072:android:15d3fe7330b9eb35a840cd",
+            messagingSenderId: "1023649558072",
+            projectId: "venuemate-system",
+            storageBucket: "venuemate-system.firebasestorage.app",
+          ),
+        );
+        print("✅ Firebase Initialized (Android)");
+      }
     } else {
-      // Agar Android auto-init ho chuka hai
-      print("ℹ️ INFO: Firebase was already initialized (Auto-init)");
+      print("ℹ️ Firebase already initialized.");
     }
 
-    // --- CONNECTION CHECK ---
-    // Yeh line confirm karegi ke waqai connection ban gaya hai
-    print("🚀 Connected to Project ID: ${Firebase.app().options.projectId}");
-    // ------------------------
+    print("🚀 Connected to: ${Firebase.app().options.projectId}");
   } on FirebaseException catch (e) {
-    // Agar duplicate app ka error aaye, to use ignore karein
     if (e.code == 'duplicate-app') {
-      print("⚠️ Duplicate App Error (Ignored) - Connection is still OK.");
-      // Duplicate hone ke bawajood app connected hoti hai, isliye yahan bhi confirm karein
-      print("🚀 Connected to Project ID: ${Firebase.app().options.projectId}");
+      print("⚠️ Duplicate app (ignored) — already connected.");
     } else {
-      // Agar koi aur error hai to print karein
-      print("❌ Firebase Init Error: $e");
+      print("❌ Firebase Init Error: ${e.code} — ${e.message}");
       rethrow;
     }
   }
-  // ------------------------
+
   runApp(const MyApp());
 }
 

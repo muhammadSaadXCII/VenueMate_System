@@ -572,7 +572,9 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
               onPressed:
                   () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => BasicDetailsScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => BasicDetailsScreen(hall: h),
+                    ),
                   ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF47C20),

@@ -508,7 +508,9 @@ class _PackagesDetailState extends State<Packagesdetailscreen>
               onPressed:
                   () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => BasicDetailsScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => BasicDetailsScreen(hall: widget.hall),
+                    ),
                   ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF47C20),

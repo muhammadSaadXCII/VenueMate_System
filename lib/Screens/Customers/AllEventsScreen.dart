@@ -1,3 +1,4 @@
+// ignore: file_names
 import 'package:flutter/material.dart';
 import 'package:venuemate_system/Screens/Shared/user_booking_details.dart';
 import 'CancelBookingScreen.dart';
@@ -371,7 +372,7 @@ class _AllEventsScreenState extends State<AllEventsScreen>
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => ViewReceiptScreen(),
+                      builder: (context) => ViewReceiptScreen(bookingId: ''),
                     ),
                   );
                 },
