@@ -103,13 +103,29 @@ class BookingModel {
   /// 'cancelled' → cancelled by customer or admin
   final String status;
   final String rejectionReason;
-  final DateTime? confirmedAt; // set when admin confirms
+  final String cancellationReason;
+  final DateTime? confirmedAt;
+  final DateTime? cancelledAt;
   final DateTime createdAt;
 
   // ── Capacity snapshot ──────────────────────────────────────────────────────
-  /// Snapshot of hall's max capacity at booking time.
-  /// Each slot (Morning / Evening) independently tracks up to this value.
   final int hallCapacityMax;
+
+  // ── Refund fields ──────────────────────────────────────────────────────────
+  /// Amount to be refunded (10% of advance if cancelled > 2 days before, 0 otherwise)
+  final double refundAmount;
+
+  /// 'partial_10' | 'no_refund' | 'none'
+  final String refundPolicy;
+
+  /// 'none' | 'pending_upload' | 'uploaded' | 'accepted' | 'rejected_by_customer'
+  final String refundStatus;
+
+  /// URL of the refund receipt uploaded by hall admin
+  final String refundReceiptUrl;
+
+  /// Reason given by customer when rejecting hall admin's refund receipt
+  final String refundRejectionReason;
 
   BookingModel({
     required this.bookingId,
@@ -134,9 +150,16 @@ class BookingModel {
     this.receiptImageUrl = '',
     this.status = 'pending',
     this.rejectionReason = '',
+    this.cancellationReason = '',
     this.confirmedAt,
+    this.cancelledAt,
     required this.createdAt,
     this.hallCapacityMax = 0,
+    this.refundAmount = 0.0,
+    this.refundPolicy = 'none',
+    this.refundStatus = 'none',
+    this.refundReceiptUrl = '',
+    this.refundRejectionReason = '',
   });
 
   // ── Firestore → Model ──────────────────────────────────────────────────────
@@ -177,15 +200,25 @@ class BookingModel {
       receiptImageUrl: map['receiptImageUrl'] ?? '',
       status: map['status'] ?? 'pending',
       rejectionReason: map['rejectionReason'] ?? '',
+      cancellationReason: map['cancellationReason'] ?? '',
       confirmedAt:
           map['confirmedAt'] != null
               ? (map['confirmedAt'] as Timestamp).toDate()
+              : null,
+      cancelledAt:
+          map['cancelledAt'] != null
+              ? (map['cancelledAt'] as Timestamp).toDate()
               : null,
       createdAt:
           map['createdAt'] != null
               ? (map['createdAt'] as Timestamp).toDate()
               : DateTime.now(),
       hallCapacityMax: (map['hallCapacityMax'] ?? 0).toInt(),
+      refundAmount: (map['refundAmount'] ?? 0).toDouble(),
+      refundPolicy: map['refundPolicy'] ?? 'none',
+      refundStatus: map['refundStatus'] ?? 'none',
+      refundReceiptUrl: map['refundReceiptUrl'] ?? '',
+      refundRejectionReason: map['refundRejectionReason'] ?? '',
     );
   }
 
@@ -216,10 +249,18 @@ class BookingModel {
     'receiptImageUrl': receiptImageUrl,
     'status': status,
     'rejectionReason': rejectionReason,
+    'cancellationReason': cancellationReason,
     'confirmedAt':
         confirmedAt != null ? Timestamp.fromDate(confirmedAt!) : null,
+    'cancelledAt':
+        cancelledAt != null ? Timestamp.fromDate(cancelledAt!) : null,
     'createdAt': Timestamp.fromDate(createdAt),
     'hallCapacityMax': hallCapacityMax,
+    'refundAmount': refundAmount,
+    'refundPolicy': refundPolicy,
+    'refundStatus': refundStatus,
+    'refundReceiptUrl': refundReceiptUrl,
+    'refundRejectionReason': refundRejectionReason,
   };
 
   // ── CopyWith ───────────────────────────────────────────────────────────────
@@ -227,7 +268,14 @@ class BookingModel {
     String? receiptImageUrl,
     String? status,
     String? rejectionReason,
+    String? cancellationReason,
     DateTime? confirmedAt,
+    DateTime? cancelledAt,
+    double? refundAmount,
+    String? refundPolicy,
+    String? refundStatus,
+    String? refundReceiptUrl,
+    String? refundRejectionReason,
   }) {
     return BookingModel(
       bookingId: bookingId,
@@ -252,9 +300,17 @@ class BookingModel {
       receiptImageUrl: receiptImageUrl ?? this.receiptImageUrl,
       status: status ?? this.status,
       rejectionReason: rejectionReason ?? this.rejectionReason,
+      cancellationReason: cancellationReason ?? this.cancellationReason,
       confirmedAt: confirmedAt ?? this.confirmedAt,
+      cancelledAt: cancelledAt ?? this.cancelledAt,
       createdAt: createdAt,
       hallCapacityMax: hallCapacityMax,
+      refundAmount: refundAmount ?? this.refundAmount,
+      refundPolicy: refundPolicy ?? this.refundPolicy,
+      refundStatus: refundStatus ?? this.refundStatus,
+      refundReceiptUrl: refundReceiptUrl ?? this.refundReceiptUrl,
+      refundRejectionReason:
+          refundRejectionReason ?? this.refundRejectionReason,
     );
   }
 
@@ -287,6 +343,10 @@ class BookingModel {
   }
 
   double get remainingPayment => grandTotal - advancePayment;
+
+  /// Whether a refund is applicable (10% of advance, cancelled > 2 days before)
+  bool get hasRefundApplicable =>
+      refundPolicy == 'partial_10' && refundAmount > 0;
 
   String get eventDateLabel {
     const months = [

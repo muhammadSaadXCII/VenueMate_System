@@ -5,8 +5,11 @@ import 'package:uuid/uuid.dart';
 
 /// Handles ALL Firebase Storage operations for VenueMate.
 ///
-/// Web-safe upload pattern: use putData(bytes) instead of putFile()
-/// so the same code works on Flutter Web, Android, and iOS.
+/// Storage bucket structure:
+///   users/avatars/{uid}.jpg
+///   halls/{hallId}/images/{uuid}.jpg
+///   halls/{hallId}/documents/{uuid}.pdf
+///   payments/{bookingId}/receipt_{uuid}.jpg
 class StorageService {
   static final _storage = FirebaseStorage.instance;
   static const _uuid = Uuid();
@@ -15,21 +18,22 @@ class StorageService {
   //  USER PROFILE IMAGE
   // ════════════════════════════════════════════════════════════════════════════
 
+  /// Upload a profile picture to `users/avatars/{uid}.jpg`.
+  /// Always overwrites the existing file for the same user.
+  /// Returns the public download URL, or null on failure.
   static Future<String?> uploadProfileImage({
     required String uid,
     required File imageFile,
   }) async {
     try {
-      final bytes = await imageFile.readAsBytes();
       final ref = _storage.ref().child('users/avatars/$uid.jpg');
-      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+      await ref.putFile(imageFile, SettableMetadata(contentType: 'image/jpeg'));
       return await ref.getDownloadURL();
     } catch (e) {
       return null;
     }
   }
 
-  /// Web-safe variant: upload profile image from XFile (works on all platforms).
   static Future<String?> uploadProfileImageXFile({
     required String uid,
     required XFile xFile,
@@ -44,26 +48,6 @@ class StorageService {
     }
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  //  HALL IMAGES
-  // ════════════════════════════════════════════════════════════════════════════
-
-  static Future<String?> uploadHallImage({
-    required String hallId,
-    required File imageFile,
-  }) async {
-    try {
-      final bytes = await imageFile.readAsBytes();
-      final String fileName = '${_uuid.v4()}.jpg';
-      final ref = _storage.ref().child('halls/$hallId/images/$fileName');
-      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-      return await ref.getDownloadURL();
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /// Web-safe: upload a single hall image from XFile.
   static Future<String?> uploadHallImageXFile({
     required String hallId,
     required XFile xFile,
@@ -80,19 +64,6 @@ class StorageService {
     }
   }
 
-  static Future<List<String>> uploadMultipleHallImages({
-    required String hallId,
-    required List<File> imageFiles,
-  }) async {
-    final List<String> urls = [];
-    for (final file in imageFiles) {
-      final url = await uploadHallImage(hallId: hallId, imageFile: file);
-      if (url != null) urls.add(url);
-    }
-    return urls;
-  }
-
-  /// Web-safe: upload multiple hall images from XFile list.
   static Future<List<String>> uploadMultipleHallImagesXFile({
     required String hallId,
     required List<XFile> xFiles,
@@ -105,38 +76,6 @@ class StorageService {
     return urls;
   }
 
-  static Future<void> deleteHallImage(String downloadUrl) async {
-    try {
-      final ref = _storage.refFromURL(downloadUrl);
-      await ref.delete();
-    } catch (e) {
-      // Silently fail
-    }
-  }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  //  HALL DOCUMENTS
-  // ════════════════════════════════════════════════════════════════════════════
-
-  static Future<String?> uploadHallDocument({
-    required String hallId,
-    required File documentFile,
-    required String docType,
-  }) async {
-    try {
-      final bytes = await documentFile.readAsBytes();
-      final String ext = documentFile.path.split('.').last.toLowerCase();
-      final String fileName = '${docType}_${_uuid.v4()}.$ext';
-      final ref = _storage.ref().child('halls/$hallId/documents/$fileName');
-      final contentType = ext == 'pdf' ? 'application/pdf' : 'image/jpeg';
-      await ref.putData(bytes, SettableMetadata(contentType: contentType));
-      return await ref.getDownloadURL();
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /// Web-safe: upload a hall document from XFile.
   static Future<String?> uploadHallDocumentXFile({
     required String hallId,
     required XFile xFile,
@@ -155,19 +94,129 @@ class StorageService {
     }
   }
 
+  static Future<XFile?> pickImageXFile() async {
+    final picker = ImagePicker();
+    return picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1800,
+      maxHeight: 1800,
+      imageQuality: 85,
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  HALL IMAGES (multiple photos per hall)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /// Upload a single hall image.
+  /// Path: `halls/{hallId}/images/{uuid}.jpg`
+  /// Returns the download URL, or null on failure.
+  static Future<String?> uploadHallImage({
+    required String hallId,
+    required File imageFile,
+  }) async {
+    try {
+      final String fileName = '${_uuid.v4()}.jpg';
+      final ref = _storage.ref().child('halls/$hallId/images/$fileName');
+      await ref.putFile(imageFile, SettableMetadata(contentType: 'image/jpeg'));
+      return await ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Upload multiple hall images at once (used in HallRegistration step 3).
+  /// Returns a list of download URLs. Skips any file that fails.
+  static Future<List<String>> uploadMultipleHallImages({
+    required String hallId,
+    required List<File> imageFiles,
+  }) async {
+    final List<String> urls = [];
+    for (final file in imageFiles) {
+      final url = await uploadHallImage(hallId: hallId, imageFile: file);
+      if (url != null) urls.add(url);
+    }
+    return urls;
+  }
+
+  /// Delete a specific hall image by its download URL.
+  static Future<void> deleteHallImage(String downloadUrl) async {
+    try {
+      final ref = _storage.refFromURL(downloadUrl);
+      await ref.delete();
+    } catch (e) {
+      // Silently fail — image may already be deleted
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  HALL DOCUMENTS (CNIC, ownership proof — for HallRegistration step 3)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /// Upload a hall document (PDF or image).
+  /// Path: `halls/{hallId}/documents/{docType}_{uuid}.{ext}`
+  /// Returns the download URL, or null on failure.
+  static Future<String?> uploadHallDocument({
+    required String hallId,
+    required File documentFile,
+    required String docType, // e.g. 'cnic', 'ownership_proof'
+  }) async {
+    try {
+      final String ext = documentFile.path.split('.').last;
+      final String fileName = '${docType}_${_uuid.v4()}.$ext';
+      final ref = _storage.ref().child('halls/$hallId/documents/$fileName');
+
+      final String contentType =
+          ext.toLowerCase() == 'pdf' ? 'application/pdf' : 'image/jpeg';
+
+      await ref.putFile(
+        documentFile,
+        SettableMetadata(contentType: contentType),
+      );
+      return await ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
+  }
+
   // ════════════════════════════════════════════════════════════════════════════
   //  PAYMENT RECEIPTS
   // ════════════════════════════════════════════════════════════════════════════
 
+  /// Upload the customer's 25% advance payment receipt.
+  /// Path: `payments/{bookingId}/receipt_{uuid}.jpg`
+  /// Returns the download URL, or null on failure.
   static Future<String?> uploadPaymentReceipt({
     required String bookingId,
     required File receiptFile,
   }) async {
     try {
-      final bytes = await receiptFile.readAsBytes();
       final String fileName = 'receipt_${_uuid.v4()}.jpg';
       final ref = _storage.ref().child('payments/$bookingId/$fileName');
-      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+      await ref.putFile(
+        receiptFile,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      return await ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Upload the hall admin's refund receipt.
+  /// Path: `refunds/{bookingId}/refund_{uuid}.jpg`
+  /// Returns the download URL, or null on failure.
+  static Future<String?> uploadRefundReceipt({
+    required String bookingId,
+    required File receiptFile,
+  }) async {
+    try {
+      final String fileName = 'refund_${_uuid.v4()}.jpg';
+      final ref = _storage.ref().child('refunds/$bookingId/$fileName');
+      await ref.putFile(
+        receiptFile,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
       return await ref.getDownloadURL();
     } catch (e) {
       return null;
@@ -178,7 +227,7 @@ class StorageService {
   //  IMAGE PICKER HELPERS
   // ════════════════════════════════════════════════════════════════════════════
 
-  /// Opens the gallery. Returns dart:io File for backward compat (mobile only).
+  /// Opens the gallery and returns the picked file, or null if cancelled.
   static Future<File?> pickImageFromGallery() async {
     final picker = ImagePicker();
     final XFile? picked = await picker.pickImage(
@@ -191,17 +240,7 @@ class StorageService {
     return File(picked.path);
   }
 
-  /// Web-safe gallery picker — returns XFile (works on web + mobile).
-  static Future<XFile?> pickImageXFile() async {
-    final picker = ImagePicker();
-    return picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1800,
-      maxHeight: 1800,
-      imageQuality: 85,
-    );
-  }
-
+  /// Opens the camera and returns the captured file, or null if cancelled.
   static Future<File?> pickImageFromCamera() async {
     final picker = ImagePicker();
     final XFile? picked = await picker.pickImage(
@@ -214,6 +253,7 @@ class StorageService {
     return File(picked.path);
   }
 
+  /// Pick multiple images from the gallery (for hall photo upload).
   static Future<List<File>> pickMultipleImages() async {
     final picker = ImagePicker();
     final List<XFile> picked = await picker.pickMultiImage(
@@ -224,20 +264,12 @@ class StorageService {
     return picked.map((xf) => File(xf.path)).toList();
   }
 
-  /// Web-safe multi-pick — returns List<XFile>.
-  static Future<List<XFile>> pickMultipleImagesXFile() async {
-    final picker = ImagePicker();
-    return picker.pickMultiImage(
-      maxWidth: 1800,
-      maxHeight: 1800,
-      imageQuality: 85,
-    );
-  }
-
   // ════════════════════════════════════════════════════════════════════════════
-  //  UPLOAD WITH PROGRESS
+  //  UPLOAD WITH PROGRESS (optional — for showing progress bar)
   // ════════════════════════════════════════════════════════════════════════════
 
+  /// Upload a file and report progress via [onProgress] callback (0.0–1.0).
+  /// Returns the download URL, or null on failure.
   static Future<String?> uploadWithProgress({
     required String storagePath,
     required File file,
@@ -245,17 +277,21 @@ class StorageService {
     Function(double progress)? onProgress,
   }) async {
     try {
-      final bytes = await file.readAsBytes();
       final ref = _storage.ref().child(storagePath);
-      final UploadTask task = ref.putData(
-        bytes,
+      final UploadTask task = ref.putFile(
+        file,
         SettableMetadata(contentType: contentType),
       );
+
+      // Listen to progress events
       task.snapshotEvents.listen((TaskSnapshot snapshot) {
         if (onProgress != null && snapshot.totalBytes > 0) {
-          onProgress(snapshot.bytesTransferred / snapshot.totalBytes);
+          final double progress =
+              snapshot.bytesTransferred / snapshot.totalBytes;
+          onProgress(progress);
         }
       });
+
       final TaskSnapshot result = await task;
       return await result.ref.getDownloadURL();
     } catch (e) {

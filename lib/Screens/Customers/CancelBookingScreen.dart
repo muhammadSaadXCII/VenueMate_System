@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Models/booking_model.dart';
 import 'package:venuemate_system/Services/booking_service.dart';
 
 class CancelBookingScreen extends StatefulWidget {
-  final String bookingId;
+  final BookingModel booking;
 
-  const CancelBookingScreen({Key? key, required this.bookingId})
-    : super(key: key);
+  const CancelBookingScreen({super.key, required this.booking});
 
   @override
   State<CancelBookingScreen> createState() => _CancelBookingScreenState();
@@ -23,6 +23,14 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
     'Venue location is too far from my location',
     'Another reason',
   ];
+
+  // ── Refund calculation ────────────────────────────────────────────────────
+  int get _daysUntilEvent => widget.booking.daysUntilEvent;
+
+  /// 10% of grandTotal = 40% of advancePayment
+  double get _refundAmount => widget.booking.advancePayment * 0.4;
+
+  bool get _isRefundApplicable => _daysUntilEvent > 2;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +61,10 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Refund Policy Banner ──────────────────────────────
+                  _buildRefundPolicyBanner(),
+                  const SizedBox(height: 20),
+
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -157,7 +169,7 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                               ),
                             ),
                           );
-                        }).toList(),
+                        }),
                         if (selectedReason == 'Another reason') ...[
                           const SizedBox(height: 16),
                           TextField(
@@ -193,35 +205,6 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                             ),
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.amber[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.amber[200]!, width: 1),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Colors.amber[800],
-                          size: 22,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Cancellation may incur charges as per our policy',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.amber[900],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -285,11 +268,136 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
     );
   }
 
+  Widget _buildRefundPolicyBanner() {
+    if (_isRefundApplicable) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.green.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Colors.green.shade700,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Refund Policy',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _policyRow(
+              'Event is in $_daysUntilEvent days (> 2 days)',
+              Colors.green.shade700,
+            ),
+            const SizedBox(height: 6),
+            _policyRow(
+              'Refund applicable: Rs. ${_refundAmount.toStringAsFixed(0)} (10% of total)',
+              Colors.green.shade700,
+            ),
+            const SizedBox(height: 6),
+            _policyRow(
+              'Hall admin keeps 15% (Rs. ${(widget.booking.advancePayment - _refundAmount).toStringAsFixed(0)})',
+              Colors.green.shade600,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'After cancellation, hall admin will upload a refund receipt. You can verify it in your Cancelled tab.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.green.shade700,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.warning_amber_outlined,
+                  color: Colors.red.shade700,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'No Refund Policy',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.red.shade800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _policyRow(
+              _daysUntilEvent <= 0
+                  ? 'Event is today or already passed'
+                  : 'Only $_daysUntilEvent day${_daysUntilEvent == 1 ? '' : 's'} left (≤ 2 days)',
+              Colors.red.shade700,
+            ),
+            const SizedBox(height: 6),
+            _policyRow(
+              'No advance amount will be refunded',
+              Colors.red.shade700,
+            ),
+            const SizedBox(height: 6),
+            _policyRow(
+              'Hall admin keeps full advance: Rs. ${widget.booking.advancePayment.toStringAsFixed(0)}',
+              Colors.red.shade600,
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Widget _policyRow(String text, Color color) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.circle, size: 6, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 13, color: color, height: 1.3),
+          ),
+        ),
+      ],
+    );
+  }
+
   void _showCancellationDialog(BuildContext context) {
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
+          (dialogContext) => AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
@@ -303,14 +411,16 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                 ),
               ],
             ),
-            content: const Text(
-              'Are you sure you want to cancel this booking? This action cannot be undone.',
+            content: Text(
+              _isRefundApplicable
+                  ? 'You will receive a refund of Rs. ${_refundAmount.toStringAsFixed(0)} (10% of total). Hall admin keeps 15%.\n\nThis action cannot be undone.'
+                  : 'No refund will be issued as the event is within 2 days.\n\nThis action cannot be undone.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.black54),
+              style: const TextStyle(fontSize: 14, color: Colors.black54),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: Text(
                   'No, Keep it',
                   style: TextStyle(
@@ -321,28 +431,44 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
               ),
               ElevatedButton(
                 onPressed: () async {
-                  Navigator.pop(context); // close dialog
+                  final navigator = Navigator.of(context);
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+                  Navigator.pop(dialogContext);
                   setState(() => _isCancelling = true);
 
-                  final error = await BookingService.cancelBooking(
-                    widget.bookingId,
+                  final String finalReason =
+                      selectedReason == 'Another reason'
+                          ? otherReasonController.text.trim().isEmpty
+                              ? 'Another reason'
+                              : otherReasonController.text.trim()
+                          : selectedReason!;
+
+                  final error = await BookingService.cancelBookingWithRefund(
+                    widget.booking.bookingId,
+                    reason: finalReason,
+                    advancePayment: widget.booking.advancePayment,
+                    eventDate: widget.booking.eventDate,
                   );
 
                   if (!mounted) return;
                   setState(() => _isCancelling = false);
 
                   if (error == null) {
-                    // Success — pop back to AllEventsScreen (cancelled tab)
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Booking cancelled successfully'),
+                    navigator.pop();
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          _isRefundApplicable
+                              ? 'Booking cancelled. Refund of Rs. ${_refundAmount.toStringAsFixed(0)} will be processed by hall admin.'
+                              : 'Booking cancelled successfully.',
+                        ),
                         backgroundColor: Colors.green,
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    scaffoldMessenger.showSnackBar(
                       SnackBar(
                         content: Text('Error: $error'),
                         backgroundColor: Colors.red,

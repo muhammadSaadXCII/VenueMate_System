@@ -9,25 +9,20 @@ import 'storage_service.dart';
 
 /// Handles all Firestore + Storage operations for the `bookings` collection.
 ///
-/// KEY RULES enforced here:
-///   1. Each slot (Morning / Evening) is checked independently for the date.
-///   2. A slot's remaining capacity = hallCapacityMax − sum of confirmed
-///      guestCounts for that hallId + date + slot.
-///   3. A new booking is rejected if guestCount > remainingCapacity.
-///   4. When hall admin confirms → status = 'confirmed', confirmedAt = now.
-///   5. When hall admin rejects → status = 'rejected'.
-///   6. Bookings whose eventDate < today AND status == 'confirmed' are
-///      auto-marked 'completed' lazily on fetch.
+/// REFUND POLICY:
+///   Cancelled > 2 days before event  → refund 10% of advance (15% stays with hall admin)
+///   Cancelled <= 2 days before event → NO refund
 ///
-/// STATUS VALUES:
-///   'pending'   → customer submitted receipt, waiting for hall admin to verify
-///   'confirmed' → hall admin approved → shows in Upcoming on both sides
-///   'rejected'  → hall admin rejected receipt → shows in Cancelled on both sides
-///   'completed' → event date has passed (auto from confirmed)
-///   'cancelled' → cancelled by customer → shows in Cancelled on both sides
+/// REFUND STATUS VALUES (stored on booking doc):
+///   'none'                  → no refund applicable or not yet triggered
+///   'pending_upload'        → refund applicable, hall admin must upload refund receipt
+///   'uploaded'              → hall admin uploaded receipt, waiting for customer to verify
+///   'accepted'              → customer accepted — refund complete
+///   'rejected_by_customer'  → customer rejected, hall admin must re-upload
 class BookingService {
   static final _db = FirebaseFirestore.instance;
   static final _bookings = _db.collection('bookings');
+  static final _feedbacks = _db.collection('booking_feedbacks');
   static const _uuid = Uuid();
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -199,17 +194,10 @@ class BookingService {
         .where('customerId', isEqualTo: customerId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snap) =>
-              snap.docs
-                  .map((d) => BookingModel.fromDoc(d))
-                  .map(_autoComplete)
-                  .toList(),
-        );
+        .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
   }
 
   /// Stream customer bookings filtered by a single status.
-  /// Used for: 'pending', 'confirmed', 'completed' tabs.
   static Stream<List<BookingModel>> streamCustomerBookingsByStatus(
     String customerId,
     String status,
@@ -219,26 +207,16 @@ class BookingService {
         .where('status', isEqualTo: status)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snap) =>
-              snap.docs
-                  .map((d) => BookingModel.fromDoc(d))
-                  .map(_autoComplete)
-                  .toList(),
-        );
+        .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
   }
 
-  /// FIX: Stream customer bookings for the Cancelled tab.
-  /// Combines both 'cancelled' (customer-cancelled) and 'rejected'
-  /// (hall admin rejected receipt) bookings — both show in Cancelled tab.
-  static Stream<List<BookingModel>> streamCustomerCancelledBookings(
+  /// Stream customer PENDING tab — includes both 'pending' and 'rejected'
+  static Stream<List<BookingModel>> streamCustomerPendingAndRejected(
     String customerId,
   ) {
-    // Firestore does not support OR queries on different field values in a
-    // single snapshot, so we merge two streams client-side.
-    final cancelledStream = _bookings
+    final pendingStream = _bookings
         .where('customerId', isEqualTo: customerId)
-        .where('status', isEqualTo: 'cancelled')
+        .where('status', isEqualTo: 'pending')
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
@@ -250,19 +228,31 @@ class BookingService {
         .snapshots()
         .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
 
-    // Combine both streams: emit merged list whenever either emits
-    return _combineLatest2(cancelledStream, rejectedStream, (a, b) {
+    return _combineLatest2(pendingStream, rejectedStream, (a, b) {
       final merged = [...a, ...b];
       merged.sort((x, y) => y.createdAt.compareTo(x.createdAt));
       return merged;
     });
   }
 
+  /// Stream customer cancelled bookings — only 'cancelled' status.
+  /// (rejected-receipt bookings appear in pending tab, not here)
+  static Stream<List<BookingModel>> streamCustomerCancelledBookings(
+    String customerId,
+  ) {
+    return _bookings
+        .where('customerId', isEqualTo: customerId)
+        .where('status', isEqualTo: 'cancelled')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
+  }
+
   static Future<BookingModel?> getBookingById(String bookingId) async {
     try {
       final doc = await _bookings.doc(bookingId).get();
       if (!doc.exists) return null;
-      return _autoComplete(BookingModel.fromDoc(doc));
+      return BookingModel.fromDoc(doc);
     } catch (_) {
       return null;
     }
@@ -271,7 +261,7 @@ class BookingService {
   static Stream<BookingModel?> streamBookingById(String bookingId) {
     return _bookings.doc(bookingId).snapshots().map((doc) {
       if (!doc.exists) return null;
-      return _autoComplete(BookingModel.fromDoc(doc));
+      return BookingModel.fromDoc(doc);
     });
   }
 
@@ -284,16 +274,9 @@ class BookingService {
         .where('hallId', isEqualTo: hallId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snap) =>
-              snap.docs
-                  .map((d) => BookingModel.fromDoc(d))
-                  .map(_autoComplete)
-                  .toList(),
-        );
+        .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
   }
 
-  /// Pending bookings → receipt not yet verified by hall admin.
   static Stream<List<BookingModel>> streamPendingBookings(String hallId) {
     return _bookings
         .where('hallId', isEqualTo: hallId)
@@ -302,21 +285,10 @@ class BookingService {
         .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
   }
 
-  /// Upcoming = confirmed AND eventDate >= today.
   static Stream<List<BookingModel>> streamUpcomingBookings(String hallId) {
-    final todayStart = DateTime(
-      DateTime.now().year,
-      DateTime.now().month,
-      DateTime.now().day,
-    );
     return _bookings
         .where('hallId', isEqualTo: hallId)
         .where('status', isEqualTo: 'confirmed')
-        .where(
-          'eventDate',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(todayStart),
-        )
-        .orderBy('eventDate', descending: false)
         .snapshots()
         .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
   }
@@ -325,26 +297,21 @@ class BookingService {
     return _bookings
         .where('hallId', isEqualTo: hallId)
         .where('status', isEqualTo: 'completed')
-        .orderBy('eventDate', descending: true)
         .snapshots()
         .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
   }
 
-  /// FIX: Hall Admin Cancelled tab shows BOTH 'cancelled' and 'rejected' bookings.
-  /// 'cancelled' = customer cancelled their own booking.
-  /// 'rejected'  = hall admin rejected the payment receipt.
+  /// Hall Admin Cancelled tab shows BOTH 'cancelled' and 'rejected' bookings.
   static Stream<List<BookingModel>> streamCancelledBookings(String hallId) {
     final cancelledStream = _bookings
         .where('hallId', isEqualTo: hallId)
         .where('status', isEqualTo: 'cancelled')
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
 
     final rejectedStream = _bookings
         .where('hallId', isEqualTo: hallId)
         .where('status', isEqualTo: 'rejected')
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
 
@@ -359,8 +326,6 @@ class BookingService {
   //  UPDATE — Hall Admin actions
   // ════════════════════════════════════════════════════════════════════════════
 
-  /// Confirm a booking (receipt verified, money received).
-  /// Returns null on success, error string on failure.
   static Future<String?> confirmBooking(String bookingId) async {
     try {
       await _bookings.doc(bookingId).update({
@@ -374,7 +339,18 @@ class BookingService {
     }
   }
 
-  /// Reject a booking's payment receipt.
+  static Future<String?> markBookingAsCompleted(String bookingId) async {
+    try {
+      await _bookings.doc(bookingId).update({
+        'status': 'completed',
+        'completedAt': Timestamp.fromDate(DateTime.now()),
+      });
+      return null;
+    } catch (e) {
+      return 'Failed to mark as completed: $e';
+    }
+  }
+
   static Future<String?> rejectBookingPayment({
     required String bookingId,
     required String reason,
@@ -391,16 +367,223 @@ class BookingService {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  //  UPDATE — Customer
+  //  UPDATE — Customer cancel
   // ════════════════════════════════════════════════════════════════════════════
 
-  static Future<String?> cancelBooking(String bookingId) async {
+  /// Cancel a confirmed booking with automatic refund policy calculation.
+  ///
+  /// Policy:
+  ///   days until event > 2  → refund 10% of advance ('partial_10')
+  ///   days until event <= 2 → no refund ('no_refund')
+  ///
+  /// If refundAmount > 0, sets refundStatus = 'pending_upload' so hall admin
+  /// knows they must upload a refund receipt.
+  static Future<String?> cancelBookingWithRefund(
+    String bookingId, {
+    required String reason,
+    required double advancePayment,
+    required DateTime eventDate,
+  }) async {
     try {
-      await _bookings.doc(bookingId).update({'status': 'cancelled'});
+      final today = DateTime(
+        DateTime.now().year,
+        DateTime.now().month,
+        DateTime.now().day,
+      );
+      final evDay = DateTime(eventDate.year, eventDate.month, eventDate.day);
+      final daysLeft = evDay.difference(today).inDays;
+
+      double refundAmount = 0.0;
+      String refundPolicy = 'no_refund';
+      String refundStatus = 'none';
+
+      if (daysLeft > 2) {
+        // 10% of advance is refunded to customer; hall admin keeps 15%
+        refundAmount = advancePayment * 0.10 / 0.25;
+        // advancePayment = grandTotal * 0.25
+        // 10% of grandTotal * 0.25 = grandTotal * 0.025
+        // Simpler: refund = (10/25) * advancePayment = 0.4 * advancePayment
+        refundAmount = advancePayment * 0.4; // 10% of total = 40% of advance
+        refundPolicy = 'partial_10';
+        refundStatus = 'pending_upload';
+      }
+
+      await _bookings.doc(bookingId).update({
+        'status': 'cancelled',
+        'cancellationReason': reason,
+        'cancelledAt': Timestamp.fromDate(DateTime.now()),
+        'refundAmount': refundAmount,
+        'refundPolicy': refundPolicy,
+        'refundStatus': refundStatus,
+        'refundReceiptUrl': '',
+        'refundRejectionReason': '',
+      });
       return null;
     } catch (e) {
       return 'Failed to cancel booking: $e';
     }
+  }
+
+  /// Legacy cancel (for non-confirmed bookings if needed).
+  static Future<String?> cancelBooking(
+    String bookingId, {
+    String reason = '',
+  }) async {
+    try {
+      await _bookings.doc(bookingId).update({
+        'status': 'cancelled',
+        'cancellationReason': reason,
+        'cancelledAt': Timestamp.fromDate(DateTime.now()),
+      });
+      return null;
+    } catch (e) {
+      return 'Failed to cancel booking: $e';
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  RESUBMIT RECEIPT (customer re-upload after rejection)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  static Future<String?> resubmitReceipt({
+    required String bookingId,
+    required File newReceiptFile,
+  }) async {
+    try {
+      final String? newUrl = await StorageService.uploadPaymentReceipt(
+        bookingId: bookingId,
+        receiptFile: newReceiptFile,
+      );
+      if (newUrl == null) return 'Failed to upload receipt image.';
+
+      await _bookings.doc(bookingId).update({
+        'receiptImageUrl': newUrl,
+        'status': 'pending',
+        'rejectionReason': '',
+        'resubmittedAt': Timestamp.fromDate(DateTime.now()),
+      });
+      return null;
+    } catch (e) {
+      return 'Failed to resubmit receipt: $e';
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  REFUND FLOW — Hall Admin uploads, Customer verifies
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /// Hall admin uploads a refund receipt image to Storage, then updates Firestore.
+  /// Sets refundStatus = 'uploaded'.
+  static Future<String?> uploadRefundReceipt({
+    required String bookingId,
+    required File receiptFile,
+  }) async {
+    try {
+      final String? url = await StorageService.uploadRefundReceipt(
+        bookingId: bookingId,
+        receiptFile: receiptFile,
+      );
+      if (url == null) return 'Failed to upload refund receipt image.';
+
+      await _bookings.doc(bookingId).update({
+        'refundReceiptUrl': url,
+        'refundStatus': 'uploaded',
+        'refundRejectionReason': '',
+        'refundUploadedAt': Timestamp.fromDate(DateTime.now()),
+      });
+      return null;
+    } catch (e) {
+      return 'Failed to upload refund receipt: $e';
+    }
+  }
+
+  /// Customer accepts the refund receipt — marks refund as complete.
+  static Future<String?> acceptRefund(String bookingId) async {
+    try {
+      await _bookings.doc(bookingId).update({
+        'refundStatus': 'accepted',
+        'refundAcceptedAt': Timestamp.fromDate(DateTime.now()),
+      });
+      return null;
+    } catch (e) {
+      return 'Failed to accept refund: $e';
+    }
+  }
+
+  /// Customer rejects the refund receipt with a reason.
+  /// Sets refundStatus = 'rejected_by_customer' so hall admin must re-upload.
+  static Future<String?> rejectRefund({
+    required String bookingId,
+    required String reason,
+  }) async {
+    try {
+      await _bookings.doc(bookingId).update({
+        'refundStatus': 'rejected_by_customer',
+        'refundRejectionReason': reason,
+        'refundReceiptUrl': '',
+        'refundRejectedAt': Timestamp.fromDate(DateTime.now()),
+      });
+      return null;
+    } catch (e) {
+      return 'Failed to reject refund: $e';
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  FEEDBACK — Customer submits, Hall Admin views
+  // ════════════════════════════════════════════════════════════════════════════
+
+  static Future<String?> submitFeedback({
+    required String bookingId,
+    required String hallId,
+    required String customerId,
+    required String customerName,
+    required String hallName,
+    required int rating,
+    required String reviewText,
+  }) async {
+    try {
+      final feedbackId = _uuid.v4();
+      await _feedbacks.doc(bookingId).set({
+        'feedbackId': feedbackId,
+        'bookingId': bookingId,
+        'hallId': hallId,
+        'customerId': customerId,
+        'customerName': customerName,
+        'hallName': hallName,
+        'rating': rating,
+        'reviewText': reviewText,
+        'submittedAt': Timestamp.fromDate(DateTime.now()),
+      });
+      return null;
+    } catch (e) {
+      return 'Failed to submit feedback: $e';
+    }
+  }
+
+  static Future<bool> hasFeedback(String bookingId) async {
+    try {
+      final doc = await _feedbacks.doc(bookingId).get();
+      return doc.exists;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Stream<Map<String, dynamic>?> streamFeedbackForBooking(
+    String bookingId,
+  ) {
+    return _feedbacks.doc(bookingId).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return doc.data();
+    });
+  }
+
+  static Stream<List<Map<String, dynamic>>> streamHallFeedbacks(String hallId) {
+    return _feedbacks
+        .where('hallId', isEqualTo: hallId)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => d.data()).toList());
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -411,22 +594,11 @@ class BookingService {
     try {
       final snap = await _bookings.where('hallId', isEqualTo: hallId).get();
       final all = snap.docs.map((d) => BookingModel.fromDoc(d)).toList();
-      final todayStart = DateTime(
-        DateTime.now().year,
-        DateTime.now().month,
-        DateTime.now().day,
-      );
 
       return {
         'pending': all.where((b) => b.isPending).length,
-        'upcoming':
-            all
-                .where(
-                  (b) => b.isConfirmed && !b.eventDate.isBefore(todayStart),
-                )
-                .length,
+        'upcoming': all.where((b) => b.isConfirmed).length,
         'completed': all.where((b) => b.isCompleted).length,
-        // FIX: count both cancelled and rejected in the cancelled bucket
         'cancelled': all.where((b) => b.isCancelled || b.isRejected).length,
       };
     } catch (_) {
@@ -438,56 +610,31 @@ class BookingService {
   //  INTERNAL HELPERS
   // ════════════════════════════════════════════════════════════════════════════
 
-  static BookingModel _autoComplete(BookingModel b) {
-    if (b.isConfirmed) {
-      final todayStart = DateTime(
-        DateTime.now().year,
-        DateTime.now().month,
-        DateTime.now().day,
-      );
-      final evDay = DateTime(
-        b.eventDate.year,
-        b.eventDate.month,
-        b.eventDate.day,
-      );
-      if (evDay.isBefore(todayStart)) {
-        _bookings.doc(b.bookingId).update({'status': 'completed'}).ignore();
-        return b.copyWith(status: 'completed');
-      }
-    }
-    return b;
-  }
-
-  /// Utility: combine two streams and emit merged result whenever either fires.
-  /// Uses a broadcast StreamController so multiple StreamBuilder listeners
-  /// (e.g. after tab switches or widget rebuilds) can subscribe without
-  /// restarting the underlying Firestore subscriptions.
   static Stream<T> _combineLatest2<A, B, T>(
     Stream<A> streamA,
     Stream<B> streamB,
     T Function(A, B) combiner,
   ) {
-    // ignore: close_sinks
-    late StreamController<T> controller;
     A? latestA;
     B? latestB;
     StreamSubscription<A>? subA;
     StreamSubscription<B>? subB;
+    StreamController<T>? controller;
 
     controller = StreamController<T>.broadcast(
       onListen: () {
         subA = streamA.listen((a) {
           latestA = a;
           if (latestB != null) {
-            controller.add(combiner(latestA as A, latestB as B));
+            controller!.add(combiner(latestA as A, latestB as B));
           }
-        }, onError: controller.addError);
+        }, onError: (e) => controller!.addError(e));
         subB = streamB.listen((b) {
           latestB = b;
           if (latestA != null) {
-            controller.add(combiner(latestA as A, latestB as B));
+            controller!.add(combiner(latestA as A, latestB as B));
           }
-        }, onError: controller.addError);
+        }, onError: (e) => controller!.addError(e));
       },
       onCancel: () {
         subA?.cancel();
@@ -498,7 +645,6 @@ class BookingService {
         latestB = null;
       },
     );
-
     return controller.stream;
   }
 }

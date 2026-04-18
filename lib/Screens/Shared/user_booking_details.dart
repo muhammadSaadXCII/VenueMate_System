@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Models/booking_model.dart';
 
 class UserBookingDetailsScreen extends StatelessWidget {
-  const UserBookingDetailsScreen({super.key});
+  final BookingModel booking;
+
+  const UserBookingDetailsScreen({super.key, required this.booking});
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +20,7 @@ class UserBookingDetailsScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "Booking Details",
+          'Booking Details',
           style: TextStyle(
             color: Colors.black,
             fontSize: 20,
@@ -25,27 +28,111 @@ class UserBookingDetailsScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: _buildMobileLayout(context),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHallHeader(),
+            const SizedBox(height: 20),
+
+            // ── Cancellation Reason (shown above booking summary) ────────────
+            if ((booking.isCancelled || booking.isRejected) &&
+                _getCancellationReason().isNotEmpty) ...[
+              _buildCancellationReasonCard(),
+              const SizedBox(height: 20),
+            ],
+
+            _buildEventDetailsCard(),
+            const SizedBox(height: 24),
+
+            const Text(
+              'Booking Summary',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            _buildPaymentSummaryCard(),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildMobileLayout(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20.0),
+  String _getCancellationReason() {
+    if (booking.isCancelled && booking.cancellationReason.isNotEmpty) {
+      return booking.cancellationReason;
+    }
+    if (booking.isRejected && booking.rejectionReason.isNotEmpty) {
+      return booking.rejectionReason;
+    }
+    return '';
+  }
+
+  Widget _buildCancellationReasonCard() {
+    final isRejected = booking.isRejected;
+    final reason = _getCancellationReason();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red.shade200, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHallHeader(),
-          const SizedBox(height: 20),
-          _buildEventDetailsCard(),
-          const SizedBox(height: 24),
-          const Text(
-            "Booking Summary",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isRejected ? Icons.cancel_outlined : Icons.info_outline,
+                  color: Colors.red.shade700,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                isRejected ? 'Rejection Reason' : 'Cancellation Reason',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red.shade800,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          _buildPaymentSummaryCard(),
-          const SizedBox(height: 40),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.red.shade100),
+            ),
+            child: Text(
+              reason,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade800,
+                height: 1.5,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -76,12 +163,12 @@ class UserBookingDetailsScreen extends StatelessWidget {
             height: 60,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              image: const DecorationImage(
-                image: NetworkImage(
-                  "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=60",
-                ),
-                fit: BoxFit.cover,
-              ),
+              color: Colors.orange.shade100,
+            ),
+            child: Icon(
+              Icons.business_outlined,
+              color: Colors.orange.shade700,
+              size: 32,
             ),
           ),
           const SizedBox(width: 16),
@@ -89,9 +176,9 @@ class UserBookingDetailsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Al Rehman Banquet Hall",
-                  style: TextStyle(
+                Text(
+                  booking.hallName,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: textDark,
@@ -101,14 +188,14 @@ class UserBookingDetailsScreen extends StatelessWidget {
                 Row(
                   children: [
                     const Icon(
-                      Icons.location_on,
+                      Icons.event_outlined,
                       size: 16,
                       color: primaryOrange,
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        "Model Colony, Street 12A, Karachi",
+                        booking.eventDateLabel,
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[600],
@@ -120,12 +207,66 @@ class UserBookingDetailsScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 6),
+                // Status badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _statusColor(booking.status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _statusLabel(booking.status),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _statusColor(booking.status),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'confirmed':
+        return Colors.blue;
+      case 'completed':
+        return Colors.green;
+      case 'cancelled':
+        return Colors.red;
+      case 'rejected':
+        return Colors.red;
+      case 'pending':
+        return Colors.amber.shade800;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'confirmed':
+        return 'Upcoming';
+      case 'completed':
+        return 'Completed';
+      case 'cancelled':
+        return 'Cancelled';
+      case 'rejected':
+        return 'Rejected';
+      case 'pending':
+        return 'Pending Approval';
+      default:
+        return status;
+    }
   }
 
   Widget _buildEventDetailsCard() {
@@ -138,31 +279,47 @@ class UserBookingDetailsScreen extends StatelessWidget {
           BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10),
         ],
       ),
-      child: const Column(
+      child: Column(
         children: [
           _DetailRow(
             icon: Icons.event,
-            label: "Event Name",
-            value: "Birthday Celebration",
+            label: 'Event Name',
+            value: booking.eventName,
           ),
-          Divider(height: 32),
+          const Divider(height: 32),
           _DetailRow(
             icon: Icons.calendar_today,
-            label: "Date",
-            value: "1 November, 2025",
+            label: 'Date',
+            value: booking.shortDateLabel,
           ),
-          Divider(height: 32),
+          const Divider(height: 32),
           _DetailRow(
             icon: Icons.access_time,
-            label: "Time Slot",
-            value: "Evening",
+            label: 'Time Slot',
+            value: booking.timeSlot,
           ),
-          Divider(height: 32),
+          const Divider(height: 32),
           _DetailRow(
             icon: Icons.groups,
-            label: "Guests",
-            value: "200 - 250 People",
+            label: 'Guests',
+            value: '${booking.guestCount} People',
           ),
+          if (booking.customerName.isNotEmpty) ...[
+            const Divider(height: 32),
+            _DetailRow(
+              icon: Icons.person_outline,
+              label: 'Customer',
+              value: booking.customerName,
+            ),
+          ],
+          if (booking.customerPhone.isNotEmpty) ...[
+            const Divider(height: 32),
+            _DetailRow(
+              icon: Icons.phone_outlined,
+              label: 'Phone',
+              value: booking.customerPhone,
+            ),
+          ],
         ],
       ),
     );
@@ -176,7 +333,6 @@ class UserBookingDetailsScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -189,44 +345,70 @@ class UserBookingDetailsScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            "Payment Details",
+            'Payment Details',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
-          const _PriceRow(
-            label: "Hall Rent",
-            price: "Rs. 15,000",
+          _PriceRow(
+            label: 'Hall Rent',
+            price: 'Rs. ${booking.hallRent.toStringAsFixed(0)}',
             isBold: true,
           ),
-          const SizedBox(height: 16),
-          const Text(
-            "Add-ons",
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
+
+          // Menu items
+          if (booking.selectedMenuItems.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Menu Items',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          const _PriceRow(label: "Chicken Cheese Paratha", price: "Rs. 400"),
-          const _PriceRow(label: "White Chicken Karahi", price: "Rs. 60"),
-          const _PriceRow(label: "Premium Catering", price: "Rs. 5000"),
-          const _PriceRow(label: "Event Photography", price: "Rs. 5000"),
+            const SizedBox(height: 12),
+            ...booking.selectedMenuItems.map(
+              (item) => _PriceRow(
+                label: item.name,
+                price: 'Rs. ${item.price.toStringAsFixed(0)}${item.priceUnit}',
+              ),
+            ),
+          ],
+
+          // Services
+          if (booking.selectedServices.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Services',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...booking.selectedServices.map(
+              (sv) => _PriceRow(
+                label: sv.name,
+                price: 'Rs. ${sv.price.toStringAsFixed(0)}',
+              ),
+            ),
+          ],
 
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 20),
             child: Divider(thickness: 1, color: Colors.black12),
           ),
 
-          const _PriceRow(
-            label: "Grand Total",
-            price: "Rs. 28,000",
+          _PriceRow(
+            label: 'Grand Total',
+            price: 'Rs. ${booking.grandTotal.toStringAsFixed(0)}',
             isTotal: true,
           ),
           const SizedBox(height: 8),
-          const _PriceRow(
-            label: "Paid (25% Advance)",
-            price: "- Rs. 7,000",
+          _PriceRow(
+            label: 'Paid (25% Advance)',
+            price: '- Rs. ${booking.advancePayment.toStringAsFixed(0)}',
             color: Colors.green,
           ),
 
@@ -239,19 +421,19 @@ class UserBookingDetailsScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: primaryOrange.withOpacity(0.3)),
             ),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Remaining Payment",
+                const Text(
+                  'Remaining Payment',
                   style: TextStyle(
                     color: Color(0xFFF47C20),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  "Rs. 21,000",
-                  style: TextStyle(
+                  'Rs. ${booking.remainingPayment.toStringAsFixed(0)}',
+                  style: const TextStyle(
                     color: Color(0xFFF47C20),
                     fontWeight: FontWeight.w900,
                     fontSize: 18,
@@ -290,27 +472,29 @@ class _DetailRow extends StatelessWidget {
           child: Icon(icon, size: 20, color: Colors.grey[700]),
         ),
         const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[500],
-                fontWeight: FontWeight.bold,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -339,12 +523,15 @@ class _PriceRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: isTotal ? Colors.black : Colors.grey[700],
-              fontSize: isTotal ? 16 : 14,
-              fontWeight: isBold || isTotal ? FontWeight.bold : FontWeight.w500,
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isTotal ? Colors.black : Colors.grey[700],
+                fontSize: isTotal ? 16 : 14,
+                fontWeight:
+                    isBold || isTotal ? FontWeight.bold : FontWeight.w500,
+              ),
             ),
           ),
           Text(
