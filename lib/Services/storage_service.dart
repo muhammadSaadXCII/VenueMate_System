@@ -34,6 +34,76 @@ class StorageService {
     }
   }
 
+  static Future<String?> uploadProfileImageXFile({
+    required String uid,
+    required XFile xFile,
+  }) async {
+    try {
+      final bytes = await xFile.readAsBytes();
+      final ref = _storage.ref().child('users/avatars/$uid.jpg');
+      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+      return await ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<String?> uploadHallImageXFile({
+    required String hallId,
+    required XFile xFile,
+  }) async {
+    try {
+      final bytes = await xFile.readAsBytes();
+      final String fileName = '${_uuid.v4()}.jpg';
+      final ref = _storage.ref().child('halls/$hallId/images/$fileName');
+      await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print('❌ uploadHallImageXFile error: $e');
+      return null;
+    }
+  }
+
+  static Future<List<String>> uploadMultipleHallImagesXFile({
+    required String hallId,
+    required List<XFile> xFiles,
+  }) async {
+    final List<String> urls = [];
+    for (final xf in xFiles) {
+      final url = await uploadHallImageXFile(hallId: hallId, xFile: xf);
+      if (url != null) urls.add(url);
+    }
+    return urls;
+  }
+
+  static Future<String?> uploadHallDocumentXFile({
+    required String hallId,
+    required XFile xFile,
+    required String docType,
+  }) async {
+    try {
+      final bytes = await xFile.readAsBytes();
+      final String ext = xFile.name.split('.').last.toLowerCase();
+      final String fileName = '${docType}_${_uuid.v4()}.$ext';
+      final ref = _storage.ref().child('halls/$hallId/documents/$fileName');
+      final contentType = ext == 'pdf' ? 'application/pdf' : 'image/jpeg';
+      await ref.putData(bytes, SettableMetadata(contentType: contentType));
+      return await ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<XFile?> pickImageXFile() async {
+    final picker = ImagePicker();
+    return picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1800,
+      maxHeight: 1800,
+      imageQuality: 85,
+    );
+  }
+
   // ════════════════════════════════════════════════════════════════════════════
   //  HALL IMAGES (multiple photos per hall)
   // ════════════════════════════════════════════════════════════════════════════
