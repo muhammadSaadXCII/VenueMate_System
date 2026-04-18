@@ -26,7 +26,7 @@ Future<void> main() async {
     // Mobile (Android) ke liye
     print("Mobile (Android)");
     firebaseOptions = const FirebaseOptions(
-      apiKey: "", // Yahan apni asli Mobile API Key likhna na bhulein
+      apiKey: "AIzaSyB1E9vnjm0DQhimZG1KHvbzQzlOkbUQkfQ", // Yahan apni asli Mobile API Key likhna na bhulein
       appId: "1:1023649558072:android:15d3fe7330b9eb35a840cd",
       messagingSenderId: "1023649558072",
       projectId: "venuemate-system",
