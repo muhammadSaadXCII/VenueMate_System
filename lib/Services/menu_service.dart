@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../Models/menu_item_model.dart';
 import 'storage_service.dart';
@@ -20,7 +21,6 @@ class MenuService {
 
   /// Add a new menu item.
   /// If [imageFile] is provided it is uploaded to Storage first.
-  /// Returns null on success, error string on failure.
   static Future<String?> addMenuItem({
     required String hallId,
     required String name,
@@ -61,12 +61,49 @@ class MenuService {
     }
   }
 
+  /// Web-safe: add menu item using XFile (works on web + mobile).
+  static Future<String?> addMenuItemXFile({
+    required String hallId,
+    required String name,
+    required double price,
+    required String priceUnit,
+    String description = '',
+    XFile? imageXFile,
+  }) async {
+    try {
+      final String itemId = _uuid.v4();
+      String imageUrl = '';
+      if (imageXFile != null) {
+        imageUrl =
+            await StorageService.uploadHallImageXFile(
+              hallId: hallId,
+              xFile: imageXFile,
+            ) ??
+            '';
+      }
+      final MenuItemModel item = MenuItemModel(
+        itemId: itemId,
+        hallId: hallId,
+        name: name,
+        description: description,
+        price: price,
+        priceUnit: priceUnit,
+        imageUrl: imageUrl,
+        isAvailable: true,
+        createdAt: DateTime.now(),
+      );
+      await _menuRef(hallId).doc(itemId).set(item.toMap());
+      return null;
+    } catch (_) {
+      return 'Failed to add menu item. Please try again.';
+    }
+  }
+
   // ════════════════════════════════════════════════════════════════════════════
   //  READ
   // ════════════════════════════════════════════════════════════════════════════
 
   /// Stream all menu items for a hall in real-time.
-  /// Used in ManageMenuScreen and VenueDetailScreen (Menu tab).
   static Stream<List<MenuItemModel>> streamMenuItems(String hallId) {
     return _menuRef(hallId)
         .orderBy('createdAt', descending: false)
@@ -74,7 +111,7 @@ class MenuService {
         .map((snap) => snap.docs.map((d) => MenuItemModel.fromDoc(d)).toList());
   }
 
-  /// One-time fetch. Used in CreatePackage step 2 (item picker).
+  /// One-time fetch.
   static Future<List<MenuItemModel>> getMenuItems(String hallId) async {
     try {
       final snap =
@@ -89,7 +126,7 @@ class MenuService {
   //  UPDATE
   // ════════════════════════════════════════════════════════════════════════════
 
-  /// Update name, price, description, unit, or availability.
+  /// Update name, price, description, unit, availability, and handle images.
   static Future<String?> updateMenuItem({
     required String hallId,
     required String itemId,
@@ -98,6 +135,8 @@ class MenuService {
     String? priceUnit,
     String? description,
     bool? isAvailable,
+    XFile? imageXFile,   // Added for the fix
+    String? oldImageUrl, // Added to cleanup storage
   }) async {
     try {
       final Map<String, dynamic> updates = {};
@@ -106,6 +145,24 @@ class MenuService {
       if (priceUnit != null) updates['priceUnit'] = priceUnit;
       if (description != null) updates['description'] = description;
       if (isAvailable != null) updates['isAvailable'] = isAvailable;
+
+      // Handle Image Update logic
+      if (imageXFile != null) {
+        final newImageUrl = await StorageService.uploadHallImageXFile(
+          hallId: hallId,
+          xFile: imageXFile,
+        );
+        
+        if (newImageUrl != null) {
+          updates['imageUrl'] = newImageUrl;
+          
+          // Delete the old image from storage if it exists to keep storage clean
+          if (oldImageUrl != null && oldImageUrl.isNotEmpty) {
+            await StorageService.deleteHallImage(oldImageUrl);
+          }
+        }
+      }
+
       if (updates.isEmpty) return 'No changes provided.';
       await _menuRef(hallId).doc(itemId).update(updates);
       return null;

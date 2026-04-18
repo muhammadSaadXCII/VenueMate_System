@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../Models/hall_model.dart';
 import 'storage_service.dart';
@@ -104,6 +105,90 @@ class HallService {
       await _halls.doc(hallId).set(hall.toMap());
 
       return hallId; // success
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  REGISTER HALL — XFile variant (web-safe, works on all platforms)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  static Future<String?> registerHallXFile({
+    required String ownerId,
+    required String ownerName,
+    required String contactPhone,
+    required XFile cnicFront,
+    required XFile cnicBack,
+    required String hallName,
+    required double pricePerEvent,
+    required String address,
+    required double latitude,
+    required double longitude,
+    required int capacityMin,
+    required int capacityMax,
+    required String description,
+    required List<XFile> hallPhotos,
+    required String bankName,
+    required String bankAccountNumber,
+    required XFile ntnDoc,
+    required XFile businessLicense,
+  }) async {
+    try {
+      final String hallId = _uuid.v4();
+
+      final String? cnicFrontUrl = await StorageService.uploadHallDocumentXFile(
+        hallId: hallId,
+        xFile: cnicFront,
+        docType: 'cnic_front',
+      );
+      final String? cnicBackUrl = await StorageService.uploadHallDocumentXFile(
+        hallId: hallId,
+        xFile: cnicBack,
+        docType: 'cnic_back',
+      );
+      final List<String> imageUrls =
+          await StorageService.uploadMultipleHallImagesXFile(
+            hallId: hallId,
+            xFiles: hallPhotos,
+          );
+      final String? ntnUrl = await StorageService.uploadHallDocumentXFile(
+        hallId: hallId,
+        xFile: ntnDoc,
+        docType: 'ntn',
+      );
+      final String? licenseUrl = await StorageService.uploadHallDocumentXFile(
+        hallId: hallId,
+        xFile: businessLicense,
+        docType: 'business_license',
+      );
+
+      final HallModel hall = HallModel(
+        hallId: hallId,
+        ownerId: ownerId,
+        hallName: hallName,
+        description: description,
+        contactPhone: contactPhone,
+        address: address,
+        latitude: latitude,
+        longitude: longitude,
+        capacityMin: capacityMin,
+        capacityMax: capacityMax,
+        pricePerEvent: pricePerEvent,
+        imageUrls: imageUrls,
+        bankName: bankName,
+        bankAccountNumber: bankAccountNumber,
+        cnicFrontUrl: cnicFrontUrl ?? '',
+        cnicBackUrl: cnicBackUrl ?? '',
+        ntnDocUrl: ntnUrl ?? '',
+        businessLicenseUrl: licenseUrl ?? '',
+        status: 'pending',
+        isVisible: false,
+        createdAt: DateTime.now(),
+      );
+
+      await _halls.doc(hallId).set(hall.toMap());
+      return hallId;
     } catch (e) {
       return null;
     }
@@ -222,6 +307,26 @@ class HallService {
       final url = await StorageService.uploadHallImage(
         hallId: hallId,
         imageFile: imageFile,
+      );
+      if (url == null) return 'Failed to upload image.';
+      await _halls.doc(hallId).update({
+        'imageUrls': FieldValue.arrayUnion([url]),
+      });
+      return null;
+    } catch (_) {
+      return 'Failed to add photo.';
+    }
+  }
+
+  /// Web-safe: add hall photo from XFile (works on web + mobile).
+  static Future<String?> addHallPhotoXFile({
+    required String hallId,
+    required XFile xFile,
+  }) async {
+    try {
+      final url = await StorageService.uploadHallImageXFile(
+        hallId: hallId,
+        xFile: xFile,
       );
       if (url == null) return 'Failed to upload image.';
       await _halls.doc(hallId).update({

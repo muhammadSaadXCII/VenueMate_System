@@ -7,18 +7,8 @@ import 'package:venuemate_system/Screens/HallAdmin/hall_registration.dart';
 import 'package:venuemate_system/Screens/HallAdmin/pending_review.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart';
 
-/// Smart entry point for every Venue Owner login.
-///
-/// Routing logic (checked on every load):
-///   No hall in Firestore      → show fresh intro ("Start Hall Registration")
-///   hall.status = 'approved'  → pushReplacement → HallAdminRootLayout
-///   hall.status = 'pending'   → pushReplacement → PendingReviewScreen
-///   hall.status = 'rejected'  → pushReplacement → PendingReviewScreen
-///                                (PendingReviewScreen handles the rejected UI
-///                                 and the "Start Over" delete flow)
-///
-/// After "Start Over" deletes the hall, the owner is navigated back here.
-/// At that point Firestore has no hall doc → this screen shows the clean intro.
+const double _kWebBreak = 900;
+
 class HallRegistrationIntroScreen extends StatefulWidget {
   const HallRegistrationIntroScreen({super.key});
 
@@ -30,7 +20,7 @@ class HallRegistrationIntroScreen extends StatefulWidget {
 class _HallRegistrationIntroScreenState
     extends State<HallRegistrationIntroScreen> {
   bool _checking = true;
-  String? _ownerName; // pre-filled from Firestore user profile
+  String? _ownerName;
 
   @override
   void initState() {
@@ -44,14 +34,9 @@ class _HallRegistrationIntroScreenState
       setState(() => _checking = false);
       return;
     }
-
-    // Load user name for the welcome message
     final user = await AuthService.getCurrentUser();
     final hall = await HallService.getHallByOwnerId(uid);
-
     if (!mounted) return;
-
-    // ── No hall at all → show intro ──────────────────────────────────────
     if (hall == null) {
       setState(() {
         _ownerName = user?.name.split(' ').first ?? 'Owner';
@@ -59,8 +44,6 @@ class _HallRegistrationIntroScreenState
       });
       return;
     }
-
-    // ── Approved → dashboard ──────────────────────────────────────────────
     if (hall.isApproved) {
       Navigator.pushReplacement(
         context,
@@ -68,11 +51,6 @@ class _HallRegistrationIntroScreenState
       );
       return;
     }
-
-    // ── Pending or Rejected → PendingReviewScreen handles both ───────────
-    // PendingReviewScreen streams the hall status and shows the correct UI:
-    //   - pending  → spinner + "Refresh Status"
-    //   - rejected → rejection card + "Start Over" (which deletes and comes back here)
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const PendingReviewScreen()),
@@ -81,7 +59,6 @@ class _HallRegistrationIntroScreenState
 
   @override
   Widget build(BuildContext context) {
-    // Spinner while checking Firestore
     if (_checking) {
       return const Scaffold(
         backgroundColor: Colors.white,
@@ -90,12 +67,14 @@ class _HallRegistrationIntroScreenState
         ),
       );
     }
+    final isWide = MediaQuery.of(context).size.width >= _kWebBreak;
+    return isWide ? _buildWebLayout() : _buildMobileLayout();
+  }
 
-    // ── Clean intro (no hall registered yet, or fresh after deletion) ─────
+  Widget _buildMobileLayout() {
     return Scaffold(
       body: Stack(
         children: [
-          // Background
           Positioned.fill(
             child: Image.asset(
               'assets/images/BGimage (1).png',
@@ -106,129 +85,256 @@ class _HallRegistrationIntroScreenState
           Positioned.fill(
             child: Container(color: Colors.white.withOpacity(0.1)),
           ),
-
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 10,
+                  _logoRow(),
+                  const SizedBox(height: 40),
+                  _registrationCard(maxWidth: 500),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebLayout() {
+    return Scaffold(
+      body: Row(
+        children: [
+          // Left branding panel
+          Expanded(
+            flex: 5,
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
+                ),
+                image: DecorationImage(
+                  image: AssetImage('assets/images/BGimage (1).png'),
+                  fit: BoxFit.cover,
+                  // Increased opacity to 0.15 so it's actually visible
+                  opacity: 0.55,
+                ),
+              ),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Image.asset(
-                        'assets/images/venuemate.png',
-                        height: 65,
-                        width: 65,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.business,
-                          size: 65,
-                          color: Color(0xFFF47C20),
+                      Row(
+                        children: [
+                          Image.asset(
+                            'assets/images/venuemate.png',
+                            height: 52,
+                            width: 52,
+                            errorBuilder:
+                                (_, __, ___) => const Icon(
+                                  Icons.business,
+                                  size: 52,
+                                  color: Colors.white,
+                                ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'VenueMate',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 48),
+                      const Text(
+                        'List Your Venue On\nVenueMate',
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          height: 1.25,
                         ),
                       ),
-                      const Text(
-                        'VenueMate',
+                      const SizedBox(height: 20),
+                      Text(
+                        'Join hundreds of venue owners already earning\nwith VenueMate.',
                         style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.black,
-                          letterSpacing: 0.5,
+                          fontSize: 16,
+                          color: Colors.white.withOpacity(0.88),
+                          height: 1.6,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      ...[
+                        'Reach thousands of event planners',
+                        'Manage bookings with ease',
+                        'Secure and transparent payouts',
+                        'Full control over your listing',
+                      ].map(
+                        (t) => Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                t,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.white.withOpacity(0.92),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 40),
-
-                  // Main card
-                  Container(
-                    width: double.infinity,
-                    constraints: const BoxConstraints(maxWidth: 500),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 40,
-                      horizontal: 30,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.88),
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 20,
-                          spreadRadius: 5,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Welcome message
-                        Text(
-                          _ownerName != null
-                              ? 'Welcome, $_ownerName!'
-                              : 'Welcome, Venue Owner!',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          "Let's get your venue listed.\n"
-                          "Please complete the following 5 steps:",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[800],
-                            height: 1.5,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 30),
-
-                        // Step list
-                        Flexible(
-                          fit: FlexFit.loose,
-                          child: Container(
-                            alignment: Alignment.centerLeft,
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _step('1. Basic Details'),
-                                _step('2. Hall Details'),
-                                _step('3. Uploads & Payouts'),
-                                _step('4. Menu & Services'),
-                                _step('5. Review & Submit'),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: CommonButton(
-                            text: 'Start Hall Registration',
-                            onTap: () => AppNavigation.push(
-                              context,
-                              const HallRegistrationScreen(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                ),
               ),
+            ),
+          ),
+
+          // Right card panel
+          Expanded(
+            flex: 4,
+            child: Container(
+              color: const Color(0xFFF8F9FA),
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 32,
+                  ),
+                  child: _registrationCard(maxWidth: 480),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _logoRow() => Wrap(
+    alignment: WrapAlignment.center,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    spacing: 10,
+    children: [
+      Image.asset(
+        'assets/images/venuemate.png',
+        height: 65,
+        width: 65,
+        errorBuilder:
+            (_, __, ___) =>
+                const Icon(Icons.business, size: 65, color: Color(0xFFF47C20)),
+      ),
+      const Text(
+        'VenueMate',
+        style: TextStyle(
+          fontSize: 26,
+          fontWeight: FontWeight.w800,
+          color: Colors.black,
+          letterSpacing: 0.5,
+        ),
+      ),
+    ],
+  );
+
+  Widget _registrationCard({required double maxWidth}) {
+    return Container(
+      width: double.infinity,
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 30),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 24,
+            spreadRadius: 2,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _ownerName != null
+                ? 'Welcome, $_ownerName!'
+                : 'Welcome, Venue Owner!',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "Let's get your venue listed.\nPlease complete the following 5 steps:",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[800],
+              height: 1.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 30),
+          Container(
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _step('1. Basic Details'),
+                _step('2. Hall Details'),
+                _step('3. Uploads & Payouts'),
+                _step('4. Menu & Services'),
+                _step('5. Review & Submit'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 40),
+          SizedBox(
+            width: double.infinity,
+            child: CommonButton(
+              text: 'Start Hall Registration',
+              onTap:
+                  () => AppNavigation.push(
+                    context,
+                    const HallRegistrationScreen(),
+                  ),
             ),
           ),
         ],

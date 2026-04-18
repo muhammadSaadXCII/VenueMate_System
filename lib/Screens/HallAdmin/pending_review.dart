@@ -6,6 +6,8 @@ import 'package:venuemate_system/Screens/HallAdmin/hall_admin_root.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_registration_intro.dart';
 import 'package:venuemate_system/Widgets/common_button.dart';
 
+const double _kWebBreak = 860;
+
 class PendingReviewScreen extends StatefulWidget {
   const PendingReviewScreen({super.key});
 
@@ -17,7 +19,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
   bool _isDeleting = false;
   bool _isChecking = false;
 
-  // ── Manual refresh (for pending state) ────────────────────────────────────
   Future<void> _refreshStatus() async {
     setState(() => _isChecking = true);
     final uid = AuthService.currentUid;
@@ -25,17 +26,14 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
       setState(() => _isChecking = false);
       return;
     }
-
     final hall = await HallService.getHallByOwnerId(uid);
     if (!mounted) return;
     setState(() => _isChecking = false);
-
     if (hall == null) return;
-
     if (hall.isApproved) {
       _goToDashboard();
     } else if (hall.isRejected) {
-      // Stream will already show the rejected UI — no need for a dialog
+      // stream already showing rejected UI
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -46,16 +44,11 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
     }
   }
 
-  // ── "Start Over" — called after rejection confirmation ────────────────────
   Future<void> _startOver(String hallId) async {
     setState(() => _isDeleting = true);
-
-    // Delete all hall data: Firestore docs + Storage files
     final error = await HallService.deleteHall(hallId);
-
     if (!mounted) return;
     setState(() => _isDeleting = false);
-
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -66,8 +59,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
       );
       return;
     }
-
-    // Navigate back to intro — all hall data is gone, fresh start
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const HallRegistrationIntroScreen()),
@@ -75,7 +66,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
     );
   }
 
-  // ── Confirmation dialog before deleting ───────────────────────────────────
   Future<void> _confirmStartOver(HallModel hall) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -104,8 +94,7 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'This will permanently delete all data you submitted '
-                  'for this hall (photos, documents, menu items, services).',
+                  'This will permanently delete all data you submitted for this hall (photos, documents, menu items, services).',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -149,7 +138,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
             ),
             actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             actions: [
-              // Cancel — keep the rejected hall data visible
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -171,7 +159,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              // Confirm delete + re-register
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -197,10 +184,7 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
             ],
           ),
     );
-
-    if (confirmed == true) {
-      _startOver(hall.hallId);
-    }
+    if (confirmed == true) _startOver(hall.hallId);
   }
 
   void _goToDashboard() {
@@ -214,10 +198,18 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
   @override
   Widget build(BuildContext context) {
     final uid = AuthService.currentUid;
+    final isWide = MediaQuery.of(context).size.width >= _kWebBreak;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      backgroundColor: isWide ? const Color(0xFFF5F7FA) : Colors.white,
+      appBar:
+          isWide
+              ? null
+              : AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+              ),
       body:
           uid == null
               ? const Center(child: Text('Please log in.'))
@@ -226,26 +218,497 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
                 builder: (context, snap) {
                   final hall = snap.data;
 
-                  // ── Auto-navigate when approved ──────────────────────────
                   if (hall != null && hall.isApproved) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (mounted) _goToDashboard();
                     });
                   }
 
-                  // ── Rejected state ───────────────────────────────────────
+                  if (isWide) {
+                    return _buildWebLayout(hall);
+                  }
+
                   if (hall != null && hall.isRejected) {
                     return _buildRejectedUI(hall);
                   }
-
-                  // ── Pending state (default) ──────────────────────────────
                   return _buildPendingUI(hall);
                 },
               ),
     );
   }
 
-  // ── PENDING UI ─────────────────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+  //  WEB LAYOUT
+  // ════════════════════════════════════════════════════════════════════════════
+  Widget _buildWebLayout(HallModel? hall) {
+    final isRejected = hall != null && hall.isRejected;
+
+    return Row(
+      children: [
+        // Left sidebar — status info
+        Container(
+          width: 300,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors:
+                  isRejected
+                      ? [Colors.red.shade600, Colors.red.shade400]
+                      : [const Color(0xFFF47C20), const Color(0xFFFFD166)],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Logo
+                  Row(
+                    children: [
+                      const Icon(Icons.business, color: Colors.white, size: 28),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'VenueMate',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Big status icon
+                  Center(
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isRejected
+                            ? Icons.cancel_outlined
+                            : Icons.pending_actions,
+                        size: 56,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  Center(
+                    child: Text(
+                      isRejected ? 'Registration Rejected' : 'Under Review',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    isRejected
+                        ? 'Your hall registration was not approved. Review the reason and start over.'
+                        : 'Your hall submission is being reviewed by the admin team. This usually takes 24–48 hours.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.85),
+                      height: 1.6,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Hall name chip if available
+                  if (hall != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.store_outlined,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              hall.hallName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // Right main content
+        Expanded(
+          child:
+              isRejected
+                  ? _buildRejectedWebContent(hall)
+                  : _buildPendingWebContent(hall),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPendingWebContent(HallModel? hall) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(48),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Application Status',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Submitted for: ${hall?.hallName ?? 'your hall'}',
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 40),
+
+              // Timeline card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Review Progress',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildTimeline(),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Info box
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.orange.shade100),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.orange.shade700,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        "We'll send you a notification as soon as your hall is reviewed. You can also tap Refresh Status to check manually.",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.orange.shade800,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              SizedBox(
+                width: double.infinity,
+                child:
+                    (_isChecking || _isDeleting)
+                        ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFFF47C20),
+                          ),
+                        )
+                        : CommonButton(
+                          onTap: _refreshStatus,
+                          text: 'Refresh Status',
+                          icon: Icons.refresh_outlined,
+                        ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRejectedWebContent(HallModel hall) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(48, 48, 48, 80),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 700),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Registration Rejected',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Unfortunately, your hall registration was not approved.',
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 32),
+
+              // Two-column: rejection reason + what to do next
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Rejection reason
+                  if (hall.rejectionReason.isNotEmpty)
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.red.shade700,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Reason for Rejection',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              hall.rejectionReason,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.red.shade800,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (hall.rejectionReason.isNotEmpty)
+                    const SizedBox(width: 16),
+
+                  // What to do next
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.blue.shade100),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.lightbulb_outline,
+                                color: Colors.blue.shade700,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'What to do next',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          _tip('Review the rejection reason carefully.'),
+                          _tip('Tap "Start Over" to delete this submission.'),
+                          _tip('Re-register with corrected information.'),
+                          _tip('Re-submit for admin review.'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Hall info
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.store_outlined,
+                        color: Colors.black54,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            hall.hallName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            hall.address.isNotEmpty
+                                ? hall.address
+                                : 'No address',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              _isDeleting
+                  ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(
+                          color: Color(0xFFF47C20),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Deleting hall data...',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                  : SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _confirmStartOver(hall),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF47C20),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(
+                        Icons.refresh_rounded,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        'Start Over & Re-register',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  MOBILE LAYOUTS (unchanged behaviour)
+  // ════════════════════════════════════════════════════════════════════════════
   Widget _buildPendingUI(HallModel? hall) {
     return Column(
       children: [
@@ -256,7 +719,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Animated pending icon
                   Container(
                     width: 130,
                     height: 130,
@@ -275,7 +737,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
-
                   const Text(
                     'Status: PENDING REVIEW',
                     style: TextStyle(
@@ -285,7 +746,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
                   Text(
                     'Your hall "${hall?.hallName ?? 'your hall'}"\nis under review by the admin team.',
                     textAlign: TextAlign.center,
@@ -301,18 +761,13 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 15, color: Colors.grey[500]),
                   ),
-
                   const SizedBox(height: 40),
-
-                  // Timeline indicator
                   Center(child: _buildTimeline()),
                 ],
               ),
             ),
           ),
         ),
-
-        // Bottom refresh button
         Padding(
           padding: const EdgeInsets.fromLTRB(30, 0, 30, 40),
           child:
@@ -330,18 +785,15 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
     );
   }
 
-  // ── REJECTED UI ────────────────────────────────────────────────────────────
   Widget _buildRejectedUI(HallModel hall) {
     return Column(
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            padding: const EdgeInsets.symmetric(horizontal: 30),
             child: Column(
               children: [
                 const SizedBox(height: 20),
-
-                // Big rejection icon
                 Container(
                   width: 120,
                   height: 120,
@@ -357,7 +809,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
                 Text(
                   'Registration Rejected',
                   style: TextStyle(
@@ -367,7 +818,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
                 Text(
                   'Unfortunately, your hall registration was not approved.',
                   textAlign: TextAlign.center,
@@ -378,8 +828,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Rejection reason card
                 if (hall.rejectionReason.isNotEmpty)
                   Container(
                     width: double.infinity,
@@ -422,10 +870,7 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
                       ],
                     ),
                   ),
-
                 const SizedBox(height: 24),
-
-                // What happens next card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -466,8 +911,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // Hall info summary
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -523,8 +966,6 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
             ),
           ),
         ),
-
-        // Bottom action button
         Padding(
           padding: EdgeInsets.fromLTRB(
             24,
@@ -576,7 +1017,7 @@ class _PendingReviewScreenState extends State<PendingReviewScreen> {
     );
   }
 
-  // ── Helper widgets ─────────────────────────────────────────────────────────
+  // ── Helper widgets ──────────────────────────────────────────────────────────
   Widget _tip(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
     child: Row(

@@ -1,8 +1,11 @@
-import 'dart:io';
+import 'dart:typed_data';
+import 'package:google_maps_flutter/google_maps_flutter.dart' show LatLng;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:venuemate_system/Widgets/add_new_button.dart';
 import 'package:venuemate_system/Widgets/menu_item_card.dart';
 import 'package:venuemate_system/Widgets/service_card.dart';
@@ -14,22 +17,38 @@ import 'package:venuemate_system/Screens/HallAdmin/pending_review.dart';
 import 'package:venuemate_system/Screens/HallAdmin/add_menu_item_sheet.dart';
 import 'package:venuemate_system/Screens/HallAdmin/location_picker_sheet.dart';
 import 'package:venuemate_system/Screens/HallAdmin/add_vendor_service_sheet.dart';
-
 import '../../Services/service_item_service.dart';
 
+const double _kWebBreak = 900;
+
 // ══════════════════════════════════════════════════════════════════════════════
-//  SHARED STATE — passed from parent down to each step widget
+//  CROSS-PLATFORM FILE WRAPPER
+// ══════════════════════════════════════════════════════════════════════════════
+class _PickedFile {
+  final XFile xFile;
+  final Uint8List bytes;
+  final String name;
+
+  _PickedFile({required this.xFile, required this.bytes}) : name = xFile.name;
+
+  static Future<_PickedFile> fromXFile(XFile xf) async {
+    final bytes = await xf.readAsBytes();
+    return _PickedFile(xFile: xf, bytes: bytes);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SHARED STATE
 // ══════════════════════════════════════════════════════════════════════════════
 class RegistrationData {
-  // Step 1 – Basic Details
   final nameController = TextEditingController();
   final phoneController = TextEditingController();
   final emailController = TextEditingController();
   final cnicController = TextEditingController();
-  File? cnicFrontFile;
-  File? cnicBackFile;
 
-  // Step 2 – Hall Details
+  _PickedFile? cnicFront;
+  _PickedFile? cnicBack;
+
   final hallNameController = TextEditingController();
   final rentController = TextEditingController();
   final locationController = TextEditingController();
@@ -39,17 +58,14 @@ class RegistrationData {
   double selectedLat = 0.0;
   double selectedLng = 0.0;
 
-  // Step 3 – Uploads & Payouts
-  List<File> hallPhotos = [];
+  List<_PickedFile> hallPhotos = [];
   final bankNameController = TextEditingController();
   final bankAccController = TextEditingController();
-  File? ntnFile;
-  String ntnFileName = ''; // original filename (for display)
-  File? licenseFile;
-  String licenseFileName = ''; // original filename (for display)
+  _PickedFile? ntnFile;
+  _PickedFile? licenseFile;
 
-  // Step 4 – Menu & Services (local lists until final submit)
   List<Map<String, String>> menuItems = [];
+  List<XFile?> menuXFiles = [];          // ← stores picked images per menu item
   List<Map<String, String>> serviceItems = [];
 
   void dispose() {
@@ -84,11 +100,11 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
   final _data = RegistrationData();
 
   final List<Map<String, dynamic>> _stepData = [
-    {'title': 'Basic Details', 'number': 1},
-    {'title': 'Hall Details', 'number': 2},
-    {'title': 'Uploads & Payout', 'number': 3},
-    {'title': 'Menu & Services', 'number': 4},
-    {'title': 'Review', 'number': 5},
+    {'title': 'Basic Details', 'icon': Icons.person_outline, 'number': 1},
+    {'title': 'Hall Details', 'icon': Icons.store_outlined, 'number': 2},
+    {'title': 'Uploads & Payout', 'icon': Icons.upload_file_outlined, 'number': 3},
+    {'title': 'Menu & Services', 'icon': Icons.restaurant_menu_outlined, 'number': 4},
+    {'title': 'Review', 'icon': Icons.fact_check_outlined, 'number': 5},
   ];
 
   @override
@@ -107,7 +123,6 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
 
   void _jumpToStep(int i) => setState(() => _currentStep = i);
 
-  // ── Validate before advancing ──────────────────────────────────────────────
   bool _validateCurrentStep() {
     switch (_currentStep) {
       case 0:
@@ -127,16 +142,15 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
           _snack('Please enter your CNIC.');
           return false;
         }
-        if (_data.cnicFrontFile == null) {
+        if (_data.cnicFront == null) {
           _snack('Please upload CNIC front side.');
           return false;
         }
-        if (_data.cnicBackFile == null) {
+        if (_data.cnicBack == null) {
           _snack('Please upload CNIC back side.');
           return false;
         }
         return true;
-
       case 1:
         if (_data.hallNameController.text.trim().isEmpty) {
           _snack('Please enter hall name.');
@@ -157,7 +171,6 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
           return false;
         }
         return true;
-
       case 2:
         if (_data.hallPhotos.isEmpty) {
           _snack('Please upload at least one hall photo.');
@@ -180,28 +193,25 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
           return false;
         }
         return true;
-
       default:
         return true;
     }
   }
 
-  // ── Final submit ───────────────────────────────────────────────────────────
   Future<void> _submitRegistration() async {
     final uid = AuthService.currentUid;
     if (uid == null) {
       _snack('Please log in first.');
       return;
     }
-
     setState(() => _isSubmitting = true);
 
-    final String? hallId = await HallService.registerHall(
+    final String? hallId = await HallService.registerHallXFile(
       ownerId: uid,
       ownerName: _data.nameController.text.trim(),
       contactPhone: _data.phoneController.text.trim(),
-      cnicFront: _data.cnicFrontFile!,
-      cnicBack: _data.cnicBackFile!,
+      cnicFront: _data.cnicFront!.xFile,
+      cnicBack: _data.cnicBack!.xFile,
       hallName: _data.hallNameController.text.trim(),
       pricePerEvent: double.parse(_data.rentController.text.trim()),
       address: _data.locationController.text.trim(),
@@ -210,11 +220,11 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
       capacityMin: int.tryParse(_data.minController.text.trim()) ?? 0,
       capacityMax: int.tryParse(_data.maxController.text.trim()) ?? 0,
       description: _data.descController.text.trim(),
-      hallPhotos: _data.hallPhotos,
+      hallPhotos: _data.hallPhotos.map((p) => p.xFile).toList(),
       bankName: _data.bankNameController.text.trim(),
       bankAccountNumber: _data.bankAccController.text.trim(),
-      ntnDoc: _data.ntnFile!,
-      businessLicense: _data.licenseFile!,
+      ntnDoc: _data.ntnFile!.xFile,
+      businessLicense: _data.licenseFile!.xFile,
     );
 
     if (hallId == null) {
@@ -226,22 +236,17 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
       return;
     }
 
-    // ── Step 4: Save menu items and services to Firestore sub-collections ──
-    // These are the items the hall admin added in the Menu & Services step.
-    // They are saved after the hall doc is created so we have the hallId.
-    for (final item in _data.menuItems) {
-      // imageUrl in _data.menuItems is a local file path
-      File? imageFile;
-      final path = item['imageUrl'] ?? '';
-      if (path.isNotEmpty) imageFile = File(path);
-
-      await MenuService.addMenuItem(
+    // ── Upload menu items WITH images ────────────────────────────────────────
+    for (int i = 0; i < _data.menuItems.length; i++) {
+      final item = _data.menuItems[i];
+      final xFile = i < _data.menuXFiles.length ? _data.menuXFiles[i] : null;
+      await MenuService.addMenuItemXFile(
         hallId: hallId,
         name: item['name'] ?? '',
         price: double.tryParse(item['price'] ?? '0') ?? 0,
         priceUnit: '/${item['priceUnit'] ?? 'Serving'}',
         description: item['description'] ?? '',
-        imageFile: imageFile,
+        imageXFile: xFile,
       );
     }
 
@@ -256,7 +261,6 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
 
     if (!mounted) return;
     setState(() => _isSubmitting = false);
-
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const PendingReviewScreen()),
@@ -276,6 +280,8 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width >= _kWebBreak;
+
     final List<Widget> steps = [
       BasicDetailsStep(data: _data, onChanged: () => setState(() {})),
       HallDetailsStep(data: _data, onChanged: () => setState(() {})),
@@ -289,6 +295,253 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
       ),
     ];
 
+    return isWide ? _buildWebLayout(steps) : _buildMobileLayout(steps);
+  }
+
+  // ── WEB LAYOUT ─────────────────────────────────────────────────────────────
+  Widget _buildWebLayout(List<Widget> steps) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: Row(
+        children: [
+          _buildWebSidebar(),
+          Expanded(
+            child: Column(
+              children: [
+                Container(
+                  height: 64,
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                        onPressed: () =>
+                            _currentStep > 0 ? _prevStep() : Navigator.pop(context),
+                        tooltip: _currentStep > 0 ? 'Previous Step' : 'Back',
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _stepData[_currentStep]['title'] as String,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Step ${_currentStep + 1} of 5',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(32),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 800),
+                        child: Column(
+                          children: [
+                            steps[_currentStep],
+                            const SizedBox(height: 32),
+                            if (_currentStep < 4)
+                              Row(
+                                children: [
+                                  if (_currentStep > 0)
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(right: 12),
+                                        child: SizedBox(
+                                          height: 50,
+                                          child: OutlinedButton(
+                                            onPressed: _prevStep,
+                                            style: OutlinedButton.styleFrom(
+                                              side: const BorderSide(color: Colors.grey),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              foregroundColor: Colors.black87,
+                                            ),
+                                            child: const Text(
+                                              'Previous',
+                                              style: TextStyle(fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                          left: _currentStep > 0 ? 12 : 0),
+                                      child: SizedBox(
+                                        height: 50,
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            if (!_validateCurrentStep()) return;
+                                            _nextStep();
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFFF47C20),
+                                            foregroundColor: Colors.white,
+                                            elevation: 0,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Next',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            const SizedBox(height: 40),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebSidebar() {
+    return Container(
+      width: 260,
+      height: double.infinity,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(right: BorderSide(color: Color(0xFFEEEEEE))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 64,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
+              ),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.app_registration, color: Colors.white, size: 24),
+                SizedBox(width: 10),
+                Text(
+                  'Hall Registration',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'STEPS',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[400],
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...List.generate(_stepData.length, (i) {
+            final isActive = i == _currentStep;
+            final isCompleted = i < _currentStep;
+            final color = isActive
+                ? const Color(0xFFF47C20)
+                : isCompleted
+                    ? const Color(0xFF10B981)
+                    : Colors.grey[400]!;
+            return InkWell(
+              onTap: i <= _currentStep ? () => _jumpToStep(i) : null,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? const Color(0xFFF47C20).withOpacity(0.08)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: isCompleted
+                            ? const Color(0xFF10B981)
+                            : isActive
+                                ? const Color(0xFFF47C20)
+                                : Colors.grey[200],
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: isCompleted
+                            ? const Icon(Icons.check, size: 14, color: Colors.white)
+                            : Text(
+                                '${i + 1}',
+                                style: TextStyle(
+                                  color: isActive ? Colors.white : Colors.grey[600],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _stepData[i]['title'] as String,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight:
+                              isActive ? FontWeight.w600 : FontWeight.normal,
+                          color: color,
+                        ),
+                      ),
+                    ),
+                    if (isCompleted)
+                      Icon(
+                        Icons.check_circle,
+                        size: 16,
+                        color: const Color(0xFF10B981).withOpacity(0.6),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // ── MOBILE LAYOUT ───────────────────────────────────────────────────────────
+  Widget _buildMobileLayout(List<Widget> steps) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -297,8 +550,8 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
         scrolledUnderElevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed:
-              () => _currentStep > 0 ? _prevStep() : Navigator.pop(context),
+          onPressed: () =>
+              _currentStep > 0 ? _prevStep() : Navigator.pop(context),
         ),
         centerTitle: true,
         title: const Text(
@@ -308,7 +561,7 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
       ),
       body: Column(
         children: [
-          _buildStepIndicator(),
+          _buildMobileStepIndicator(),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -331,21 +584,15 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
                                     child: OutlinedButton(
                                       onPressed: _prevStep,
                                       style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(
-                                          color: Colors.grey,
-                                        ),
+                                        side: const BorderSide(color: Colors.grey),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
+                                          borderRadius: BorderRadius.circular(12),
                                         ),
                                         foregroundColor: Colors.black87,
                                       ),
                                       child: const Text(
                                         'Previous',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                        style: TextStyle(fontWeight: FontWeight.bold),
                                       ),
                                     ),
                                   ),
@@ -353,9 +600,8 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
                               ),
                             Expanded(
                               child: Padding(
-                                padding: EdgeInsets.only(
-                                  left: _currentStep > 0 ? 10 : 0,
-                                ),
+                                padding:
+                                    EdgeInsets.only(left: _currentStep > 0 ? 10 : 0),
                                 child: SizedBox(
                                   height: 50,
                                   child: ElevatedButton(
@@ -374,9 +620,7 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
                                     child: const Text(
                                       'Next',
                                       style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
+                                          fontWeight: FontWeight.bold, fontSize: 16),
                                     ),
                                   ),
                                 ),
@@ -396,7 +640,7 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
     );
   }
 
-  Widget _buildStepIndicator() {
+  Widget _buildMobileStepIndicator() {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
@@ -405,26 +649,25 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
               child: Row(
-                children:
-                    _stepData.asMap().entries.map((e) {
-                      final isActive = e.key == _currentStep;
-                      return Expanded(
-                        child: Center(
-                          child: Text(
-                            e.value['title'] as String,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight:
-                                  isActive ? FontWeight.w700 : FontWeight.w400,
-                              color: isActive ? Colors.black : Colors.grey[400],
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                children: _stepData.asMap().entries.map((e) {
+                  final isActive = e.key == _currentStep;
+                  return Expanded(
+                    child: Center(
+                      child: Text(
+                        e.value['title'] as String,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight:
+                              isActive ? FontWeight.w700 : FontWeight.w400,
+                          color: isActive ? Colors.black : Colors.grey[400],
                         ),
-                      );
-                    }).toList(),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
             Container(
@@ -440,10 +683,9 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
                           height: 4,
                           margin: EdgeInsets.only(right: index < 4 ? 4 : 0),
                           decoration: BoxDecoration(
-                            color:
-                                isActive || isCompleted
-                                    ? const Color(0xFFF97316)
-                                    : const Color(0xFFE5E7EB),
+                            color: isActive || isCompleted
+                                ? const Color(0xFFF97316)
+                                : const Color(0xFFE5E7EB),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -452,33 +694,27 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
                           width: 24,
                           height: 24,
                           decoration: BoxDecoration(
-                            color:
-                                isCompleted
-                                    ? const Color(0xFF10B981)
-                                    : isActive
+                            color: isCompleted
+                                ? const Color(0xFF10B981)
+                                : isActive
                                     ? const Color(0xFFF97316)
                                     : Colors.grey[300],
                             shape: BoxShape.circle,
                           ),
                           child: Center(
-                            child:
-                                isCompleted
-                                    ? const Icon(
-                                      Icons.check,
-                                      color: Colors.white,
-                                      size: 14,
-                                    )
-                                    : Text(
-                                      '${index + 1}',
-                                      style: TextStyle(
-                                        color:
-                                            isActive
-                                                ? Colors.white
-                                                : Colors.grey[600],
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                            child: isCompleted
+                                ? const Icon(Icons.check,
+                                    color: Colors.white, size: 14)
+                                : Text(
+                                    '${index + 1}',
+                                    style: TextStyle(
+                                      color: isActive
+                                          ? Colors.white
+                                          : Colors.grey[600],
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
                                     ),
+                                  ),
                           ),
                         ),
                       ],
@@ -501,26 +737,21 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
 class BasicDetailsStep extends StatefulWidget {
   final RegistrationData data;
   final VoidCallback onChanged;
-  const BasicDetailsStep({
-    super.key,
-    required this.data,
-    required this.onChanged,
-  });
-
+  const BasicDetailsStep({super.key, required this.data, required this.onChanged});
   @override
   State<BasicDetailsStep> createState() => _BasicDetailsStepState();
 }
 
 class _BasicDetailsStepState extends State<BasicDetailsStep> {
   Future<void> _pickCnic(bool isFront) async {
-    final file = await StorageService.pickImageFromGallery();
-    if (file == null) return;
+    final xf = await StorageService.pickImageXFile();
+    if (xf == null) return;
+    final picked = await _PickedFile.fromXFile(xf);
     setState(() {
-      if (isFront) {
-        widget.data.cnicFrontFile = file;
-      } else {
-        widget.data.cnicBackFile = file;
-      }
+      if (isFront)
+        widget.data.cnicFront = picked;
+      else
+        widget.data.cnicBack = picked;
     });
     widget.onChanged();
   }
@@ -528,37 +759,64 @@ class _BasicDetailsStepState extends State<BasicDetailsStep> {
   @override
   Widget build(BuildContext context) {
     final d = widget.data;
+    final isWide = MediaQuery.of(context).size.width >= _kWebBreak;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle(
-          'Basic Details',
-          'Fill in your personal contact details.',
-        ),
+        _sectionTitle('Basic Details', 'Fill in your personal contact details.'),
         const SizedBox(height: 24),
-        _field('Full Name', d.nameController, 'Enter your Full Name'),
-        _field(
-          'Phone Number',
-          d.phoneController,
-          '03**-*******',
-          type: TextInputType.phone,
-          formatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(11),
-          ],
-        ),
-        _field(
-          'Email',
-          d.emailController,
-          'Enter your Email',
-          type: TextInputType.emailAddress,
-        ),
-        _field(
-          'CNIC',
-          d.cnicController,
-          'CNIC in format *****-*******-*',
-          type: TextInputType.number,
-        ),
+        if (isWide) ...[
+          Row(
+            children: [
+              Expanded(
+                child: _field('Full Name', d.nameController, 'Enter your Full Name'),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: _field(
+                  'Phone Number',
+                  d.phoneController,
+                  '03**-*******',
+                  type: TextInputType.phone,
+                  formatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(11),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: _field('Email', d.emailController, 'Enter your Email',
+                    type: TextInputType.emailAddress),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: _field('CNIC', d.cnicController,
+                    'CNIC in format *****-*******-*',
+                    type: TextInputType.number),
+              ),
+            ],
+          ),
+        ] else ...[
+          _field('Full Name', d.nameController, 'Enter your Full Name'),
+          _field(
+            'Phone Number',
+            d.phoneController,
+            '03**-*******',
+            type: TextInputType.phone,
+            formatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(11),
+            ],
+          ),
+          _field('Email', d.emailController, 'Enter your Email',
+              type: TextInputType.emailAddress),
+          _field('CNIC', d.cnicController, 'CNIC in format *****-*******-*',
+              type: TextInputType.number),
+        ],
         const SizedBox(height: 4),
         const Text(
           'CNIC Photos',
@@ -568,19 +826,11 @@ class _BasicDetailsStepState extends State<BasicDetailsStep> {
         Row(
           children: [
             Expanded(
-              child: _uploadBox(
-                'Front Side CNIC',
-                d.cnicFrontFile,
-                () => _pickCnic(true),
-              ),
+              child: _uploadBox('Front Side CNIC', d.cnicFront, () => _pickCnic(true)),
             ),
             const SizedBox(width: 15),
             Expanded(
-              child: _uploadBox(
-                'Back Side CNIC',
-                d.cnicBackFile,
-                () => _pickCnic(false),
-              ),
+              child: _uploadBox('Back Side CNIC', d.cnicBack, () => _pickCnic(false)),
             ),
           ],
         ),
@@ -595,25 +845,26 @@ class _BasicDetailsStepState extends State<BasicDetailsStep> {
 class HallDetailsStep extends StatefulWidget {
   final RegistrationData data;
   final VoidCallback onChanged;
-  const HallDetailsStep({
-    super.key,
-    required this.data,
-    required this.onChanged,
-  });
-
+  const HallDetailsStep({super.key, required this.data, required this.onChanged});
   @override
   State<HallDetailsStep> createState() => _HallDetailsStepState();
 }
 
 class _HallDetailsStepState extends State<HallDetailsStep> {
   Future<void> _openLocationPicker() async {
+    final savedLat = widget.data.selectedLat;
+    final savedLng = widget.data.selectedLng;
+    final hasExisting = savedLat != 0.0 || savedLng != 0.0;
+
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       enableDrag: false,
       isDismissible: false,
-      builder: (_) => const LocationPickerSheet(),
+      builder: (_) => LocationPickerSheet(
+        initialPosition: hasExisting ? LatLng(savedLat, savedLng) : null,
+      ),
     );
     if (result != null) {
       setState(() {
@@ -628,18 +879,30 @@ class _HallDetailsStepState extends State<HallDetailsStep> {
   @override
   Widget build(BuildContext context) {
     final d = widget.data;
+    final isWide = MediaQuery.of(context).size.width >= _kWebBreak;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('Hall Details', 'Fill in details for your hall.'),
         const SizedBox(height: 24),
-        _field('Hall Name', d.hallNameController, 'Enter your Hall Name'),
-        _field(
-          'Hall Rent (Rs.)',
-          d.rentController,
-          'Enter Hall\'s Rent',
-          type: TextInputType.number,
-        ),
+        if (isWide) ...[
+          Row(
+            children: [
+              Expanded(
+                child: _field('Hall Name', d.hallNameController, 'Enter your Hall Name'),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: _field('Hall Rent (Rs.)', d.rentController, "Enter Hall's Rent",
+                    type: TextInputType.number),
+              ),
+            ],
+          ),
+        ] else ...[
+          _field('Hall Name', d.hallNameController, 'Enter your Hall Name'),
+          _field('Hall Rent (Rs.)', d.rentController, "Enter Hall's Rent",
+              type: TextInputType.number),
+        ],
         const Text(
           'Hall Location',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -717,21 +980,17 @@ class _HallDetailsStepState extends State<HallDetailsStep> {
 class UploadsPayoutsStep extends StatefulWidget {
   final RegistrationData data;
   final VoidCallback onChanged;
-  const UploadsPayoutsStep({
-    super.key,
-    required this.data,
-    required this.onChanged,
-  });
-
+  const UploadsPayoutsStep({super.key, required this.data, required this.onChanged});
   @override
   State<UploadsPayoutsStep> createState() => _UploadsPayoutsStepState();
 }
 
 class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
   Future<void> _addPhoto() async {
-    final file = await StorageService.pickImageFromGallery();
-    if (file == null) return;
-    setState(() => widget.data.hallPhotos.add(file));
+    final xf = await StorageService.pickImageXFile();
+    if (xf == null) return;
+    final picked = await _PickedFile.fromXFile(xf);
+    setState(() => widget.data.hallPhotos.add(picked));
     widget.onChanged();
   }
 
@@ -740,41 +999,36 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
     widget.onChanged();
   }
 
-  /// Opens file picker allowing only images (jpg/png/etc) and PDF.
-  /// No Word, PPT, Excel, or other formats.
   Future<void> _pickDocument(bool isNtn) async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        // Only allow images and PDFs — no word/ppt/xlsx
-        allowedExtensions: [
-          'pdf',
-          'jpg',
-          'jpeg',
-          'png',
-          'heic',
-          'heif',
-          'webp',
-        ],
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'heic', 'heif', 'webp'],
         allowMultiple: false,
+        withData: true,
       );
-
       if (result == null || result.files.isEmpty) return;
+      final pf = result.files.single;
 
-      final picked = result.files.single;
-      if (picked.path == null) return;
+      final XFile xf;
+      if (kIsWeb) {
+        xf = XFile.fromData(
+          pf.bytes!,
+          name: pf.name,
+          mimeType: _mimeFromName(pf.name),
+        );
+      } else {
+        xf = XFile(pf.path!);
+      }
 
-      final file = File(picked.path!);
-      final fileName = picked.name;
+      final bytes = pf.bytes ?? await xf.readAsBytes();
+      final picked = _PickedFile(xFile: xf, bytes: bytes);
 
       setState(() {
-        if (isNtn) {
-          widget.data.ntnFile = file;
-          widget.data.ntnFileName = fileName;
-        } else {
-          widget.data.licenseFile = file;
-          widget.data.licenseFileName = fileName;
-        }
+        if (isNtn)
+          widget.data.ntnFile = picked;
+        else
+          widget.data.licenseFile = picked;
       });
       widget.onChanged();
     } catch (e) {
@@ -790,19 +1044,22 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
     }
   }
 
+  String _mimeFromName(String name) {
+    final ext = name.split('.').last.toLowerCase();
+    if (ext == 'pdf') return 'application/pdf';
+    return 'image/jpeg';
+  }
+
   @override
   Widget build(BuildContext context) {
     final d = widget.data;
+    final isWide = MediaQuery.of(context).size.width >= _kWebBreak;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle(
-          'Uploads & Payouts',
-          'Upload hall photos, verification documents...',
-        ),
+            'Uploads & Payouts', 'Upload hall photos, verification documents...'),
         const SizedBox(height: 24),
-
-        // Hall Photos
         const Text(
           'Hall Photos',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -819,8 +1076,8 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: Image.file(
-                          e.value,
+                        child: Image.memory(
+                          e.value.bytes,
                           width: 140,
                           height: 100,
                           fit: BoxFit.cover,
@@ -837,11 +1094,8 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
                               color: Colors.red,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 14,
-                              color: Colors.white,
-                            ),
+                            child: const Icon(Icons.close,
+                                size: 14, color: Colors.white),
                           ),
                         ),
                       ),
@@ -861,11 +1115,8 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.add_photo_alternate_outlined,
-                        size: 32,
-                        color: Colors.grey,
-                      ),
+                      const Icon(Icons.add_photo_alternate_outlined,
+                          size: 32, color: Colors.grey),
                       const SizedBox(height: 4),
                       Text(
                         'Add Photo',
@@ -879,46 +1130,43 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Payout details
-        _sectionTitle(
-          'Payout Details',
-          'This information will only be displayed to customers.',
-        ),
+        _sectionTitle('Payout Details',
+            'This information will only be displayed to customers.'),
         const SizedBox(height: 16),
-        _field('Bank Name', d.bankNameController, 'Enter your Bank Name'),
-        _field(
-          'Bank Account Number',
-          d.bankAccController,
-          'Enter your Account Number',
-          type: TextInputType.number,
-        ),
+        if (isWide)
+          Row(
+            children: [
+              Expanded(
+                child: _field('Bank Name', d.bankNameController, 'Enter your Bank Name'),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: _field('Bank Account Number', d.bankAccController,
+                    'Enter your Account Number',
+                    type: TextInputType.number),
+              ),
+            ],
+          )
+        else ...[
+          _field('Bank Name', d.bankNameController, 'Enter your Bank Name'),
+          _field('Bank Account Number', d.bankAccController,
+              'Enter your Account Number',
+              type: TextInputType.number),
+        ],
         const SizedBox(height: 10),
-
-        // Business verification docs
-        _sectionTitle(
-          'Business Verification',
-          'This information will be used by VenueMate Admin.',
-        ),
+        _sectionTitle('Business Verification',
+            'This information will be used by VenueMate Admin.'),
         const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
               child: _docUploadBox(
-                'NTN TaxPayer File',
-                d.ntnFile,
-                d.ntnFileName,
-                () => _pickDocument(true),
-              ),
+                  'NTN TaxPayer File', d.ntnFile, () => _pickDocument(true)),
             ),
             const SizedBox(width: 15),
             Expanded(
               child: _docUploadBox(
-                'Business License',
-                d.licenseFile,
-                d.licenseFileName,
-                () => _pickDocument(false),
-              ),
+                  'Business License', d.licenseFile, () => _pickDocument(false)),
             ),
           ],
         ),
@@ -933,12 +1181,7 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
 class MenuServicesStep extends StatefulWidget {
   final RegistrationData data;
   final VoidCallback onChanged;
-  const MenuServicesStep({
-    super.key,
-    required this.data,
-    required this.onChanged,
-  });
-
+  const MenuServicesStep({super.key, required this.data, required this.onChanged});
   @override
   State<MenuServicesStep> createState() => _MenuServicesStepState();
 }
@@ -949,20 +1192,23 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder:
-          (_) => AddMenuItemSheet(
-            existing: existing,
-            onSave: (item) {
-              setState(() {
-                if (index != null) {
-                  widget.data.menuItems[index] = item;
-                } else {
-                  widget.data.menuItems.add(item);
-                }
-              });
-              widget.onChanged();
-            },
-          ),
+      builder: (_) => AddMenuItemSheet(
+        existing: existing,
+        onSave: (item, xFile) {                    // ← fixed: accepts xFile
+          setState(() {
+            if (index != null) {
+              widget.data.menuItems[index] = item;
+              if (xFile != null) {
+                widget.data.menuXFiles[index] = xFile; // update existing XFile
+              }
+            } else {
+              widget.data.menuItems.add(item);
+              widget.data.menuXFiles.add(xFile);   // store XFile alongside item
+            }
+          });
+          widget.onChanged();
+        },
+      ),
     );
   }
 
@@ -971,21 +1217,29 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder:
-          (_) => AddServiceSheet(
-            existing: existing,
-            onSave: (item) {
-              setState(() {
-                if (index != null) {
-                  widget.data.serviceItems[index] = item;
-                } else {
-                  widget.data.serviceItems.add(item);
-                }
-              });
-              widget.onChanged();
-            },
-          ),
+      builder: (_) => AddServiceSheet(
+        existing: existing,
+        onSave: (item) {
+          setState(() {
+            if (index != null)
+              widget.data.serviceItems[index] = item;
+            else
+              widget.data.serviceItems.add(item);
+          });
+          widget.onChanged();
+        },
+      ),
     );
+  }
+
+  void _deleteMenuItem(int index) {
+    setState(() {
+      widget.data.menuItems.removeAt(index);
+      if (index < widget.data.menuXFiles.length) {
+        widget.data.menuXFiles.removeAt(index);
+      }
+    });
+    widget.onChanged();
   }
 
   @override
@@ -995,12 +1249,8 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle(
-          'Menu & Services',
-          'Detail the food, beverages, and extra services.',
-        ),
+            'Menu & Services', 'Detail the food, beverages, and extra services.'),
         const SizedBox(height: 24),
-
-        // Menu items
         const Text(
           'Menu Items',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -1022,8 +1272,7 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   SlidableAction(
-                    onPressed:
-                        (_) => setState(() => d.menuItems.removeAt(entry.key)),
+                    onPressed: (_) => _deleteMenuItem(entry.key),
                     backgroundColor: Colors.red.shade50,
                     foregroundColor: Colors.red,
                     icon: Icons.delete,
@@ -1036,8 +1285,7 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
                 price: entry.value['price'] ?? '',
                 priceUnit: entry.value['priceUnit'] ?? 'Serving',
                 description: entry.value['description'] ?? '',
-                imageUrl:
-                    entry.value['imageUrl'] ??
+                imageUrl: entry.value['imageUrl'] ??
                     'https://img.freepik.com/free-photo/side-view-shawarma-with-fried-potatoes-board-cookware_176474-3215.jpg',
               ),
             ),
@@ -1046,15 +1294,10 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
         const SizedBox(height: 15),
         AddNewButton(label: 'Add New Menu Item', onTap: _openMenuSheet),
         const SizedBox(height: 32),
-
-        // Services
         RichText(
           text: TextSpan(
             style: const TextStyle(
-              color: Colors.black,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+                color: Colors.black, fontSize: 13, fontWeight: FontWeight.w600),
             children: [
               const TextSpan(text: 'Additional Services '),
               TextSpan(
@@ -1081,9 +1324,8 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   SlidableAction(
-                    onPressed:
-                        (_) =>
-                            setState(() => d.serviceItems.removeAt(entry.key)),
+                    onPressed: (_) =>
+                        setState(() => d.serviceItems.removeAt(entry.key)),
                     backgroundColor: Colors.red.shade50,
                     foregroundColor: Colors.red,
                     icon: Icons.delete,
@@ -1121,7 +1363,6 @@ class ReviewSubmitStep extends StatefulWidget {
     required this.isSubmitting,
     required this.onSubmit,
   });
-
   @override
   State<ReviewSubmitStep> createState() => _ReviewSubmitStepState();
 }
@@ -1132,110 +1373,97 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
   @override
   Widget build(BuildContext context) {
     final d = widget.data;
+    final isWide = MediaQuery.of(context).size.width >= _kWebBreak;
+
+    final card1 = _reviewCard('Basic Details', 0, widget.onEditStep, [
+      _reviewRow(Icons.person, 'Name', d.nameController.text),
+      _reviewRow(Icons.phone, 'Phone', d.phoneController.text),
+      _reviewRow(Icons.badge, 'CNIC', d.cnicController.text),
+      _reviewRow(Icons.email, 'Email', d.emailController.text),
+      _reviewRow(
+        Icons.photo,
+        'CNIC Photos',
+        '${d.cnicFront != null ? '✓' : '✗'} Front  ${d.cnicBack != null ? '✓' : '✗'} Back',
+      ),
+    ]);
+    final card2 = _reviewCard('Hall Details', 1, widget.onEditStep, [
+      _reviewRow(Icons.store, 'Hall Name', d.hallNameController.text),
+      _reviewRow(Icons.location_on, 'Location', d.locationController.text),
+      _reviewRow(Icons.groups, 'Capacity',
+          '${d.minController.text} – ${d.maxController.text} Guests'),
+      _reviewRow(Icons.payments, 'Rent', 'Rs. ${d.rentController.text}/Event'),
+    ]);
+    final card3 = _reviewCard('Uploads & Payouts', 2, widget.onEditStep, [
+      _reviewRow(Icons.photo_library, 'Hall Photos',
+          '${d.hallPhotos.length} photo(s) selected'),
+      _reviewRow(Icons.account_balance, 'Bank',
+          '${d.bankNameController.text} • ${d.bankAccController.text}'),
+      _reviewRow(
+        Icons.assignment,
+        'Documents',
+        '${d.ntnFile != null ? '✓' : '✗'} NTN  ${d.licenseFile != null ? '✓' : '✗'} License',
+      ),
+    ]);
+    final card4 = _reviewCard('Menu & Services', 3, widget.onEditStep, [
+      if (d.menuItems.isEmpty && d.serviceItems.isEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text('No items added.', style: TextStyle(color: Colors.grey[500])),
+        ),
+      if (d.menuItems.isNotEmpty) ...[
+        const Text(
+          'Menu Items',
+          style: TextStyle(
+              fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 13),
+        ),
+        const SizedBox(height: 6),
+        ...d.menuItems.map(
+          (i) => _itemRow(i['name'] ?? '', 'Rs. ${i['price']}/${i['priceUnit']}'),
+        ),
+        const SizedBox(height: 12),
+      ],
+      if (d.serviceItems.isNotEmpty) ...[
+        const Text(
+          'Services',
+          style: TextStyle(
+              fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 13),
+        ),
+        const SizedBox(height: 6),
+        ...d.serviceItems.map(
+          (s) => _itemRow(s['name'] ?? '', 'Rs. ${s['price']}'),
+        ),
+      ],
+    ]);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle(
-          'Review & Submit',
-          'Please review all your information before submitting.',
-        ),
+            'Review & Submit', 'Please review all your information before submitting.'),
         const SizedBox(height: 24),
-
-        _reviewCard('Basic Details', 0, widget.onEditStep, [
-          _reviewRow(Icons.person, 'Name', d.nameController.text),
-          _reviewRow(Icons.phone, 'Phone', d.phoneController.text),
-          _reviewRow(Icons.badge, 'CNIC', d.cnicController.text),
-          _reviewRow(Icons.email, 'Email', d.emailController.text),
-          _reviewRow(
-            Icons.photo,
-            'CNIC Photos',
-            '${d.cnicFrontFile != null ? '✓' : '✗'} Front  '
-                '${d.cnicBackFile != null ? '✓' : '✗'} Back',
-          ),
-        ]),
-        const SizedBox(height: 16),
-
-        _reviewCard('Hall Details', 1, widget.onEditStep, [
-          _reviewRow(Icons.store, 'Hall Name', d.hallNameController.text),
-          _reviewRow(Icons.location_on, 'Location', d.locationController.text),
-          _reviewRow(
-            Icons.groups,
-            'Capacity',
-            '${d.minController.text} – ${d.maxController.text} Guests',
-          ),
-          _reviewRow(
-            Icons.payments,
-            'Rent',
-            'Rs. ${d.rentController.text}/Event',
-          ),
-        ]),
-        const SizedBox(height: 16),
-
-        _reviewCard('Uploads & Payouts', 2, widget.onEditStep, [
-          _reviewRow(
-            Icons.photo_library,
-            'Hall Photos',
-            '${d.hallPhotos.length} photo(s) selected',
-          ),
-          _reviewRow(
-            Icons.account_balance,
-            'Bank',
-            '${d.bankNameController.text} • ${d.bankAccController.text}',
-          ),
-          _reviewRow(
-            Icons.assignment,
-            'Documents',
-            '${d.ntnFile != null ? '✓' : '✗'} NTN  '
-                '${d.licenseFile != null ? '✓' : '✗'} License',
-          ),
-        ]),
-        const SizedBox(height: 16),
-
-        _reviewCard('Menu & Services', 3, widget.onEditStep, [
-          if (d.menuItems.isEmpty && d.serviceItems.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                'No items added.',
-                style: TextStyle(color: Colors.grey[500]),
+        if (isWide)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(children: [card1, const SizedBox(height: 16), card3]),
               ),
-            ),
-          if (d.menuItems.isNotEmpty) ...[
-            const Text(
-              'Menu Items',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-                fontSize: 13,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(children: [card2, const SizedBox(height: 16), card4]),
               ),
-            ),
-            const SizedBox(height: 6),
-            ...d.menuItems.map(
-              (i) => _itemRow(
-                i['name'] ?? '',
-                'Rs. ${i['price']}/${i['priceUnit']}',
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-          if (d.serviceItems.isNotEmpty) ...[
-            const Text(
-              'Services',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 6),
-            ...d.serviceItems.map(
-              (s) => _itemRow(s['name'] ?? '', 'Rs. ${s['price']}'),
-            ),
-          ],
-        ]),
+            ],
+          )
+        else ...[
+          card1,
+          const SizedBox(height: 16),
+          card2,
+          const SizedBox(height: 16),
+          card3,
+          const SizedBox(height: 16),
+          card4,
+        ],
         const SizedBox(height: 40),
-
-        // Confirmation checkbox
         GestureDetector(
           onTap: () => setState(() => _isConfirmed = !_isConfirmed),
           child: Row(
@@ -1245,37 +1473,31 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
                 height: 24,
                 width: 24,
                 decoration: BoxDecoration(
-                  color:
-                      _isConfirmed
-                          ? const Color(0xFFF47C20)
-                          : Colors.transparent,
+                  color: _isConfirmed ? const Color(0xFFF47C20) : Colors.transparent,
                   border: Border.all(
                     color: _isConfirmed ? const Color(0xFFF47C20) : Colors.grey,
                     width: 2,
                   ),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child:
-                    _isConfirmed
-                        ? const Icon(Icons.check, size: 16, color: Colors.white)
-                        : null,
+                child: _isConfirmed
+                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                    : null,
               ),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
                   'I confirm that the information provided is accurate.',
                   style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w500,
-                  ),
+                      fontSize: 13,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500),
                 ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 24),
-
         SizedBox(
           width: double.infinity,
           height: 52,
@@ -1291,16 +1513,12 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child:
-                widget.isSubmitting
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                      'Submit for Verification',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
+            child: widget.isSubmitting
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text(
+                    'Submit for Verification',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
           ),
         ),
       ],
@@ -1308,53 +1526,43 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
   }
 
   Widget _itemRow(String name, String price) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: Text(
-            name,
-            style: const TextStyle(fontWeight: FontWeight.w500),
-            overflow: TextOverflow.ellipsis,
-          ),
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                name,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              price,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Color(0xFFF47C20)),
+            ),
+          ],
         ),
+      );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SHARED HELPERS
+// ══════════════════════════════════════════════════════════════════════════════
+Widget _sectionTitle(String title, String subtitle) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 5),
         Text(
-          price,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFFF47C20),
-          ),
+          subtitle,
+          style: TextStyle(
+              color: Colors.grey[400], fontSize: 12, fontWeight: FontWeight.w700),
         ),
       ],
-    ),
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  SHARED HELPER WIDGETS & FUNCTIONS
-// ══════════════════════════════════════════════════════════════════════════════
-
-Widget _sectionTitle(String title, String subtitle) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        title,
-        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-      ),
-      const SizedBox(height: 5),
-      Text(
-        subtitle,
-        style: TextStyle(
-          color: Colors.grey[400],
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    ],
-  );
-}
+    );
 
 Widget _field(
   String label,
@@ -1372,10 +1580,7 @@ Widget _field(
         Text(
           label,
           style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
+              fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -1391,8 +1596,7 @@ Widget _field(
   );
 }
 
-/// Tappable upload box for CNIC / hall photos. Shows image thumbnail if picked.
-Widget _uploadBox(String label, File? file, VoidCallback onTap) {
+Widget _uploadBox(String label, _PickedFile? file, VoidCallback onTap) {
   return GestureDetector(
     onTap: onTap,
     child: Container(
@@ -1406,48 +1610,33 @@ Widget _uploadBox(String label, File? file, VoidCallback onTap) {
           width: file != null ? 2 : 1,
         ),
       ),
-      child:
-          file != null
-              ? ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.file(file, fit: BoxFit.cover),
-              )
-              : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.cloud_upload_outlined,
-                    size: 30,
-                    color: Colors.black54,
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
+      child: file != null
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.memory(file.bytes, fit: BoxFit.cover),
+            )
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.cloud_upload_outlined,
+                    size: 30, color: Colors.black54),
+                const SizedBox(height: 5),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
                       fontSize: 10,
                       color: Colors.black54,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
     ),
   );
 }
 
-/// Upload box for NTN and Business License.
-/// Supports both image and PDF files.
-/// - For images: shows a thumbnail
-/// - For PDFs: shows a PDF icon with the filename
-/// - For empty: shows the upload icon with label
-Widget _docUploadBox(
-  String label,
-  File? file,
-  String fileName,
-  VoidCallback onTap,
-) {
-  final isPdf = fileName.toLowerCase().endsWith('.pdf');
+Widget _docUploadBox(String label, _PickedFile? file, VoidCallback onTap) {
+  final isPdf = file != null && file.name.toLowerCase().endsWith('.pdf');
   return GestureDetector(
     onTap: onTap,
     child: Container(
@@ -1461,83 +1650,70 @@ Widget _docUploadBox(
           width: file != null ? 2 : 1,
         ),
       ),
-      child:
-          file == null
-              // ── Not picked yet ──────────────────────────────────────────────
-              ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.cloud_upload_outlined,
-                    size: 30,
-                    color: Colors.black54,
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
+      child: file == null
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.cloud_upload_outlined,
+                    size: 30, color: Colors.black54),
+                const SizedBox(height: 5),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
                       fontSize: 10,
                       color: Colors.black54,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Image or PDF',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 9, color: Colors.grey[500]),
-                  ),
-                ],
-              )
-              : isPdf
-              // ── PDF picked ──────────────────────────────────────────────
+                      fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Image or PDF',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 9, color: Colors.grey[500]),
+                ),
+              ],
+            )
+          : isPdf
               ? Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.picture_as_pdf,
-                      size: 32,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      fileName.length > 20
-                          ? '${fileName.substring(0, 17)}...'
-                          : fileName,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.picture_as_pdf,
+                          size: 32, color: Colors.red),
+                      const SizedBox(height: 6),
+                      Text(
+                        file.name.length > 20
+                            ? '${file.name.substring(0, 17)}...'
+                            : file.name,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      '✓ PDF uploaded',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: Color(0xFFF47C20),
-                        fontWeight: FontWeight.bold,
+                      const SizedBox(height: 2),
+                      const Text(
+                        '✓ PDF uploaded',
+                        style: TextStyle(
+                            fontSize: 9,
+                            color: Color(0xFFF47C20),
+                            fontWeight: FontWeight.bold),
                       ),
-                    ),
-                  ],
-                ),
-              )
-              // ── Image picked ─────────────────────────────────────────────
+                    ],
+                  ),
+                )
               : ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.file(
-                  file,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.memory(
+                    file.bytes,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
                 ),
-              ),
     ),
   );
 }
@@ -1572,18 +1748,15 @@ Widget _reviewCard(
             Text(
               title,
               style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87),
             ),
             GestureDetector(
               onTap: () => onEdit(stepIndex),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF3E0),
                   borderRadius: BorderRadius.circular(20),
@@ -1593,10 +1766,9 @@ Widget _reviewCard(
                     Text(
                       'Edit',
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFF47C20),
-                      ),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFF47C20)),
                     ),
                     SizedBox(width: 4),
                     Icon(Icons.edit, size: 12, color: Color(0xFFF47C20)),
@@ -1613,66 +1785,62 @@ Widget _reviewCard(
   );
 }
 
-Widget _reviewRow(IconData icon, String label, String value) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.grey[50],
-            borderRadius: BorderRadius.circular(8),
+Widget _reviewRow(IconData icon, String label, String value) => Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: Colors.grey[600]),
           ),
-          child: Icon(icon, size: 18, color: Colors.grey[600]),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[500],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[500]),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
 
 InputDecoration _inputDec(String hint) => InputDecoration(
-  hintText: hint,
-  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-  filled: true,
-  fillColor: Colors.grey[50],
-  border: OutlineInputBorder(
-    borderRadius: BorderRadius.circular(8),
-    borderSide: BorderSide(color: Colors.grey[300]!),
-  ),
-  enabledBorder: OutlineInputBorder(
-    borderRadius: BorderRadius.circular(8),
-    borderSide: BorderSide(color: Colors.grey[300]!),
-  ),
-  focusedBorder: OutlineInputBorder(
-    borderRadius: BorderRadius.circular(8),
-    borderSide: const BorderSide(color: Color(0xFFF97316), width: 1.5),
-  ),
-  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-);
+      hintText: hint,
+      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+      filled: true,
+      fillColor: Colors.grey[50],
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFF97316), width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    );

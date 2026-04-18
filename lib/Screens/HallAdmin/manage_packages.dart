@@ -7,9 +7,10 @@ import 'package:venuemate_system/Services/package_service.dart';
 import '../../Models/package_model.dart';
 import 'create_package.dart';
 
+const double _kPkgWebBreak = 900;
+
 class ManagePackagesScreen extends StatefulWidget {
   const ManagePackagesScreen({super.key});
-
   @override
   State<ManagePackagesScreen> createState() => _ManagePackagesScreenState();
 }
@@ -66,6 +67,9 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width >= _kPkgWebBreak;
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
@@ -91,22 +95,23 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
               ? const Center(
                 child: CircularProgressIndicator(color: Color(0xFFF47C20)),
               )
-              : Align(
-                alignment: Alignment.topCenter,
+              : Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1400),
+                  constraints: const BoxConstraints(
+                    maxWidth: 1200,
+                  ), // Slightly tighter max width
                   child: CustomScrollView(
                     slivers: [
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Center(
                                 child: ConstrainedBox(
                                   constraints: const BoxConstraints(
-                                    maxWidth: 600,
+                                    maxWidth: 500,
                                   ),
                                   child: GestureDetector(
                                     onTap:
@@ -116,7 +121,7 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
                                         ),
                                     child: Container(
                                       width: double.infinity,
-                                      height: 50,
+                                      height: 48,
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFFE0C2),
                                         borderRadius: BorderRadius.circular(30),
@@ -128,14 +133,14 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
                                           Icon(
                                             Icons.add_circle_outline,
                                             color: Color(0xFFF47C20),
-                                            size: 24,
+                                            size: 22,
                                           ),
                                           SizedBox(width: 10),
                                           Text(
                                             'Add New Package',
                                             style: TextStyle(
                                               color: Color(0xFFF47C20),
-                                              fontSize: 16,
+                                              fontSize: 15,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -145,7 +150,7 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 30),
+                              const SizedBox(height: 24), // Reduced from 30
                               const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 4),
                                 child: Text(
@@ -161,7 +166,6 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
                           ),
                         ),
                       ),
-
                       StreamBuilder<List<PackageModel>>(
                         stream: PackageService.streamPackages(_hallId!),
                         builder: (context, snap) {
@@ -177,12 +181,13 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
                               ),
                             );
                           }
+
                           final packages = snap.data ?? [];
                           if (packages.isEmpty) {
                             return SliverToBoxAdapter(
                               child: Center(
                                 child: Padding(
-                                  padding: const EdgeInsets.all(40),
+                                  padding: const EdgeInsets.all(60),
                                   child: Column(
                                     children: [
                                       Icon(
@@ -203,19 +208,83 @@ class _ManagePackagesScreenState extends State<ManagePackagesScreen> {
                               ),
                             );
                           }
+
+                          if (isWide) {
+                            return SliverPadding(
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                12,
+                                20,
+                                40,
+                              ), // Top padding reduced to 12
+                              sliver: SliverGrid(
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount:
+                                      screenWidth > 1100
+                                          ? 3
+                                          : 2, // 3 columns on very wide screens
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                  // Optimized aspect ratio: 2.2 makes the cards shorter horizontally
+                                  childAspectRatio:
+                                      screenWidth > 1100 ? 1.6 : 2.1,
+                                ),
+                                delegate: SliverChildBuilderDelegate((_, i) {
+                                  final pkg = packages[i];
+                                  return ClipRRect(
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Slidable(
+                                      key: ValueKey(pkg.packageId),
+                                      endActionPane: ActionPane(
+                                        motion: const ScrollMotion(),
+                                        children: [
+                                          SlidableAction(
+                                            onPressed:
+                                                (_) => AppNavigation.push(
+                                                  context,
+                                                  CreatePackageScreen(
+                                                    hallId: _hallId!,
+                                                    existing: pkg,
+                                                  ),
+                                                ),
+                                            backgroundColor:
+                                                Colors.blue.shade50,
+                                            foregroundColor: Colors.blue,
+                                            icon: Icons.edit,
+                                            label: 'Edit',
+                                          ),
+                                          SlidableAction(
+                                            onPressed:
+                                                (_) => _deletePackage(pkg),
+                                            backgroundColor: Colors.red.shade50,
+                                            foregroundColor: Colors.red,
+                                            icon: Icons.delete,
+                                            label: 'Delete',
+                                          ),
+                                        ],
+                                      ),
+                                      child: _PackageCard(
+                                        pkg: pkg,
+                                        onToggle:
+                                            (val) =>
+                                                PackageService.togglePackageStatus(
+                                                  hallId: _hallId!,
+                                                  packageId: pkg.packageId,
+                                                  isActive: val,
+                                                ),
+                                      ),
+                                    ),
+                                  );
+                                }, childCount: packages.length),
+                              ),
+                            );
+                          }
+
                           return SliverPadding(
-                            padding: const EdgeInsets.only(
-                              left: 20,
-                              right: 20,
-                              top: 8,
-                              bottom: 40,
-                            ),
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
                             sliver: SliverList(
-                              delegate: SliverChildBuilderDelegate((
-                                context,
-                                index,
-                              ) {
-                                final pkg = packages[index];
+                              delegate: SliverChildBuilderDelegate((_, i) {
+                                final pkg = packages[i];
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 16),
                                   child: ClipRRect(
@@ -280,7 +349,6 @@ class _PackageCard extends StatelessWidget {
   final PackageModel pkg;
   final ValueChanged<bool> onToggle;
   const _PackageCard({required this.pkg, required this.onToggle});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -299,7 +367,9 @@ class _PackageCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment:
+            MainAxisAlignment
+                .center, // Centers content vertically to fill card space
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -349,7 +419,7 @@ class _PackageCard extends StatelessWidget {
               color: Colors.black87,
               height: 1.2,
             ),
-            maxLines: 2,
+            maxLines: 1, // Reduced to 1 to save space
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 6),
@@ -381,30 +451,28 @@ class _PackageCard extends StatelessWidget {
     );
   }
 
-  Widget _feature(IconData icon, String value, String label) {
-    return Column(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey.shade600),
-        const SizedBox(height: 4),
-        Text(
-          value.split(' ').first,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+  Widget _feature(IconData icon, String value, String label) => Column(
+    children: [
+      Icon(icon, size: 20, color: Colors.grey.shade600),
+      const SizedBox(height: 4),
+      Text(
+        value.split(' ').first,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
         ),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: Colors.grey.shade500,
-          ),
+      ),
+      Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+          color: Colors.grey.shade500,
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
 }

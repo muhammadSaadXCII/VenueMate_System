@@ -15,6 +15,8 @@ import 'package:venuemate_system/Screens/Shared/user_notifications.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_bookings.dart';
 import 'package:venuemate_system/Screens/HallAdmin/manage_vendor_services.dart';
 
+const double _kHallHomeWebBreak = 950;
+
 class HallAdminHomeScreen extends StatefulWidget {
   const HallAdminHomeScreen({super.key});
 
@@ -27,7 +29,6 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
   HallModel? _hall;
   bool _loading = true;
 
-  // Booking counts (fetched once on load)
   int _upcoming = 0;
   int _pending = 0;
   int _completed = 0;
@@ -44,7 +45,6 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
     final uid = AuthService.currentUid;
     if (uid == null) return;
 
-    // Load user + hall in parallel
     final results = await Future.wait([
       AuthService.getCurrentUser(),
       HallService.getHallByOwnerId(uid),
@@ -53,7 +53,6 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
     final user = results[0] as UserModel?;
     final hall = results[1] as HallModel?;
 
-    // Load booking stats if hall exists
     if (hall != null) {
       final snap =
           await FirebaseFirestore.instance
@@ -97,9 +96,371 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
       );
     }
 
+    final isWide = MediaQuery.of(context).size.width >= _kHallHomeWebBreak;
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: isWide ? _buildWebLayout() : _buildMobileLayout(),
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  WEB LAYOUT
+  // ════════════════════════════════════════════════════════════════════════════
+  Widget _buildWebLayout() {
     return Column(
       children: [
-        // ── Header ─────────────────────────────────────────────────────────────
+        // Top bar
+        Container(
+          height: 64,
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          color: Colors.white,
+          child: Row(
+            children: [
+              Text(
+                'Welcome back, ${_user?.name.split(' ').first ?? 'Owner'}! 👋',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              StreamBuilder<int>(
+                stream:
+                    _user != null
+                        ? UserService.streamUnreadNotificationCount(_user!.uid)
+                        : Stream.value(0),
+                builder: (context, snap) {
+                  final count = snap.data ?? 0;
+                  return GestureDetector(
+                    onTap:
+                        () => AppNavigation.push(
+                          context,
+                          const UserNotificationsScreen(),
+                        ),
+                    child: badges.Badge(
+                      showBadge: count > 0,
+                      badgeContent: Text(
+                        '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                      ),
+                      badgeStyle: const badges.BadgeStyle(
+                        badgeColor: Colors.red,
+                        padding: EdgeInsets.all(4),
+                        elevation: 0,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.notifications_outlined,
+                          size: 22,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+
+        // Body
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Hall status banner
+                if (_hall != null && !_hall!.isApproved) ...[
+                  _statusBanner(),
+                  const SizedBox(height: 24),
+                ],
+
+                // Stats row — 4 cards
+                Row(
+                  children: [
+                    _webStatCard(
+                      'Upcoming',
+                      _upcoming,
+                      Colors.green.shade400,
+                      Icons.event_available_outlined,
+                    ),
+                    const SizedBox(width: 16),
+                    _webStatCard(
+                      'Pending',
+                      _pending,
+                      const Color(0xFFFEDA77),
+                      Icons.pending_outlined,
+                    ),
+                    const SizedBox(width: 16),
+                    _webStatCard(
+                      'Completed',
+                      _completed,
+                      Colors.orange,
+                      Icons.check_circle_outline,
+                    ),
+                    const SizedBox(width: 16),
+                    _webStatCard(
+                      'Cancelled',
+                      _cancelled,
+                      Colors.redAccent,
+                      Icons.cancel_outlined,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+
+                // Two column: chart + quick actions
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Booking chart card
+                    Expanded(
+                      flex: 5,
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: _cardDec(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Bookings Overview',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  height: 160,
+                                  width: 160,
+                                  child:
+                                      _total == 0
+                                          ? Center(
+                                            child: Text(
+                                              'No bookings yet',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Colors.grey[400],
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          )
+                                          : PieChart(
+                                            PieChartData(
+                                              sectionsSpace: 0,
+                                              centerSpaceRadius: 50,
+                                              sections: [
+                                                _section(
+                                                  Colors.greenAccent.shade400,
+                                                  _upcoming.toDouble(),
+                                                ),
+                                                _section(
+                                                  const Color(0xFFFEDA77),
+                                                  _pending.toDouble(),
+                                                ),
+                                                _section(
+                                                  Colors.orange,
+                                                  _completed.toDouble(),
+                                                ),
+                                                _section(
+                                                  Colors.redAccent,
+                                                  _cancelled.toDouble(),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$_total Total',
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _legend(
+                                      Colors.greenAccent.shade400,
+                                      'Upcoming: $_upcoming',
+                                    ),
+                                    _legend(
+                                      const Color(0xFFFEDA77),
+                                      'Pending: $_pending',
+                                    ),
+                                    _legend(
+                                      Colors.orange,
+                                      'Completed: $_completed',
+                                    ),
+                                    _legend(
+                                      Colors.redAccent,
+                                      'Cancelled: $_cancelled',
+                                    ),
+                                    const SizedBox(height: 12),
+                                    GestureDetector(
+                                      onTap:
+                                          () => AppNavigation.push(
+                                            context,
+                                            const HallAdminBookingsScreen(),
+                                          ),
+                                      child: const Text(
+                                        'View Bookings →',
+                                        style: TextStyle(
+                                          color: Color(0xFFF47C20),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+
+                    // Quick actions
+                    Expanded(
+                      flex: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: _cardDec(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Quick Actions',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            GridView.count(
+                              crossAxisCount: 2,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio:
+                                  1.2, // Changed to 1.5 to fix overflow
+                              children: [
+                                _actionCard(
+                                  'Manage Hall',
+                                  Icons.storefront_outlined,
+                                  () => AppNavigation.push(
+                                    context,
+                                    const ManageHallScreen(),
+                                  ),
+                                ),
+                                _actionCard(
+                                  'Manage Menu',
+                                  Icons.restaurant_menu_outlined,
+                                  () => AppNavigation.push(
+                                    context,
+                                    const ManageMenuScreen(),
+                                  ),
+                                ),
+                                _actionCard(
+                                  'Manage Services',
+                                  Icons.room_service_outlined,
+                                  () => AppNavigation.push(
+                                    context,
+                                    const ManageServicesScreen(),
+                                  ),
+                                ),
+                                _actionCard(
+                                  'Manage Packages',
+                                  Icons.card_giftcard_outlined,
+                                  () => AppNavigation.push(
+                                    context,
+                                    const ManagePackagesScreen(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _webStatCard(String label, int value, Color color, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: _cardDec(),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$value',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey[500],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  MOBILE LAYOUT
+  // ════════════════════════════════════════════════════════════════════════════
+  Widget _buildMobileLayout() {
+    return Column(
+      children: [
+        // Header
         Container(
           padding: const EdgeInsets.only(
             left: 20,
@@ -119,7 +480,6 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                // ✅ Show real owner name from Firestore
                 'Welcome, ${_user?.name.split(' ').first ?? 'Owner'}!',
                 style: const TextStyle(
                   color: Colors.black87,
@@ -138,7 +498,7 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
                     onTap:
                         () => AppNavigation.push(
                           context,
-                          UserNotificationsScreen(),
+                          const UserNotificationsScreen(),
                         ),
                     child: Container(
                       padding: const EdgeInsets.all(8),
@@ -173,64 +533,17 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
           ),
         ),
 
-        // ── Body ───────────────────────────────────────────────────────────────
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Hall status banner (show if not approved yet)
                 if (_hall != null && !_hall!.isApproved) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color:
-                          _hall!.isPending
-                              ? Colors.amber.shade50
-                              : Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color:
-                            _hall!.isPending
-                                ? Colors.amber.shade300
-                                : Colors.red.shade300,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _hall!.isPending
-                              ? Icons.pending_actions
-                              : Icons.cancel,
-                          color:
-                              _hall!.isPending
-                                  ? Colors.amber.shade700
-                                  : Colors.red.shade700,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _hall!.isPending
-                                ? 'Your hall is pending admin approval.'
-                                : 'Your hall was rejected: ${_hall!.rejectionReason}',
-                            style: TextStyle(
-                              color:
-                                  _hall!.isPending
-                                      ? Colors.amber.shade800
-                                      : Colors.red.shade800,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  _statusBanner(),
                   const SizedBox(height: 20),
                 ],
 
-                // Booking chart
                 const Text(
                   'Bookings Status',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -298,9 +611,9 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'Booking Data',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.grey,
@@ -330,7 +643,9 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
                                   () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => HallAdminBookingsScreen(),
+                                      builder:
+                                          (_) =>
+                                              const HallAdminBookingsScreen(),
                                     ),
                                   ),
                               child: const Text(
@@ -350,7 +665,6 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
                 ),
                 const SizedBox(height: 30),
 
-                // Quick Actions
                 const Text(
                   'Quick Actions',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -364,8 +678,10 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
                           child: _actionCard(
                             'Manage Hall',
                             Icons.storefront_outlined,
-                            () =>
-                                AppNavigation.push(context, ManageHallScreen()),
+                            () => AppNavigation.push(
+                              context,
+                              const ManageHallScreen(),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -373,8 +689,10 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
                           child: _actionCard(
                             'Manage Menu',
                             Icons.restaurant_menu_outlined,
-                            () =>
-                                AppNavigation.push(context, ManageMenuScreen()),
+                            () => AppNavigation.push(
+                              context,
+                              const ManageMenuScreen(),
+                            ),
                           ),
                         ),
                       ],
@@ -388,7 +706,7 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
                             Icons.room_service_outlined,
                             () => AppNavigation.push(
                               context,
-                              ManageServicesScreen(),
+                              const ManageServicesScreen(),
                             ),
                           ),
                         ),
@@ -399,7 +717,7 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
                             Icons.card_giftcard_outlined,
                             () => AppNavigation.push(
                               context,
-                              ManagePackagesScreen(),
+                              const ManagePackagesScreen(),
                             ),
                           ),
                         ),
@@ -413,6 +731,45 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // ── Shared helpers ──────────────────────────────────────────────────────────
+  Widget _statusBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _hall!.isPending ? Colors.amber.shade50 : Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _hall!.isPending ? Colors.amber.shade300 : Colors.red.shade300,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _hall!.isPending ? Icons.pending_actions : Icons.cancel,
+            color:
+                _hall!.isPending ? Colors.amber.shade700 : Colors.red.shade700,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _hall!.isPending
+                  ? 'Your hall is pending admin approval.'
+                  : 'Your hall was rejected: ${_hall!.rejectionReason}',
+              style: TextStyle(
+                color:
+                    _hall!.isPending
+                        ? Colors.amber.shade800
+                        : Colors.red.shade800,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -444,7 +801,7 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 110,
+        // height: 110, // REMOVED fixed height to allow flexibility
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -464,15 +821,22 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: const Color(0xFF1D1D1D)),
+            Icon(
+              icon,
+              size: 32,
+              color: const Color(0xFF1D1D1D),
+            ), // Slightly smaller icon
             const SizedBox(height: 8),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFF1D1D1D),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600, // Semi-bold looks better for web
+                  color: Color(0xFF1D1D1D),
+                ),
               ),
             ),
           ],
@@ -480,4 +844,16 @@ class _HallAdminHomeScreenState extends State<HallAdminHomeScreen> {
       ),
     );
   }
+
+  BoxDecoration _cardDec() => BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.05),
+        blurRadius: 12,
+        offset: const Offset(0, 4),
+      ),
+    ],
+  );
 }
