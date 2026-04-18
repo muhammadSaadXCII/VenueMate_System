@@ -165,7 +165,7 @@ class Profilescreen extends StatelessWidget {
                               onTap:
                                   () => AppNavigation.push(
                                     context,
-                                    const AllEventsScreen(),
+                                    const AllEventsScreen(initialTabIndex: 0),
                                   ),
                             ),
                             _DashboardButton(

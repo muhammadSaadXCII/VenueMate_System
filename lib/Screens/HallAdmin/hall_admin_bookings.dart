@@ -24,6 +24,12 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
   HallModel? _hall;
   bool _loadingHall = true;
 
+  // ── Cached streams — created ONCE when hall loads, never recreated on rebuild
+  Stream<List<BookingModel>>? _upcomingStream;
+  Stream<List<BookingModel>>? _pendingStream;
+  Stream<List<BookingModel>>? _completedStream;
+  Stream<List<BookingModel>>? _cancelledStream;
+
   // Tabs: Upcoming | Pending | Completed | Cancelled
   static const _tabs = ['Upcoming', 'Pending', 'Completed', 'Cancelled'];
 
@@ -51,6 +57,17 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
       setState(() {
         _hall = hall;
         _loadingHall = false;
+        if (hall != null) {
+          // ── FIX: cache streams here so build() never recreates them ──
+          _upcomingStream = BookingService.streamUpcomingBookings(hall.hallId);
+          _pendingStream = BookingService.streamPendingBookings(hall.hallId);
+          _completedStream = BookingService.streamCompletedBookings(
+            hall.hallId,
+          );
+          _cancelledStream = BookingService.streamCancelledBookings(
+            hall.hallId,
+          );
+        }
       });
   }
 
@@ -89,33 +106,25 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
                       controller: _tabController,
                       children: [
                         _BookingTab(
-                          stream: BookingService.streamUpcomingBookings(
-                            _hall!.hallId,
-                          ),
+                          stream: _upcomingStream!,
                           tabLabel: 'Upcoming',
                           hall: _hall!,
                           emptyMessage: 'No upcoming confirmed bookings yet.',
                         ),
                         _BookingTab(
-                          stream: BookingService.streamPendingBookings(
-                            _hall!.hallId,
-                          ),
+                          stream: _pendingStream!,
                           tabLabel: 'Pending',
                           hall: _hall!,
                           emptyMessage: 'No pending receipts to verify.',
                         ),
                         _BookingTab(
-                          stream: BookingService.streamCompletedBookings(
-                            _hall!.hallId,
-                          ),
+                          stream: _completedStream!,
                           tabLabel: 'Completed',
                           hall: _hall!,
                           emptyMessage: 'No completed events yet.',
                         ),
                         _BookingTab(
-                          stream: BookingService.streamCancelledBookings(
-                            _hall!.hallId,
-                          ),
+                          stream: _cancelledStream!,
                           tabLabel: 'Cancelled',
                           hall: _hall!,
                           emptyMessage: 'No cancelled bookings.',
@@ -177,9 +186,11 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  BOOKING TAB (one per tab)
+//  FIX: StatefulWidget + AutomaticKeepAliveClientMixin so the widget (and its
+//  StreamBuilder subscription) survives parent rebuilds and tab switches.
 // ══════════════════════════════════════════════════════════════════════════════
 
-class _BookingTab extends StatelessWidget {
+class _BookingTab extends StatefulWidget {
   final Stream<List<BookingModel>> stream;
   final String tabLabel;
   final HallModel hall;
@@ -193,11 +204,25 @@ class _BookingTab extends StatelessWidget {
   });
 
   @override
+  State<_BookingTab> createState() => _BookingTabState();
+}
+
+class _BookingTabState extends State<_BookingTab>
+    with AutomaticKeepAliveClientMixin {
+  // Keep this tab alive when the user switches away — prevents StreamBuilder
+  // from being disposed and losing its snapshot data.
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context); // required by AutomaticKeepAliveClientMixin
     return StreamBuilder<List<BookingModel>>(
-      stream: stream,
+      stream: widget.stream,
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
+        // Only show spinner on the very first load (no data yet at all).
+        // If we already have data, keep showing it even during reconnection.
+        if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
           return const Center(
             child: CircularProgressIndicator(color: Color(0xFFF47C20)),
           );
@@ -212,8 +237,8 @@ class _BookingTab extends StatelessWidget {
           itemBuilder:
               (_, i) => _AdminBookingCard(
                 booking: bookings[i],
-                tabLabel: tabLabel,
-                hall: hall,
+                tabLabel: widget.tabLabel,
+                hall: widget.hall,
               ),
         );
       },
@@ -227,7 +252,7 @@ class _BookingTab extends StatelessWidget {
         Icon(Icons.inbox_outlined, size: 60, color: Colors.grey[400]),
         const SizedBox(height: 12),
         Text(
-          emptyMessage,
+          widget.emptyMessage,
           style: TextStyle(color: Colors.grey[500], fontSize: 14),
         ),
       ],

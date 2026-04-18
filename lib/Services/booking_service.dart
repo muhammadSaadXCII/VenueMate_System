@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
@@ -17,6 +18,13 @@ import 'storage_service.dart';
 ///   5. When hall admin rejects → status = 'rejected'.
 ///   6. Bookings whose eventDate < today AND status == 'confirmed' are
 ///      auto-marked 'completed' lazily on fetch.
+///
+/// STATUS VALUES:
+///   'pending'   → customer submitted receipt, waiting for hall admin to verify
+///   'confirmed' → hall admin approved → shows in Upcoming on both sides
+///   'rejected'  → hall admin rejected receipt → shows in Cancelled on both sides
+///   'completed' → event date has passed (auto from confirmed)
+///   'cancelled' → cancelled by customer → shows in Cancelled on both sides
 class BookingService {
   static final _db = FirebaseFirestore.instance;
   static final _bookings = _db.collection('bookings');
@@ -73,12 +81,6 @@ class BookingService {
   //  CREATE
   // ════════════════════════════════════════════════════════════════════════════
 
-  /// Creates a booking after a final capacity re-check.
-  ///
-  /// Returns:
-  ///   • bookingId (String) on success
-  ///   • 'SLOT_FULL' if the slot just filled up before saving
-  ///   • throws Exception with a real message on failure   ← FIX: was silently returning null
   static Future<String?> createBooking({
     required String hallId,
     required String hallName,
@@ -97,10 +99,6 @@ class BookingService {
     required int hallCapacityMax,
     required File receiptFile,
   }) async {
-    // ── FIX: Do NOT wrap the whole thing in catch(_) — let errors bubble up
-    //         so PaymentScreen can show a real message and so YOU can see
-    //         what is actually failing in the debug console.
-
     // 1. Re-check availability
     final avail = await checkSlotAvailability(
       hallId: hallId,
@@ -117,8 +115,6 @@ class BookingService {
       receiptFile: receiptFile,
     );
 
-    // ── FIX: Previously this silently returned null when the upload failed.
-    //         Now we throw so PaymentScreen shows the real reason.
     if (receiptUrl == null) {
       throw Exception(
         'Receipt upload failed.\n\n'
@@ -184,15 +180,12 @@ class BookingService {
       grandTotal: grandTotal,
       advancePayment: advancePayment,
       receiptImageUrl: receiptUrl,
-      status: 'pending', // ← Hall admin sees this in Pending tab
+      status: 'pending',
       createdAt: DateTime.now(),
       hallCapacityMax: hallCapacityMax,
     );
 
-    // 5. Save to Firestore — bookings/{bookingId}
-    // ── FIX: Previously catch(_) swallowed the FirebaseException here.
-    //         Now we let it throw so the real error (permissions, missing
-    //         index, bad API key) appears in PaymentScreen and in the console.
+    // 5. Save to Firestore
     await _bookings.doc(bookingId).set(booking.toMap());
     return bookingId;
   }
@@ -215,10 +208,60 @@ class BookingService {
         );
   }
 
+  /// Stream customer bookings filtered by a single status.
+  /// Used for: 'pending', 'confirmed', 'completed' tabs.
+  static Stream<List<BookingModel>> streamCustomerBookingsByStatus(
+    String customerId,
+    String status,
+  ) {
+    return _bookings
+        .where('customerId', isEqualTo: customerId)
+        .where('status', isEqualTo: status)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snap) =>
+              snap.docs
+                  .map((d) => BookingModel.fromDoc(d))
+                  .map(_autoComplete)
+                  .toList(),
+        );
+  }
+
+  /// FIX: Stream customer bookings for the Cancelled tab.
+  /// Combines both 'cancelled' (customer-cancelled) and 'rejected'
+  /// (hall admin rejected receipt) bookings — both show in Cancelled tab.
+  static Stream<List<BookingModel>> streamCustomerCancelledBookings(
+    String customerId,
+  ) {
+    // Firestore does not support OR queries on different field values in a
+    // single snapshot, so we merge two streams client-side.
+    final cancelledStream = _bookings
+        .where('customerId', isEqualTo: customerId)
+        .where('status', isEqualTo: 'cancelled')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
+
+    final rejectedStream = _bookings
+        .where('customerId', isEqualTo: customerId)
+        .where('status', isEqualTo: 'rejected')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
+
+    // Combine both streams: emit merged list whenever either emits
+    return _combineLatest2(cancelledStream, rejectedStream, (a, b) {
+      final merged = [...a, ...b];
+      merged.sort((x, y) => y.createdAt.compareTo(x.createdAt));
+      return merged;
+    });
+  }
+
   static Future<BookingModel?> getBookingById(String bookingId) async {
     try {
       final doc = await _bookings.doc(bookingId).get();
-      if (!doc.exists) return null
+      if (!doc.exists) return null;
       return _autoComplete(BookingModel.fromDoc(doc));
     } catch (_) {
       return null;
@@ -288,13 +331,29 @@ class BookingService {
         .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
   }
 
+  /// FIX: Hall Admin Cancelled tab shows BOTH 'cancelled' and 'rejected' bookings.
+  /// 'cancelled' = customer cancelled their own booking.
+  /// 'rejected'  = hall admin rejected the payment receipt.
   static Stream<List<BookingModel>> streamCancelledBookings(String hallId) {
-    return _bookings
+    final cancelledStream = _bookings
         .where('hallId', isEqualTo: hallId)
         .where('status', isEqualTo: 'cancelled')
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
+
+    final rejectedStream = _bookings
+        .where('hallId', isEqualTo: hallId)
+        .where('status', isEqualTo: 'rejected')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
+
+    return _combineLatest2(cancelledStream, rejectedStream, (a, b) {
+      final merged = [...a, ...b];
+      merged.sort((x, y) => y.createdAt.compareTo(x.createdAt));
+      return merged;
+    });
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -368,7 +427,8 @@ class BookingService {
                 )
                 .length,
         'completed': all.where((b) => b.isCompleted).length,
-        'cancelled': all.where((b) => b.isCancelled).length,
+        // FIX: count both cancelled and rejected in the cancelled bucket
+        'cancelled': all.where((b) => b.isCancelled || b.isRejected).length,
       };
     } catch (_) {
       return {'pending': 0, 'upcoming': 0, 'completed': 0, 'cancelled': 0};
@@ -397,6 +457,50 @@ class BookingService {
       }
     }
     return b;
+  }
+
+  /// Utility: combine two streams and emit merged result whenever either fires.
+  /// Uses a broadcast StreamController so multiple StreamBuilder listeners
+  /// (e.g. after tab switches or widget rebuilds) can subscribe without
+  /// restarting the underlying Firestore subscriptions.
+  static Stream<T> _combineLatest2<A, B, T>(
+    Stream<A> streamA,
+    Stream<B> streamB,
+    T Function(A, B) combiner,
+  ) {
+    // ignore: close_sinks
+    late StreamController<T> controller;
+    A? latestA;
+    B? latestB;
+    StreamSubscription<A>? subA;
+    StreamSubscription<B>? subB;
+
+    controller = StreamController<T>.broadcast(
+      onListen: () {
+        subA = streamA.listen((a) {
+          latestA = a;
+          if (latestB != null) {
+            controller.add(combiner(latestA as A, latestB as B));
+          }
+        }, onError: controller.addError);
+        subB = streamB.listen((b) {
+          latestB = b;
+          if (latestA != null) {
+            controller.add(combiner(latestA as A, latestB as B));
+          }
+        }, onError: controller.addError);
+      },
+      onCancel: () {
+        subA?.cancel();
+        subB?.cancel();
+        subA = null;
+        subB = null;
+        latestA = null;
+        latestB = null;
+      },
+    );
+
+    return controller.stream;
   }
 }
 
