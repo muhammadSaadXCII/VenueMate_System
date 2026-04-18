@@ -148,9 +148,9 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _fetchUserLocation() async {
     try {
       var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied)
+      if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
-
+      }
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
@@ -228,8 +228,9 @@ class _MapScreenState extends State<MapScreen> {
       final String url =
           'https://www.google.com/maps/dir/?api=1&origin=${userCords.latitude},${userCords.longitude}&destination=${hallCords.latitude},${hallCords.longitude}&travelmode=driving';
       final Uri uri = Uri.parse(url);
-      if (await canLaunchUrl(uri))
+      if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
     } catch (_) {}
   }
 

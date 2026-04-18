@@ -6,13 +6,13 @@ import '../../Models/package_model.dart';
 import '../../Models/service_item_model.dart';
 import '../../Services/service_item_service.dart';
 
+const double _kPkgCreateWebBreak = 900;
+
 /// Create a new package OR edit an existing one.
-/// Pass [existing] to pre-fill the form for editing.
 class CreatePackageScreen extends StatefulWidget {
   final String hallId;
   final PackageModel? existing;
   const CreatePackageScreen({super.key, required this.hallId, this.existing});
-
   @override
   State<CreatePackageScreen> createState() => _CreatePackageScreenState();
 }
@@ -20,18 +20,14 @@ class CreatePackageScreen extends StatefulWidget {
 class _CreatePackageScreenState extends State<CreatePackageScreen> {
   int _currentStep = 0;
 
-  // Step 1 controllers
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
   final _minController = TextEditingController();
   final _maxController = TextEditingController();
   final _priceController = TextEditingController();
 
-  // Step 2 selections
   Set<String> _selectedMenuIds = {};
   Set<String> _selectedServiceIds = {};
-
-  // Live data
   List<MenuItemModel> _menuItems = [];
   List<ServiceItemModel> _services = [];
   bool _loadingItems = true;
@@ -105,7 +101,6 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
 
   Future<void> _save() async {
     setState(() => _isSaving = true);
-
     String? error;
     if (_isEditing) {
       error = await PackageService.updatePackage(
@@ -131,10 +126,8 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
         serviceItemIds: _selectedServiceIds.toList(),
       );
     }
-
     if (!mounted) return;
     setState(() => _isSaving = false);
-
     if (error != null) {
       _snack(error, isError: true);
     } else {
@@ -143,19 +136,313 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
     }
   }
 
-  void _snack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? Colors.red : const Color(0xFFF47C20),
+  void _snack(String msg, {bool isError = false}) =>
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: isError ? Colors.red : const Color(0xFFF47C20),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width >= _kPkgCreateWebBreak;
+    final steps = [
+      _buildStep1(isWide),
+      _buildStep2(isWide),
+      _buildReview(isWide),
+    ];
+    return isWide ? _buildWebLayout(steps) : _buildMobileLayout(steps);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  WEB LAYOUT — sidebar + form
+  // ════════════════════════════════════════════════════════════════════════════
+  Widget _buildWebLayout(List<Widget> steps) {
+    final stepTitles = ['Package Details', 'Items & Services', 'Review & Save'];
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: Row(
+        children: [
+          // Left sidebar
+          Container(
+            width: 240,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(right: BorderSide(color: Color(0xFFEEEEEE))),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 64,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.card_giftcard, color: Colors.white, size: 24),
+                      SizedBox(width: 10),
+                      Text(
+                        'Create Package',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'STEPS',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[400],
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...List.generate(3, (i) {
+                  final isActive = i == _currentStep;
+                  final isCompleted = i < _currentStep;
+                  final color =
+                      isActive
+                          ? const Color(0xFFF47C20)
+                          : isCompleted
+                          ? const Color(0xFF10B981)
+                          : Colors.grey[400]!;
+                  return InkWell(
+                    onTap: i <= _currentStep ? () => _goTo(i) : null,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 2,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            isActive
+                                ? const Color(0xFFF47C20).withOpacity(0.08)
+                                : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color:
+                                  isCompleted
+                                      ? const Color(0xFF10B981)
+                                      : isActive
+                                      ? const Color(0xFFF47C20)
+                                      : Colors.grey[200],
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child:
+                                  isCompleted
+                                      ? const Icon(
+                                        Icons.check,
+                                        size: 14,
+                                        color: Colors.white,
+                                      )
+                                      : Text(
+                                        '${i + 1}',
+                                        style: TextStyle(
+                                          color:
+                                              isActive
+                                                  ? Colors.white
+                                                  : Colors.grey[600],
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              stepTitles[i],
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight:
+                                    isActive
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                color: color,
+                              ),
+                            ),
+                          ),
+                          if (isCompleted)
+                            Icon(
+                              Icons.check_circle,
+                              size: 16,
+                              color: const Color(0xFF10B981).withOpacity(0.6),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+          // Right content
+          Expanded(
+            child: Column(
+              children: [
+                Container(
+                  height: 64,
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFEEEEEE)),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Colors.black87,
+                        ),
+                        onPressed:
+                            () =>
+                                _currentStep > 0
+                                    ? _prevStep()
+                                    : Navigator.pop(context),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        stepTitles[_currentStep],
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Step ${_currentStep + 1} of 3',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(32),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 800),
+                        child: Column(
+                          children: [
+                            steps[_currentStep],
+                            const SizedBox(height: 32),
+                            if (_currentStep < 2)
+                              Row(
+                                children: [
+                                  if (_currentStep > 0)
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 12,
+                                        ),
+                                        child: SizedBox(
+                                          height: 50,
+                                          child: OutlinedButton(
+                                            onPressed: _prevStep,
+                                            style: OutlinedButton.styleFrom(
+                                              side: const BorderSide(
+                                                color: Colors.grey,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'Previous',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        left: _currentStep > 0 ? 12 : 0,
+                                      ),
+                                      child: SizedBox(
+                                        height: 50,
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            if (_currentStep == 0 &&
+                                                !_validateStep1()) {
+                                              return;
+                                            }
+                                            _nextStep();
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(
+                                              0xFFF47C20,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Next',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            const SizedBox(height: 40),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final steps = [_buildStep1(), _buildStep2(), _buildReview()];
-
+  // ════════════════════════════════════════════════════════════════════════════
+  //  MOBILE LAYOUT (unchanged)
+  // ════════════════════════════════════════════════════════════════════════════
+  Widget _buildMobileLayout(List<Widget> steps) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -178,7 +465,7 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
       ),
       body: Column(
         children: [
-          _buildStepIndicator(),
+          _buildMobileStepIndicator(),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -233,6 +520,7 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
                                           !_validateStep1()) {
                                         return;
                                       }
+
                                       _nextStep();
                                     },
                                     style: ElevatedButton.styleFrom(
@@ -267,8 +555,7 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
     );
   }
 
-  // ── Step indicators ────────────────────────────────────────────────────────
-  Widget _buildStepIndicator() {
+  Widget _buildMobileStepIndicator() {
     final titles = ['Package Details', 'Items & Services', 'Review'];
     return Center(
       child: ConstrainedBox(
@@ -366,7 +653,7 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
   }
 
   // ── Step 1: Package Details ────────────────────────────────────────────────
-  Widget _buildStep1() {
+  Widget _buildStep1(bool isWide) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -384,38 +671,85 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
           ),
         ),
         const SizedBox(height: 25),
-        _field('Package Name', _nameController, 'e.g. Wedding Gold Package'),
-        _field(
-          'Description',
-          _descController,
-          'Describe what makes this package special...',
-          maxLines: 4,
-        ),
-        const Text(
-          'Guest Capacity',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(child: _simpleField(_minController, 'Min Guests')),
-            const SizedBox(width: 20),
-            Expanded(child: _simpleField(_maxController, 'Max Guests')),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _field(
-          'Total Price (Rs.)',
-          _priceController,
-          'Enter price',
-          inputType: TextInputType.number,
-        ),
+        if (isWide) ...[
+          Row(
+            children: [
+              Expanded(
+                child: _field(
+                  'Package Name',
+                  _nameController,
+                  'e.g. Wedding Gold Package',
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: _field(
+                  'Total Price (Rs.)',
+                  _priceController,
+                  'Enter price',
+                  inputType: TextInputType.number,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: _field(
+                  'Description',
+                  _descController,
+                  'Describe what makes this package special...',
+                  maxLines: 4,
+                ),
+              ),
+            ],
+          ),
+          const Text(
+            'Guest Capacity',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _simpleField(_minController, 'Min Guests')),
+              const SizedBox(width: 20),
+              Expanded(child: _simpleField(_maxController, 'Max Guests')),
+            ],
+          ),
+        ] else ...[
+          _field('Package Name', _nameController, 'e.g. Wedding Gold Package'),
+          _field(
+            'Description',
+            _descController,
+            'Describe what makes this package special...',
+            maxLines: 4,
+          ),
+          const Text(
+            'Guest Capacity',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _simpleField(_minController, 'Min Guests')),
+              const SizedBox(width: 20),
+              Expanded(child: _simpleField(_maxController, 'Max Guests')),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _field(
+            'Total Price (Rs.)',
+            _priceController,
+            'Enter price',
+            inputType: TextInputType.number,
+          ),
+        ],
       ],
     );
   }
 
-  // ── Step 2: Items & Services picker ───────────────────────────────────────
-  Widget _buildStep2() {
+  // ── Step 2: Items & Services ───────────────────────────────────────────────
+  Widget _buildStep2(bool isWide) {
     if (_loadingItems) {
       return const Center(
         child: Padding(
@@ -441,65 +775,162 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
           ),
         ),
         const SizedBox(height: 25),
-
-        const Text(
-          'Select Menu Items',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 10),
-        _menuItems.isEmpty
-            ? Text(
-              'No menu items found. Add items in Manage Menu first.',
-              style: TextStyle(color: Colors.grey[500], fontSize: 13),
-            )
-            : _selectionBox(
-              items:
-                  _menuItems
-                      .map(
-                        (i) => (id: i.itemId, title: i.name, sub: i.priceLabel),
-                      )
-                      .toList(),
-              selected: _selectedMenuIds,
-              onToggle:
-                  (id) => setState(
-                    () =>
-                        _selectedMenuIds.contains(id)
-                            ? _selectedMenuIds.remove(id)
-                            : _selectedMenuIds.add(id),
-                  ),
-            ),
-
-        const SizedBox(height: 25),
-        const Text(
-          'Select Additional Services',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 10),
-        _services.isEmpty
-            ? Text(
-              'No services found. Add services in Manage Services first.',
-              style: TextStyle(color: Colors.grey[500], fontSize: 13),
-            )
-            : _selectionBox(
-              items:
-                  _services
-                      .map(
-                        (s) => (
-                          id: s.serviceId,
-                          title: s.name,
-                          sub: s.priceLabel,
+        if (isWide)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Select Menu Items',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _menuItems.isEmpty
+                        ? Text(
+                          'No menu items found. Add items in Manage Menu first.',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 13,
+                          ),
+                        )
+                        : _selectionBox(
+                          items:
+                              _menuItems
+                                  .map(
+                                    (i) => (
+                                      id: i.itemId,
+                                      title: i.name,
+                                      sub: i.priceLabel,
+                                    ),
+                                  )
+                                  .toList(),
+                          selected: _selectedMenuIds,
+                          onToggle:
+                              (id) => setState(
+                                () =>
+                                    _selectedMenuIds.contains(id)
+                                        ? _selectedMenuIds.remove(id)
+                                        : _selectedMenuIds.add(id),
+                              ),
                         ),
-                      )
-                      .toList(),
-              selected: _selectedServiceIds,
-              onToggle:
-                  (id) => setState(
-                    () =>
-                        _selectedServiceIds.contains(id)
-                            ? _selectedServiceIds.remove(id)
-                            : _selectedServiceIds.add(id),
-                  ),
-            ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Select Additional Services',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _services.isEmpty
+                        ? Text(
+                          'No services found. Add services in Manage Services first.',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 13,
+                          ),
+                        )
+                        : _selectionBox(
+                          items:
+                              _services
+                                  .map(
+                                    (s) => (
+                                      id: s.serviceId,
+                                      title: s.name,
+                                      sub: s.priceLabel,
+                                    ),
+                                  )
+                                  .toList(),
+                          selected: _selectedServiceIds,
+                          onToggle:
+                              (id) => setState(
+                                () =>
+                                    _selectedServiceIds.contains(id)
+                                        ? _selectedServiceIds.remove(id)
+                                        : _selectedServiceIds.add(id),
+                              ),
+                        ),
+                  ],
+                ),
+              ),
+            ],
+          )
+        else ...[
+          const Text(
+            'Select Menu Items',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 10),
+          _menuItems.isEmpty
+              ? Text(
+                'No menu items found.',
+                style: TextStyle(color: Colors.grey[500], fontSize: 13),
+              )
+              : _selectionBox(
+                items:
+                    _menuItems
+                        .map(
+                          (i) => (
+                            id: i.itemId,
+                            title: i.name,
+                            sub: i.priceLabel,
+                          ),
+                        )
+                        .toList(),
+                selected: _selectedMenuIds,
+                onToggle:
+                    (id) => setState(
+                      () =>
+                          _selectedMenuIds.contains(id)
+                              ? _selectedMenuIds.remove(id)
+                              : _selectedMenuIds.add(id),
+                    ),
+              ),
+          const SizedBox(height: 25),
+          const Text(
+            'Select Additional Services',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 10),
+          _services.isEmpty
+              ? Text(
+                'No services found.',
+                style: TextStyle(color: Colors.grey[500], fontSize: 13),
+              )
+              : _selectionBox(
+                items:
+                    _services
+                        .map(
+                          (s) => (
+                            id: s.serviceId,
+                            title: s.name,
+                            sub: s.priceLabel,
+                          ),
+                        )
+                        .toList(),
+                selected: _selectedServiceIds,
+                onToggle:
+                    (id) => setState(
+                      () =>
+                          _selectedServiceIds.contains(id)
+                              ? _selectedServiceIds.remove(id)
+                              : _selectedServiceIds.add(id),
+                    ),
+              ),
+        ],
       ],
     );
   }
@@ -583,14 +1014,71 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
     );
   }
 
-  // ── Step 3: Review & Save ──────────────────────────────────────────────────
-  Widget _buildReview() {
+  // ── Step 3: Review ─────────────────────────────────────────────────────────
+  Widget _buildReview(bool isWide) {
     final selectedMenu =
         _menuItems.where((i) => _selectedMenuIds.contains(i.itemId)).toList();
     final selectedSvc =
         _services
             .where((s) => _selectedServiceIds.contains(s.serviceId))
             .toList();
+
+    final summaryCard = _reviewCard('Package Summary', 0, [
+      _reviewRow(
+        Icons.card_giftcard,
+        'Package Name',
+        _nameController.text.trim().isEmpty ? '—' : _nameController.text.trim(),
+      ),
+      _reviewRow(
+        Icons.monetization_on_outlined,
+        'Total Price',
+        'Rs. ${_priceController.text.trim()}',
+        valueColor: const Color(0xFFF47C20),
+      ),
+      _reviewRow(
+        Icons.groups_outlined,
+        'Capacity',
+        '${_minController.text} – ${_maxController.text} Guests',
+      ),
+      if (_descController.text.trim().isNotEmpty)
+        _reviewRow(
+          Icons.description_outlined,
+          'Description',
+          _descController.text.trim(),
+        ),
+    ]);
+    final includesCard = _reviewCard('Includes', 1, [
+      if (selectedMenu.isNotEmpty) ...[
+        const Text(
+          'MENU ITEMS',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...selectedMenu.map((i) => _itemRow(i.name, i.priceLabel)),
+        const SizedBox(height: 16),
+      ],
+      if (selectedSvc.isNotEmpty) ...[
+        const Text(
+          'SERVICES',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...selectedSvc.map((s) => _itemRow(s.name, s.priceLabel)),
+      ],
+      if (selectedMenu.isEmpty && selectedSvc.isEmpty)
+        Text(
+          'No items or services selected.',
+          style: TextStyle(color: Colors.grey[400]),
+        ),
+    ]);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -609,70 +1097,21 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
           ),
         ),
         const SizedBox(height: 25),
-
-        _reviewCard('Package Summary', 0, [
-          _reviewRow(
-            Icons.card_giftcard,
-            'Package Name',
-            _nameController.text.trim().isEmpty
-                ? '—'
-                : _nameController.text.trim(),
-          ),
-          _reviewRow(
-            Icons.monetization_on_outlined,
-            'Total Price',
-            'Rs. ${_priceController.text.trim()}',
-            valueColor: const Color(0xFFF47C20),
-          ),
-          _reviewRow(
-            Icons.groups_outlined,
-            'Capacity',
-            '${_minController.text} – ${_maxController.text} Guests',
-          ),
-          if (_descController.text.trim().isNotEmpty)
-            _reviewRow(
-              Icons.description_outlined,
-              'Description',
-              _descController.text.trim(),
-            ),
-        ]),
-        const SizedBox(height: 20),
-
-        _reviewCard('Includes', 1, [
-          if (selectedMenu.isNotEmpty) ...[
-            const Text(
-              'MENU ITEMS',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...selectedMenu.map((i) => _itemRow(i.name, i.priceLabel)),
-            const SizedBox(height: 16),
-          ],
-          if (selectedSvc.isNotEmpty) ...[
-            const Text(
-              'SERVICES',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...selectedSvc.map((s) => _itemRow(s.name, s.priceLabel)),
-          ],
-          if (selectedMenu.isEmpty && selectedSvc.isEmpty)
-            Text(
-              'No items or services selected.',
-              style: TextStyle(color: Colors.grey[400]),
-            ),
-        ]),
-
+        if (isWide)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: summaryCard),
+              const SizedBox(width: 16),
+              Expanded(child: includesCard),
+            ],
+          )
+        else ...[
+          summaryCard,
+          const SizedBox(height: 20),
+          includesCard,
+        ],
         const SizedBox(height: 40),
-
         SizedBox(
           width: double.infinity,
           height: 52,
@@ -701,182 +1140,172 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
     );
   }
 
-  Widget _reviewCard(String title, int step, List<Widget> children) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+  Widget _reviewCard(String title, int step, List<Widget> children) =>
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.08),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+          border: Border.all(color: Colors.grey.shade100),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
                 ),
-              ),
-              GestureDetector(
-                onTap: () => _goTo(step),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3E0),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Row(
-                    children: [
-                      Text(
-                        'Edit',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFF47C20),
+                GestureDetector(
+                  onTap: () => _goTo(step),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3E0),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      children: [
+                        Text(
+                          'Edit',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFF47C20),
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 4),
-                      Icon(Icons.edit, size: 12, color: Color(0xFFF47C20)),
-                    ],
+                        SizedBox(width: 4),
+                        Icon(Icons.edit, size: 12, color: Color(0xFFF47C20)),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const Divider(height: 24),
-          ...children,
-        ],
-      ),
-    );
-  }
+              ],
+            ),
+            const Divider(height: 24),
+            ...children,
+          ],
+        ),
+      );
 
   Widget _reviewRow(
     IconData icon,
     String label,
     String value, {
     Color? valueColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, size: 18, color: Colors.grey[600]),
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(8),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[500],
-                  ),
+          child: Icon(icon, size: 18, color: Colors.grey[600]),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[500],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: valueColor ?? Colors.black87,
-                  ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: valueColor ?? Colors.black87,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 
-  Widget _itemRow(String name, String price) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            name,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+  Widget _itemRow(String name, String price) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          name,
+          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+        ),
+        Text(
+          price,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Color(0xFFF47C20),
           ),
-          Text(
-            price,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: Color(0xFFF47C20),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 
-  // ── Shared field helpers ───────────────────────────────────────────────────
   Widget _field(
     String label,
     TextEditingController ctrl,
     String hint, {
     int maxLines = 1,
     TextInputType? inputType,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: ctrl,
-            maxLines: maxLines,
-            keyboardType: inputType,
-            style: const TextStyle(fontSize: 14),
-            decoration: _inputDec(hint),
-          ),
-        ],
-      ),
-    );
-  }
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: ctrl,
+          maxLines: maxLines,
+          keyboardType: inputType,
+          style: const TextStyle(fontSize: 14),
+          decoration: _inputDec(hint),
+        ),
+      ],
+    ),
+  );
 
-  Widget _simpleField(TextEditingController ctrl, String hint) {
-    return TextFormField(
-      controller: ctrl,
-      keyboardType: TextInputType.number,
-      style: const TextStyle(fontSize: 14),
-      decoration: _inputDec(hint),
-    );
-  }
+  Widget _simpleField(TextEditingController ctrl, String hint) => TextFormField(
+    controller: ctrl,
+    keyboardType: TextInputType.number,
+    style: const TextStyle(fontSize: 14),
+    decoration: _inputDec(hint),
+  );
 
   InputDecoration _inputDec(String hint) => InputDecoration(
     hintText: hint,

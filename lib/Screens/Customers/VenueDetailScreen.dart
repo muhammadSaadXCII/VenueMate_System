@@ -665,6 +665,9 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
                                   markerId: const MarkerId('hall'),
                                   position: hallLatLng,
                                   infoWindow: InfoWindow(title: h.hallName),
+                                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                                    BitmapDescriptor.hueOrange,
+                                  ),
                                 ),
                               },
                               // Disable all interactive controls

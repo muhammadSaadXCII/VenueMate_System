@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -5,62 +8,114 @@ import 'package:geocoding/geocoding.dart';
 import 'package:venuemate_system/Widgets/common_button.dart';
 
 class LocationPickerSheet extends StatefulWidget {
-  const LocationPickerSheet({super.key});
+  /// Pass the previously confirmed position to restore it on re-open.
+  /// Leave null on the very first open — the map will auto-jump to GPS.
+  final LatLng? initialPosition;
+
+  const LocationPickerSheet({super.key, this.initialPosition});
 
   @override
   State<LocationPickerSheet> createState() => _LocationPickerSheetState();
 }
 
 class _LocationPickerSheetState extends State<LocationPickerSheet> {
-  // ── Map controller ─────────────────────────────────────────────────────────
   GoogleMapController? _mapController;
 
-  // ── State ──────────────────────────────────────────────────────────────────
-  // Default camera position — Karachi (Pakistan) as a sensible start
   static const LatLng _defaultPosition = LatLng(24.8607, 67.0104);
 
-  LatLng _pickedLatLng = _defaultPosition;
+  late LatLng _pickedLatLng;
+  LatLng? _lastFetchedLatLng; // guard — prevents fetching same coords twice
   String _address = 'Move the map to pick a location';
-  bool _isFetchingAddress = false; // shown while reverse-geocoding
-  bool _isLocating = false; // shown while getting GPS
-  bool _hasConfirmedOnce =
-      false; // enables Confirm button after first camera move
+  bool _isFetchingAddress = false;
+  bool _isLocating = false;
+  bool _hasConfirmedOnce = false; // enables Confirm after first user move
 
-  // ── Map camera idle callback → reverse geocode ─────────────────────────────
+  // Geoapify key — used only on web (mobile uses the geocoding package)
+  final String _geoapifyApiKey = "732c01a16f5c4f2fb95d8e1d9ff70ed2";
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialPosition != null) {
+      // Re-open: restore the previously confirmed position.
+      // _hasConfirmedOnce = true so Confirm is immediately enabled.
+      _pickedLatLng = widget.initialPosition!;
+      _hasConfirmedOnce = true;
+    } else {
+      // First open: start at default, then auto-jump to user's GPS.
+      _pickedLatLng = _defaultPosition;
+      // _goToMyLocation() is called after the map is ready (in onMapCreated).
+    }
+  }
+
+  // ── Camera move — track centre LatLng ─────────────────────────────────────
+  void _onCameraMove(CameraPosition position) {
+    _pickedLatLng = position.target;
+  }
+
+  // ── Camera idle — reverse geocode the current centre ──────────────────────
   Future<void> _onCameraIdle() async {
-    // Don't reverse-geocode the very first idle before the user moves anything
+    // Skip if coords haven't changed since the last fetch
+    if (_lastFetchedLatLng != null &&
+        _lastFetchedLatLng!.latitude == _pickedLatLng.latitude &&
+        _lastFetchedLatLng!.longitude == _pickedLatLng.longitude) {
+      return;
+    }
+
     setState(() {
       _isFetchingAddress = true;
       _hasConfirmedOnce = true;
     });
 
+    _lastFetchedLatLng = _pickedLatLng;
+
+    String finalAddress = '';
+
     try {
-      final placemarks = await placemarkFromCoordinates(
-        _pickedLatLng.latitude,
-        _pickedLatLng.longitude,
-      );
-
-      String address =
-          '${_pickedLatLng.latitude.toStringAsFixed(5)}, '
-          '${_pickedLatLng.longitude.toStringAsFixed(5)}';
-
-      if (placemarks.isNotEmpty) {
-        final p = placemarks.first;
-        final parts = <String>[
-          if (p.street != null && p.street!.isNotEmpty) p.street!,
-          if (p.subLocality != null && p.subLocality!.isNotEmpty)
-            p.subLocality!,
-          if (p.locality != null && p.locality!.isNotEmpty) p.locality!,
-          if (p.administrativeArea != null && p.administrativeArea!.isNotEmpty)
-            p.administrativeArea!,
-          if (p.country != null && p.country!.isNotEmpty) p.country!,
-        ];
-        if (parts.isNotEmpty) address = parts.join(', ');
+      if (kIsWeb) {
+        // Web: native geocoding package doesn't work — use Geoapify REST API
+        final url = Uri.parse(
+          'https://api.geoapify.com/v1/geocode/reverse'
+          '?lat=${_pickedLatLng.latitude}'
+          '&lon=${_pickedLatLng.longitude}'
+          '&apiKey=$_geoapifyApiKey',
+        );
+        final response = await http.get(url);
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['features'] != null && data['features'].isNotEmpty) {
+            finalAddress = data['features'][0]['properties']['formatted'] ?? '';
+          }
+        }
+      } else {
+        // Mobile: use the geocoding package
+        final placemarks = await placemarkFromCoordinates(
+          _pickedLatLng.latitude,
+          _pickedLatLng.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          final p = placemarks.first;
+          final parts = <String>[
+            if (p.street != null && p.street!.isNotEmpty) p.street!,
+            if (p.subLocality != null && p.subLocality!.isNotEmpty)
+              p.subLocality!,
+            if (p.locality != null && p.locality!.isNotEmpty) p.locality!,
+            if (p.administrativeArea != null &&
+                p.administrativeArea!.isNotEmpty)
+              p.administrativeArea!,
+            if (p.country != null && p.country!.isNotEmpty) p.country!,
+          ];
+          if (parts.isNotEmpty) finalAddress = parts.join(', ');
+        }
       }
 
       if (mounted) {
         setState(() {
-          _address = address;
+          _address =
+              finalAddress.isNotEmpty
+                  ? finalAddress
+                  : '${_pickedLatLng.latitude.toStringAsFixed(5)}, '
+                      '${_pickedLatLng.longitude.toStringAsFixed(5)}';
           _isFetchingAddress = false;
         });
       }
@@ -76,23 +131,11 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _goToMyLocation();
-  }
-
-  // ── Camera move callback — track centre LatLng ────────────────────────────
-  void _onCameraMove(CameraPosition position) {
-    _pickedLatLng = position.target;
-  }
-
-  // ── "Locate me" — jump map to device GPS ──────────────────────────────────
+  // ── "Locate me" button — explicitly requested by user ─────────────────────
   Future<void> _goToMyLocation() async {
     setState(() => _isLocating = true);
 
     try {
-      // 1. Location services enabled?
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         _showSnack('Please enable GPS in your device settings.');
@@ -100,7 +143,6 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
         return;
       }
 
-      // 2. Permission
       LocationPermission perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
@@ -112,20 +154,19 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
         return;
       }
 
-      // 3. Get position
       final Position pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      final LatLng myPos = LatLng(pos.latitude, pos.longitude);
-
-      // 4. Animate camera to GPS position (triggers onCameraMove + onCameraIdle)
+      // animateCamera triggers onCameraMove + onCameraIdle automatically
       await _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(CameraPosition(target: myPos, zoom: 16)),
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: LatLng(pos.latitude, pos.longitude), zoom: 16),
+        ),
       );
 
       if (mounted) setState(() => _isLocating = false);
-    } catch (e) {
+    } catch (_) {
       _showSnack('Could not get your location.');
       if (mounted) setState(() => _isLocating = false);
     }
@@ -141,7 +182,6 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
     );
   }
 
-  // ── Confirm ────────────────────────────────────────────────────────────────
   void _confirm() {
     Navigator.pop(context, {
       'address': _address,
@@ -150,13 +190,10 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
     });
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // PopScope prevents the sheet from being dismissed by a back gesture.
-    // The user must tap the X button or Confirm — not swipe down.
     return PopScope(
-      canPop: true, // still allow back button — just not accidental drag
+      canPop: true,
       child: Container(
         height: MediaQuery.of(context).size.height * 0.92,
         decoration: const BoxDecoration(
@@ -165,12 +202,11 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
         ),
         child: Column(
           children: [
-            // ── Sheet handle + header ─────────────────────────────────────────────
+            // ── Handle + header ───────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
               child: Column(
                 children: [
-                  // Handle bar
                   Center(
                     child: Container(
                       width: 40,
@@ -203,7 +239,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
               ),
             ),
 
-            // ── Instruction strip ─────────────────────────────────────────────────
+            // ── Instruction strip ─────────────────────────────────────────────
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -232,26 +268,37 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
               ),
             ),
 
-            // ── Map area ──────────────────────────────────────────────────────────
+            // ── Map ───────────────────────────────────────────────────────────
             Expanded(
               child: Stack(
                 children: [
                   GoogleMap(
-                    initialCameraPosition: const CameraPosition(
-                      target: _defaultPosition,
-                      zoom: 14,
+                    initialCameraPosition: CameraPosition(
+                      target: _pickedLatLng,
+                      zoom: widget.initialPosition != null ? 16 : 14,
                     ),
                     onMapCreated: (controller) {
                       _mapController = controller;
-                      // Trigger initial reverse geocode
-                      _onCameraIdle();
+                      if (widget.initialPosition != null) {
+                        // Re-open: animate to the saved position, then geocode it.
+                        controller.animateCamera(
+                          CameraUpdate.newCameraPosition(
+                            CameraPosition(
+                              target: widget.initialPosition!,
+                              zoom: 16,
+                            ),
+                          ),
+                        );
+                        // onCameraIdle will fire after the animation and geocode.
+                      } else {
+                        // First open: jump to user's GPS location.
+                        _goToMyLocation();
+                      }
                     },
                     onCameraMove: _onCameraMove,
                     onCameraIdle: _onCameraIdle,
-
-                    // Map settings
                     myLocationEnabled: true,
-                    myLocationButtonEnabled: false, // We use our own button
+                    myLocationButtonEnabled: false,
                     zoomControlsEnabled: false,
                     mapToolbarEnabled: false,
                     compassEnabled: true,
@@ -259,15 +306,14 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                     scrollGesturesEnabled: true,
                     tiltGesturesEnabled: false,
                     zoomGesturesEnabled: true,
-
-                    // No markers — the fixed pin IS the marker
                     markers: const {},
                   ),
+
+                  // Pin shadow
                   Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Pin shadow
                         Container(
                           width: 12,
                           height: 4,
@@ -280,9 +326,10 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                       ],
                     ),
                   ),
+
+                  // Pin icon
                   Center(
                     child: Transform.translate(
-                      // Shift pin up so its TIP (bottom point) is at centre
                       offset: const Offset(0, -26),
                       child: Image.asset(
                         'assets/images/locationPin.png',
@@ -298,7 +345,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                     ),
                   ),
 
-                  // ── Fetching address indicator (top centre) ───────────────────────
+                  // Fetching indicator
                   if (_isFetchingAddress)
                     Positioned(
                       top: 12,
@@ -340,7 +387,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                       ),
                     ),
 
-                  // ── Zoom controls (right side) ────────────────────────────────────
+                  // Zoom controls
                   Positioned(
                     right: 12,
                     bottom: 90,
@@ -363,7 +410,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                     ),
                   ),
 
-                  // ── My Location button ────────────────────────────────────────────
+                  // Locate me button
                   Positioned(
                     right: 12,
                     bottom: 16,
@@ -404,7 +451,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
               ),
             ),
 
-            // ── Bottom card — address + confirm ───────────────────────────────────
+            // ── Bottom card — address + confirm ───────────────────────────────
             Container(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               decoration: BoxDecoration(
@@ -421,7 +468,6 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Label
                   const Text(
                     'Selected Location',
                     style: TextStyle(
@@ -432,8 +478,6 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                     ),
                   ),
                   const SizedBox(height: 10),
-
-                  // Address row
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -472,8 +516,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${_pickedLatLng.latitude.toStringAsFixed(5)}, '
-                              '${_pickedLatLng.longitude.toStringAsFixed(5)}',
+                              '${_pickedLatLng.latitude.toStringAsFixed(5)}, ${_pickedLatLng.longitude.toStringAsFixed(5)}',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.grey[400],
@@ -485,8 +528,6 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                     ],
                   ),
                   const SizedBox(height: 16),
-
-                  // Confirm button
                   CommonButton(
                     text: 'Confirm Location',
                     onTap:
@@ -496,18 +537,16 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
                               'Move the map to select a location first.',
                             ),
                   ),
-
                   SizedBox(height: MediaQuery.of(context).padding.bottom + 12),
                 ],
               ),
             ),
           ],
         ),
-      ), // closes outer GestureDetector
-    ); // closes PopScope
+      ),
+    );
   }
 
-  // ── Small square map control button ───────────────────────────────────────
   Widget _mapButton(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
