@@ -41,7 +41,6 @@ class ViewReceiptScreen extends StatelessWidget {
               child: CircularProgressIndicator(color: Color(0xFFF97316)),
             );
           }
-
           if (!snapshot.hasData || snapshot.data == null) {
             return Center(
               child: Column(
@@ -61,7 +60,6 @@ class ViewReceiptScreen extends StatelessWidget {
               ),
             );
           }
-
           return _ReceiptContent(booking: snapshot.data!);
         },
       ),
@@ -71,7 +69,6 @@ class ViewReceiptScreen extends StatelessWidget {
 
 class _ReceiptContent extends StatefulWidget {
   final BookingModel booking;
-
   const _ReceiptContent({required this.booking});
 
   @override
@@ -82,13 +79,10 @@ class _ReceiptContentState extends State<_ReceiptContent> {
   final GlobalKey _receiptKey = GlobalKey();
   bool _isDownloading = false;
 
-  // ── Download receipt as PNG and share ─────────────────────────────────────
   Future<void> _downloadReceipt() async {
     setState(() => _isDownloading = true);
     try {
-      // Small delay ensures the widget is fully painted before capturing
-      await Future.delayed(const Duration(milliseconds: 50));
-
+      await Future.delayed(const Duration(milliseconds: 100));
       final boundary =
           _receiptKey.currentContext?.findRenderObject()
               as RenderRepaintBoundary?;
@@ -98,7 +92,6 @@ class _ReceiptContentState extends State<_ReceiptContent> {
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) return;
 
-      // Save to temp directory
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/receipt_${widget.booking.invoiceId}.png');
       await file.writeAsBytes(byteData.buffer.asUint8List());
@@ -125,180 +118,441 @@ class _ReceiptContentState extends State<_ReceiptContent> {
     }
   }
 
-  // ✅ ONLY CHANGE: Scaffold added in _ReceiptContentState build()
-  // Everything else is EXACTLY SAME
-
   @override
   Widget build(BuildContext context) {
     final booking = widget.booking;
 
-    return Scaffold(
-      // ✅ ADDED THIS
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                child: Column(
-                  children: [
-                    RepaintBoundary(
-                      key: _receiptKey,
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFFDF6),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
+    return Column(
+      children: [
+        // ── Scrollable Receipt ───────────────────────────────────────────────
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Column(
+              children: [
+                RepaintBoundary(
+                  key: _receiptKey,
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFDF6),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
                         ),
-                        child: Column(
-                          children: [
-                            // 🔥 YOUR FULL ORIGINAL UI (NO CHANGE)
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFCACACA),
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(20),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // ── Header ───────────────────────────────────────
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFCACACA),
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'VenueMate',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFF47C20),
+                                  ),
                                 ),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 6,
-                                    ),
+                                    width: 80,
+                                    height: 80,
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Text(
-                                      'VenueMate',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFFF47C20),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 80,
-                                        height: 80,
-                                        decoration: BoxDecoration(
-                                          color:
-                                              booking.isConfirmed
-                                                  ? const Color(
-                                                    0xFF10B981,
-                                                  ).withOpacity(0.15)
-                                                  : const Color(0xFFFEF3C7),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
+                                      color:
                                           booking.isConfirmed
-                                              ? Icons.check_circle_rounded
-                                              : Icons.hourglass_top_rounded,
-                                          color:
-                                              booking.isConfirmed
-                                                  ? const Color(0xFF10B981)
-                                                  : const Color(0xFFD97706),
-                                          size: 50,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Center(
-                                    child: Text(
+                                              ? const Color(
+                                                0xFF10B981,
+                                              ).withOpacity(0.15)
+                                              : const Color(0xFFFEF3C7),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
                                       booking.isConfirmed
-                                          ? 'Booking Confirmed'
-                                          : 'Booking Pending',
-                                      style: TextStyle(
-                                        color:
-                                            booking.isConfirmed
-                                                ? const Color(0xFF059669)
-                                                : const Color(0xFFD97706),
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                          ? Icons.check_circle_rounded
+                                          : Icons.hourglass_top_rounded,
+                                      color:
+                                          booking.isConfirmed
+                                              ? const Color(0xFF10B981)
+                                              : const Color(0xFFD97706),
+                                      size: 50,
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-
-                            // 🔥 REST OF YOUR ORIGINAL UI CONTINUES (UNCHANGED)
-                            // (I am not removing anything — keep all your remaining code here exactly same)
-                          ],
+                              const SizedBox(height: 12),
+                              Center(
+                                child: Text(
+                                  booking.isConfirmed
+                                      ? 'Booking Confirmed'
+                                      : 'Booking Pending',
+                                  style: TextStyle(
+                                    color:
+                                        booking.isConfirmed
+                                            ? const Color(0xFF059669)
+                                            : const Color(0xFFD97706),
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Center(
+                                child: Text(
+                                  booking.invoiceId,
+                                  style: TextStyle(
+                                    color: Colors.grey[700],
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 100),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
 
-      // ✅ MOVED HERE (THIS WAS YOUR ERROR)
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: SizedBox(
-          width: double.infinity,
-          height: 54,
-          child: ElevatedButton.icon(
-            onPressed: _isDownloading ? null : _downloadReceipt,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF47C20),
-              disabledBackgroundColor: const Color(0xFFF47C20).withOpacity(0.6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              elevation: 0,
-            ),
-            icon:
-                _isDownloading
-                    ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.5,
-                      ),
-                    )
-                    : const Icon(
-                      Icons.download_rounded,
-                      color: Colors.white,
-                      size: 24,
+                        // ── Customer Info ────────────────────────────────
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Customer Information',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _infoRow(
+                                'Customer Name',
+                                booking.customerName,
+                                'Phone',
+                                booking.customerPhone,
+                              ),
+                              const SizedBox(height: 10),
+                              _infoRow(
+                                'Email',
+                                booking.customerEmail,
+                                'CNIC',
+                                booking.customerCnic,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        _DashedDivider(color: Colors.grey.shade400),
+
+                        // ── Event Details ────────────────────────────────
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Event Details',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _infoRow(
+                                'Hall Name',
+                                booking.hallName,
+                                'Event',
+                                booking.eventName,
+                              ),
+                              const SizedBox(height: 10),
+                              _infoRow(
+                                'Date',
+                                booking.eventDateLabel,
+                                'Guests',
+                                '${booking.guestCount} guests',
+                              ),
+                              const SizedBox(height: 10),
+                              _infoRow(
+                                'Time Slot',
+                                booking.timeSlot,
+                                'Booked On',
+                                _formatDate(booking.createdAt),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        _DashedDivider(color: Colors.grey.shade400),
+
+                        // ── Menu Items ───────────────────────────────────
+                        if (booking.selectedMenuItems.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Selected Menu Items',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                ...booking.selectedMenuItems.map(
+                                  (item) => _summaryRow(
+                                    item.name,
+                                    'Rs. ${item.price.toStringAsFixed(0)}${item.priceUnit}',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _DashedDivider(color: Colors.grey.shade400),
+                        ],
+
+                        // ── Services ─────────────────────────────────────
+                        if (booking.selectedServices.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Selected Services',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                ...booking.selectedServices.map(
+                                  (sv) => _summaryRow(
+                                    sv.name,
+                                    'Rs. ${sv.price.toStringAsFixed(0)}',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _DashedDivider(color: Colors.grey.shade400),
+                        ],
+
+                        // ── Bill Summary ─────────────────────────────────
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Bill Summary',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _summaryRow(
+                                'Hall Rent',
+                                'Rs. ${booking.hallRent.toStringAsFixed(0)}',
+                              ),
+                              if (booking.menuSubtotal > 0)
+                                _summaryRow(
+                                  'Menu Subtotal',
+                                  'Rs. ${booking.menuSubtotal.toStringAsFixed(0)}',
+                                ),
+                              if (booking.servicesSubtotal > 0)
+                                _summaryRow(
+                                  'Services Subtotal',
+                                  'Rs. ${booking.servicesSubtotal.toStringAsFixed(0)}',
+                                ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                                child: Divider(
+                                  thickness: 1,
+                                  color: Colors.black12,
+                                ),
+                              ),
+                              _summaryRow(
+                                'Grand Total',
+                                'Rs. ${booking.grandTotal.toStringAsFixed(0)}',
+                                isBold: true,
+                              ),
+                              _summaryRow(
+                                'Advance Paid (25%)',
+                                'Rs. ${booking.advancePayment.toStringAsFixed(0)}',
+                                isHighlight: true,
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF3E0),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(
+                                      0xFFF47C20,
+                                    ).withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Remaining Payment',
+                                      style: TextStyle(
+                                        color: Color(0xFFF47C20),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Rs. ${booking.remainingPayment.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        color: Color(0xFFF47C20),
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // ── Footer ───────────────────────────────────────
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(20),
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Thank you for choosing VenueMate!',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-            label: Text(
-              _isDownloading ? 'Preparing...' : 'Download Receipt',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+
+        // ── Download Button ──────────────────────────────────────────────────
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton.icon(
+                onPressed: _isDownloading ? null : _downloadReceipt,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF47C20),
+                  disabledBackgroundColor: const Color(
+                    0xFFF47C20,
+                  ).withOpacity(0.6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                icon:
+                    _isDownloading
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                        : const Icon(
+                          Icons.download_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                label: Text(
+                  _isDownloading ? 'Preparing...' : 'Download Receipt',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
           ),
         ),
-      ),
+      ],
     );
+  }
+
+  String _formatDate(DateTime dt) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${dt.day} ${months[dt.month - 1]}, ${dt.year}';
   }
 
   Widget _infoRow(
@@ -346,6 +600,7 @@ class _ReceiptContentState extends State<_ReceiptContent> {
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
+                  textAlign: TextAlign.end,
                 ),
               ],
             ),

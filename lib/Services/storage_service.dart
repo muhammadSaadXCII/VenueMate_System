@@ -27,10 +27,7 @@ class StorageService {
   }) async {
     try {
       final ref = _storage.ref().child('users/avatars/$uid.jpg');
-      await ref.putFile(
-        imageFile,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
+      await ref.putFile(imageFile, SettableMetadata(contentType: 'image/jpeg'));
       return await ref.getDownloadURL();
     } catch (e) {
       return null;
@@ -51,10 +48,7 @@ class StorageService {
     try {
       final String fileName = '${_uuid.v4()}.jpg';
       final ref = _storage.ref().child('halls/$hallId/images/$fileName');
-      await ref.putFile(
-        imageFile,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
+      await ref.putFile(imageFile, SettableMetadata(contentType: 'image/jpeg'));
       return await ref.getDownloadURL();
     } catch (e) {
       return null;
@@ -128,8 +122,27 @@ class StorageService {
   }) async {
     try {
       final String fileName = 'receipt_${_uuid.v4()}.jpg';
-      final ref =
-          _storage.ref().child('payments/$bookingId/$fileName');
+      final ref = _storage.ref().child('payments/$bookingId/$fileName');
+      await ref.putFile(
+        receiptFile,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      return await ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Upload the hall admin's refund receipt.
+  /// Path: `refunds/{bookingId}/refund_{uuid}.jpg`
+  /// Returns the download URL, or null on failure.
+  static Future<String?> uploadRefundReceipt({
+    required String bookingId,
+    required File receiptFile,
+  }) async {
+    try {
+      final String fileName = 'refund_${_uuid.v4()}.jpg';
+      final ref = _storage.ref().child('refunds/$bookingId/$fileName');
       await ref.putFile(
         receiptFile,
         SettableMetadata(contentType: 'image/jpeg'),

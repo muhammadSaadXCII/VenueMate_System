@@ -14,15 +14,11 @@ class HallAdminRootLayout extends StatefulWidget {
 class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
   int _selectedIndex = 0;
 
-  // FIX: screens are defined as a final constant list so they are never
-  // recreated on rebuild. Combined with IndexedStack below, each screen
-  // stays alive in the widget tree even when not visible — its State,
-  // streams, and StreamBuilder subscriptions are never destroyed.
-  final List<Widget> _screens = const [
-    HallAdminHomeScreen(),
-    HallAdminBookingsScreen(),
-    HallAdminMessagingScreen(),
-    HallAdminProfileScreen(),
+  final List<Widget> _screens = [
+    const HallAdminHomeScreen(),
+    const HallAdminBookingsScreen(),
+    const HallAdminMessagingScreen(),
+    const HallAdminProfileScreen(),
   ];
 
   final List<Map<String, dynamic>> _navItems = [
@@ -49,9 +45,10 @@ class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
 
     return Stack(
       children: [
-        // FIX: IndexedStack keeps ALL screens mounted simultaneously.
-        // Only the selected one is visible, but none are ever destroyed.
-        // This means HallAdminBookingsScreen never loses its state or streams.
+        // FIX: IndexedStack keeps ALL screens alive simultaneously.
+        // Previously _screens[_selectedIndex] destroyed and recreated
+        // HallAdminBookingsScreen every time you switched tabs — wiping
+        // all cached streams and resetting the loading state.
         Positioned.fill(
           bottom: 80,
           child: IndexedStack(index: _selectedIndex, children: _screens),
@@ -79,6 +76,7 @@ class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeInOut,
                   top: 0,
+
                   left: (_selectedIndex * tabWidth) + (tabWidth / 2) - 24,
                   child: Container(
                     alignment: Alignment.center,
