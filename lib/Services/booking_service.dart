@@ -298,7 +298,6 @@ class BookingService {
     return _bookings
         .where('hallId', isEqualTo: hallId)
         .where('status', isEqualTo: 'pending')
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snap) => snap.docs.map((d) => BookingModel.fromDoc(d)).toList());
   }
