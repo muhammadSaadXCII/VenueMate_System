@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Services/booking_service.dart';
 
 class CancelBookingScreen extends StatefulWidget {
-  const CancelBookingScreen({Key? key}) : super(key: key);
+  final String bookingId;
+
+  const CancelBookingScreen({Key? key, required this.bookingId})
+    : super(key: key);
 
   @override
   State<CancelBookingScreen> createState() => _CancelBookingScreenState();
@@ -10,6 +14,7 @@ class CancelBookingScreen extends StatefulWidget {
 class _CancelBookingScreenState extends State<CancelBookingScreen> {
   String? selectedReason;
   final TextEditingController otherReasonController = TextEditingController();
+  bool _isCancelling = false;
 
   final List<String> cancellationReasons = [
     'I have better deal',
@@ -28,7 +33,7 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
         backgroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isCancelling ? null : () => Navigator.pop(context),
         ),
         title: const Text(
           'Cancel Booking',
@@ -89,14 +94,16 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                                   vertical: 14,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: selectedReason == reason
-                                      ? Colors.orange.withOpacity(0.1)
-                                      : Colors.grey[50],
+                                  color:
+                                      selectedReason == reason
+                                          ? Colors.orange.withOpacity(0.1)
+                                          : Colors.grey[50],
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: selectedReason == reason
-                                        ? Colors.orange
-                                        : Colors.grey[300]!,
+                                    color:
+                                        selectedReason == reason
+                                            ? Colors.orange
+                                            : Colors.grey[300]!,
                                     width: 1.5,
                                   ),
                                 ),
@@ -108,22 +115,25 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: selectedReason == reason
-                                              ? Colors.orange
-                                              : Colors.grey[400]!,
+                                          color:
+                                              selectedReason == reason
+                                                  ? Colors.orange
+                                                  : Colors.grey[400]!,
                                           width: 2,
                                         ),
-                                        color: selectedReason == reason
-                                            ? Colors.orange
-                                            : Colors.transparent,
+                                        color:
+                                            selectedReason == reason
+                                                ? Colors.orange
+                                                : Colors.transparent,
                                       ),
-                                      child: selectedReason == reason
-                                          ? const Icon(
-                                              Icons.circle,
-                                              size: 10,
-                                              color: Colors.white,
-                                            )
-                                          : null,
+                                      child:
+                                          selectedReason == reason
+                                              ? const Icon(
+                                                Icons.circle,
+                                                size: 10,
+                                                color: Colors.white,
+                                              )
+                                              : null,
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
@@ -131,12 +141,14 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                                         reason,
                                         style: TextStyle(
                                           fontSize: 15,
-                                          color: selectedReason == reason
-                                              ? Colors.orange[800]
-                                              : Colors.black87,
-                                          fontWeight: selectedReason == reason
-                                              ? FontWeight.w500
-                                              : FontWeight.w400,
+                                          color:
+                                              selectedReason == reason
+                                                  ? Colors.orange[800]
+                                                  : Colors.black87,
+                                          fontWeight:
+                                              selectedReason == reason
+                                                  ? FontWeight.w500
+                                                  : FontWeight.w400,
                                         ),
                                       ),
                                     ),
@@ -161,11 +173,15 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                               fillColor: Colors.grey[50],
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -186,10 +202,7 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                     decoration: BoxDecoration(
                       color: Colors.amber[50],
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.amber[200]!,
-                        width: 1,
-                      ),
+                      border: Border.all(color: Colors.amber[200]!, width: 1),
                     ),
                     child: Row(
                       children: [
@@ -233,11 +246,10 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: selectedReason != null
-                      ? () {
-                          _showCancellationDialog(context);
-                        }
-                      : null,
+                  onPressed:
+                      (selectedReason != null && !_isCancelling)
+                          ? () => _showCancellationDialog(context)
+                          : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     disabledBackgroundColor: Colors.grey[300],
@@ -246,14 +258,24 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Cancel Booking',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child:
+                      _isCancelling
+                          ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                          : const Text(
+                            'Cancel Booking',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
                 ),
               ),
             ),
@@ -266,74 +288,86 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
   void _showCancellationDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Column(
-          children: [
-            Icon(
-              Icons.cancel_outlined,
-              color: Colors.orange,
-              size: 50,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            SizedBox(height: 16),
-            Text(
-              'Cancel Booking?',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
-          'Are you sure you want to cancel this booking? This action cannot be undone.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.black54,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'No, Keep it',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Booking cancelled successfully'),
-                  backgroundColor: Colors.green,
+            title: const Column(
+              children: [
+                Icon(Icons.cancel_outlined, color: Colors.orange, size: 50),
+                SizedBox(height: 16),
+                Text(
+                  'Cancel Booking?',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              ],
             ),
-            child: const Text(
-              'Yes, Cancel',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
+            content: const Text(
+              'Are you sure you want to cancel this booking? This action cannot be undone.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.black54),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'No, Keep it',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context); // close dialog
+                  setState(() => _isCancelling = true);
+
+                  final error = await BookingService.cancelBooking(
+                    widget.bookingId,
+                  );
+
+                  if (!mounted) return;
+                  setState(() => _isCancelling = false);
+
+                  if (error == null) {
+                    // Success — pop back to AllEventsScreen (cancelled tab)
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Booking cancelled successfully'),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $error'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Yes, Cancel',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
