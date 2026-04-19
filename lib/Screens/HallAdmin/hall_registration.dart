@@ -280,7 +280,6 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
           Expanded(
             child: Column(
               children: [
-                // Top header bar
                 Container(
                   height: 52,
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -326,8 +325,6 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
                     ],
                   ),
                 ),
-
-                // Scrollable content
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
@@ -354,9 +351,7 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
                               ),
                               child: steps[_currentStep],
                             ),
-
                             const SizedBox(height: 16),
-
                             if (_currentStep < 4)
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
@@ -407,7 +402,6 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
                                   ),
                                 ],
                               ),
-
                             const SizedBox(height: 24),
                           ],
                         ),
@@ -479,7 +473,6 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
                 : isCompleted
                     ? const Color(0xFF10B981)
                     : Colors.grey[400]!;
-
             return InkWell(
               onTap: i <= _currentStep ? () => _jumpToStep(i) : null,
               child: Container(
@@ -544,7 +537,7 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
     );
   }
 
-  // ── MOBILE LAYOUT ──────────────────────────────────────────────────────────
+  // ── MOBILE LAYOUT (unchanged) ───────────────────────────────────────────────
   Widget _buildMobileLayout(List<Widget> steps) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -830,7 +823,7 @@ class _HallDetailsStepState extends State<HallDetailsStep> {
         initialPosition: hasExisting ? LatLng(savedLat, savedLng) : null,
       ),
     );
-    if (result != null) {
+    if (result != null && mounted) {
       setState(() {
         widget.data.locationController.text = result['address'] ?? '';
         widget.data.selectedLat = (result['lat'] ?? 0).toDouble();
@@ -929,6 +922,7 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
     final xf = await StorageService.pickImageXFile();
     if (xf == null) return;
     final picked = await _PickedFile.fromXFile(xf);
+    if (!mounted) return;
     setState(() => widget.data.hallPhotos.add(picked));
     widget.onChanged();
   }
@@ -959,6 +953,7 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
       final bytes  = pf.bytes ?? await xf.readAsBytes();
       final picked = _PickedFile(xFile: xf, bytes: bytes);
 
+      if (!mounted) return;
       setState(() {
         if (isNtn) widget.data.ntnFile     = picked;
         else       widget.data.licenseFile = picked;
@@ -996,11 +991,9 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
       children: [
         _sectionTitle('Uploads & Payouts', 'Upload hall photos, verification documents...', isWide),
         SizedBox(height: isWide ? 16 : 24),
-
         Text('Hall Photos',
           style: TextStyle(fontSize: isWide ? 12 : 13, fontWeight: FontWeight.w600)),
         SizedBox(height: isWide ? 6 : 8),
-
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(children: [
@@ -1036,18 +1029,15 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
                   Icon(Icons.add_photo_alternate_outlined,
                     size: isWide ? 22 : 32, color: Colors.grey),
                   const SizedBox(height: 4),
-                  Text('Add Photo',
-                    style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+                  Text('Add Photo', style: TextStyle(fontSize: 10, color: Colors.grey[600])),
                 ]),
               ),
             ),
           ]),
         ),
-
         SizedBox(height: isWide ? 20 : 24),
         _sectionTitle('Payout Details', 'This information will only be displayed to customers.', isWide),
         SizedBox(height: isWide ? 12 : 16),
-
         if (isWide)
           Row(children: [
             Expanded(child: _field('Bank Name', d.bankNameController, 'Enter your Bank Name', isWide: isWide)),
@@ -1060,11 +1050,9 @@ class _UploadsPayoutsStepState extends State<UploadsPayoutsStep> {
           _field('Bank Account Number', d.bankAccController, 'Enter your Account Number',
             type: TextInputType.number),
         ],
-
         SizedBox(height: isWide ? 12 : 16),
         _sectionTitle('Business Verification', 'This information will be used by VenueMate Admin.', isWide),
         SizedBox(height: isWide ? 12 : 16),
-
         Row(children: [
           Expanded(child: _docUploadBox('NTN TaxPayer File', d.ntnFile,     () => _pickDocument(true),  isWide: isWide)),
           SizedBox(width: isWide ? 12 : 15),
@@ -1087,6 +1075,9 @@ class MenuServicesStep extends StatefulWidget {
 }
 
 class _MenuServicesStepState extends State<MenuServicesStep> {
+
+  // ── FIX: use addPostFrameCallback so setState fires AFTER the sheet has
+  //         fully closed, preventing "setState called after dispose" errors.
   void _openMenuSheet([Map<String, String>? existing, int? index]) {
     showModalBottomSheet(
       context: context,
@@ -1095,21 +1086,25 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
       builder: (_) => AddMenuItemSheet(
         existing: existing,
         onSave: (item, xFile) {
-          setState(() {
-            if (index != null) {
-              widget.data.menuItems[index] = item;
-              if (xFile != null) widget.data.menuXFiles[index] = xFile;
-            } else {
-              widget.data.menuItems.add(item);
-              widget.data.menuXFiles.add(xFile);
-            }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() {
+              if (index != null) {
+                widget.data.menuItems[index] = item;
+                if (xFile != null) widget.data.menuXFiles[index] = xFile;
+              } else {
+                widget.data.menuItems.add(item);
+                widget.data.menuXFiles.add(xFile);
+              }
+            });
+            widget.onChanged();
           });
-          widget.onChanged();
         },
       ),
     );
   }
 
+  // ── FIX: same pattern for services ─────────────────────────────────────────
   void _openServiceSheet([Map<String, String>? existing, int? index]) {
     showModalBottomSheet(
       context: context,
@@ -1118,21 +1113,31 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
       builder: (_) => AddServiceSheet(
         existing: existing,
         onSave: (item) {
-          setState(() {
-            if (index != null) widget.data.serviceItems[index] = item;
-            else               widget.data.serviceItems.add(item);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() {
+              if (index != null) widget.data.serviceItems[index] = item;
+              else               widget.data.serviceItems.add(item);
+            });
+            widget.onChanged();
           });
-          widget.onChanged();
         },
       ),
     );
   }
 
   void _deleteMenuItem(int index) {
+    if (!mounted) return;
     setState(() {
       widget.data.menuItems.removeAt(index);
       if (index < widget.data.menuXFiles.length) widget.data.menuXFiles.removeAt(index);
     });
+    widget.onChanged();
+  }
+
+  void _deleteServiceItem(int index) {
+    if (!mounted) return;
+    setState(() => widget.data.serviceItems.removeAt(index));
     widget.onChanged();
   }
 
@@ -1160,11 +1165,9 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
       children: [
         _sectionTitle('Menu & Services', 'Detail the food, beverages, and extra services.', isWide),
         SizedBox(height: isWide ? 16 : 24),
-
         Text('Menu Items',
           style: TextStyle(fontSize: isWide ? 12 : 13, fontWeight: FontWeight.w600)),
         SizedBox(height: isWide ? 8 : 10),
-
         ...d.menuItems.asMap().entries.map((entry) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Slidable(
@@ -1193,12 +1196,10 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
               price:       entry.value['price'] ?? '',
               priceUnit:   entry.value['priceUnit'] ?? 'Serving',
               description: entry.value['description'] ?? '',
-              imageUrl:    entry.value['imageUrl'] ??
-                  'https://img.freepik.com/free-photo/side-view-shawarma-with-fried-potatoes-board-cookware_176474-3215.jpg',
+              imageUrl:    entry.value['imageUrl'] ?? '',
             ),
           ),
         )),
-
         const SizedBox(height: 12),
         Align(
           alignment: isWide ? Alignment.centerLeft : Alignment.center,
@@ -1206,7 +1207,6 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
               ? _webAddButton('Add New Menu Item', _openMenuSheet)
               : AddNewButton(label: 'Add New Menu Item', onTap: _openMenuSheet),
         ),
-
         SizedBox(height: isWide ? 24 : 32),
         RichText(
           text: TextSpan(
@@ -1222,7 +1222,6 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
           ),
         ),
         SizedBox(height: isWide ? 8 : 10),
-
         ...d.serviceItems.asMap().entries.map((entry) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Slidable(
@@ -1238,7 +1237,8 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 SlidableAction(
-                  onPressed: (_) => setState(() => d.serviceItems.removeAt(entry.key)),
+                  // ── FIX: use extracted method with mounted check ──────────
+                  onPressed: (_) => _deleteServiceItem(entry.key),
                   backgroundColor: Colors.red.shade50,
                   foregroundColor: Colors.red,
                   icon: Icons.delete,
@@ -1253,7 +1253,6 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
             ),
           ),
         )),
-
         const SizedBox(height: 12),
         Align(
           alignment: isWide ? Alignment.centerLeft : Alignment.center,
@@ -1347,7 +1346,6 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
         _sectionTitle('Review & Submit',
           'Please review all your information before submitting.', isWide),
         SizedBox(height: isWide ? 16 : 24),
-
         if (isWide)
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1363,9 +1361,7 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
           card3, const SizedBox(height: 16),
           card4,
         ],
-
         SizedBox(height: isWide ? 28 : 40),
-
         GestureDetector(
           onTap: () => setState(() => _isConfirmed = !_isConfirmed),
           child: Row(children: [
@@ -1398,9 +1394,7 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
             ),
           ]),
         ),
-
         SizedBox(height: isWide ? 16 : 24),
-
         SizedBox(
           width: double.infinity,
           height: isWide ? 42 : 52,
@@ -1449,7 +1443,6 @@ class _ReviewSubmitStepState extends State<ReviewSubmitStep> {
 // ══════════════════════════════════════════════════════════════════════════════
 //  SHARED HELPERS
 // ══════════════════════════════════════════════════════════════════════════════
-
 Widget _sectionTitle(String title, String subtitle, bool isWide) => Column(
   crossAxisAlignment: CrossAxisAlignment.start,
   children: [
@@ -1538,14 +1531,12 @@ Widget _uploadBox(String label, _PickedFile? file, VoidCallback onTap,
   );
 }
 
-// FIXED: Increased fixed height and added FittedBox to prevent Bottom Overflow
 Widget _docUploadBox(String label, _PickedFile? file, VoidCallback onTap,
     {bool isWide = false}) {
   final isPdf = file != null && file.name.toLowerCase().endsWith('.pdf');
   return GestureDetector(
     onTap: onTap,
     child: Container(
-      // Increased height slightly to accommodate content without overflow
       height: isWide ? 96 : 110,
       width: double.infinity,
       decoration: BoxDecoration(
@@ -1562,18 +1553,18 @@ Widget _docUploadBox(String label, _PickedFile? file, VoidCallback onTap,
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(Icons.cloud_upload_outlined,
-                      size: isWide ? 24 : 30, color: Colors.black54),
-                    const SizedBox(height: 5),
-                    Text(label,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 10, color: Colors.black54, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text('Image or PDF',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 9, color: Colors.grey[500])),
-                  ]),
+                  Icon(Icons.cloud_upload_outlined,
+                    size: isWide ? 24 : 30, color: Colors.black54),
+                  const SizedBox(height: 5),
+                  Text(label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 10, color: Colors.black54, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('Image or PDF',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 9, color: Colors.grey[500])),
+                ]),
               ),
             )
           : isPdf
@@ -1583,7 +1574,7 @@ Widget _docUploadBox(String label, _PickedFile? file, VoidCallback onTap,
                     padding: const EdgeInsets.all(12),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center, 
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.picture_as_pdf,
                           size: isWide ? 26 : 32, color: Colors.red),

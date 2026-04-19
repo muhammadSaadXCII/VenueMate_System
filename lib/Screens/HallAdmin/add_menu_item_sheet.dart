@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -14,7 +15,7 @@ class AddMenuItemSheet extends StatefulWidget {
   final Map<String, String>? existing;
 
   /// Called on save.
-  /// [item] contains the text fields.
+  /// [item] contains the text fields + imageUrl as a base64 data-URI.
   /// [xFile] is the picked image — null if no new image was picked.
   final void Function(Map<String, String> item, XFile? xFile) onSave;
 
@@ -29,16 +30,16 @@ class AddMenuItemSheet extends StatefulWidget {
 }
 
 class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
-  final _nameController = TextEditingController();
-  final _descController = TextEditingController();
+  final _nameController  = TextEditingController();
+  final _descController  = TextEditingController();
   final _priceController = TextEditingController();
 
-  String _selectedUnit = '/Serving';
-  XFile? _pickedXFile;
+  String    _selectedUnit  = '/Serving';
+  XFile?    _pickedXFile;
   Uint8List? _imageBytes;
 
-  bool _isSaving = false;
-  bool _imageRequired = false;
+  bool _isSaving       = false;
+  bool _imageRequired  = false;
 
   final List<String> _units = ['/Plate', '/Serving', '/Head', '/Pcs'];
 
@@ -47,17 +48,13 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
   @override
   void initState() {
     super.initState();
-
     if (_isEditing) {
       final e = widget.existing!;
-
-      _nameController.text = e['name'] ?? '';
-      _descController.text = e['description'] ?? '';
-      _priceController.text = e['price'] ?? '';
-
+      _nameController.text  = e['name']        ?? '';
+      _descController.text  = e['description'] ?? '';
+      _priceController.text = e['price']       ?? '';
       // priceUnit stored as "Serving", dropdown values are "/Serving"
-      _selectedUnit =
-          e['priceUnit'] != null ? '/${e['priceUnit']}' : '/Serving';
+      _selectedUnit = e['priceUnit'] != null ? '/${e['priceUnit']}' : '/Serving';
     }
   }
 
@@ -76,26 +73,24 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
     final bytes = await xf.readAsBytes();
 
     setState(() {
-      _pickedXFile = xf;
-      _imageBytes = bytes;
+      _pickedXFile   = xf;
+      _imageBytes    = bytes;
       _imageRequired = false;
     });
   }
 
   void _save() {
-    final name = _nameController.text.trim();
+    final name  = _nameController.text.trim();
     final price = _priceController.text.trim();
 
     if (name.isEmpty) {
       _snack('Please enter item name.');
       return;
     }
-
     if (price.isEmpty || double.tryParse(price) == null) {
       _snack('Please enter a valid price.');
       return;
     }
-
     // Image is mandatory for new items only
     if (!_isEditing && _pickedXFile == null) {
       setState(() => _imageRequired = true);
@@ -105,13 +100,29 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
 
     setState(() => _isSaving = true);
 
+    // ── Build imageUrl ──────────────────────────────────────────────────────
+    // If a new image was picked, encode it as a base64 data-URI so that
+    // MenuItemCard can display it on BOTH web and mobile without any network
+    // call. MenuItemCard already handles the 'data:image' prefix correctly.
+    //
+    // If we're editing and no new image was picked, keep the existing URL
+    // (could be a Firebase Storage https:// URL or a previous data-URI).
+    final String imageUrl;
+    if (_imageBytes != null) {
+      final base64Str = base64Encode(_imageBytes!);
+      imageUrl = 'data:image/jpeg;base64,$base64Str';
+    } else {
+      imageUrl = widget.existing?['imageUrl'] ?? '';
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
     widget.onSave(
       {
-        'name': name,
+        'name':        name,
         'description': _descController.text.trim(),
-        'price': price,
-        'priceUnit': _selectedUnit.replaceFirst('/', ''),
-        'imageUrl': widget.existing?['imageUrl'] ?? '',
+        'price':       price,
+        'priceUnit':   _selectedUnit.replaceFirst('/', ''),
+        'imageUrl':    imageUrl, // ← was always '' before, now carries real data
       },
       _pickedXFile,
     );
@@ -130,28 +141,26 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
   }
 
   InputDecoration _inputDec(String hint) => InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(
-          color: Colors.grey,
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.black),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.black),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide:
-              const BorderSide(color: Color(0xFFF97316), width: 1.5),
-        ),
-      );
+    hintText: hint,
+    hintStyle: const TextStyle(
+      color: Colors.grey,
+      fontSize: 14,
+      fontWeight: FontWeight.bold,
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Colors.black),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Colors.black),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Color(0xFFF97316), width: 1.5),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +179,7 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Drag handle
               Center(
                 child: Container(
                   width: 50,
@@ -184,61 +194,50 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
 
               Text(
                 _isEditing ? 'Edit Menu Item' : 'Add New Menu Item',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 20),
 
+              // Image picker + name field
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    children: [
-                      GestureDetector(
-                        onTap: _pickImage,
-                        child: Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: _imageRequired
-                                  ? Colors.red
-                                  : _imageBytes != null
-                                      ? const Color(0xFFF47C20)
-                                      : Colors.grey,
-                              width: (_imageRequired || _imageBytes != null)
-                                  ? 2
-                                  : 1,
-                            ),
-                          ),
-                          child: _imageBytes != null
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(11),
-                                  child: Image.memory(
-                                    _imageBytes!,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: const [
-                                    Icon(Icons.cloud_upload_outlined),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Tap to upload\nPhoto*',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(fontSize: 10),
-                                    ),
-                                  ],
-                                ),
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _imageRequired
+                              ? Colors.red
+                              : _imageBytes != null
+                                  ? const Color(0xFFF47C20)
+                                  : Colors.grey,
+                          width: (_imageRequired || _imageBytes != null) ? 2 : 1,
                         ),
                       ),
-                    ],
+                      child: _imageBytes != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(11),
+                              child: Image.memory(_imageBytes!, fit: BoxFit.cover),
+                            )
+                          : const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.cloud_upload_outlined),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Tap to upload\nPhoto*',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 10),
+                                ),
+                              ],
+                            ),
+                    ),
                   ),
 
                   const SizedBox(width: 16),
@@ -254,6 +253,7 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
 
               const SizedBox(height: 16),
 
+              // Description
               TextFormField(
                 controller: _descController,
                 maxLines: 3,
@@ -262,6 +262,7 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
 
               const SizedBox(height: 16),
 
+              // Price + unit
               Row(
                 children: [
                   Expanded(
@@ -276,15 +277,9 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
                     child: DropdownButtonFormField<String>(
                       value: _selectedUnit,
                       items: _units
-                          .map(
-                            (u) => DropdownMenuItem(
-                              value: u,
-                              child: Text(u),
-                            ),
-                          )
+                          .map((u) => DropdownMenuItem(value: u, child: Text(u)))
                           .toList(),
-                      onChanged: (v) =>
-                          setState(() => _selectedUnit = v!),
+                      onChanged: (v) => setState(() => _selectedUnit = v!),
                     ),
                   ),
                 ],
@@ -297,9 +292,7 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
                 onTap: _isSaving ? () {} : _save,
               ),
 
-              SizedBox(
-                height: MediaQuery.of(context).padding.bottom + 20,
-              ),
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 20),
             ],
           ),
         ),
