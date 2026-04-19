@@ -5,8 +5,7 @@ import 'package:venuemate_system/Services/booking_service.dart';
 class CancelBookingScreen extends StatefulWidget {
   final BookingModel booking;
 
-  const CancelBookingScreen({Key? key, required this.booking})
-    : super(key: key);
+  const CancelBookingScreen({super.key, required this.booking});
 
   @override
   State<CancelBookingScreen> createState() => _CancelBookingScreenState();
@@ -170,7 +169,7 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                               ),
                             ),
                           );
-                        }).toList(),
+                        }),
                         if (selectedReason == 'Another reason') ...[
                           const SizedBox(height: 16),
                           TextField(
