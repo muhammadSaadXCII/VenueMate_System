@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -38,6 +39,7 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
   List<ServiceItemModel> _services = [];
   List<PackageModel> _packages = [];
   List<Map<String, dynamic>> _reviews = [];
+  StreamSubscription? _reviewsSub;
   bool _loading = true;
 
   // Favorites
@@ -86,15 +88,24 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
       isFav = doc.exists;
     }
 
-    // Stream reviews live
-    FirebaseFirestore.instance
-        .collection('halls')
-        .doc(widget.hallId)
-        .collection('reviews')
+    // Stream reviews live from booking_feedbacks filtered by hallId
+    _reviewsSub = FirebaseFirestore.instance
+        .collection('booking_feedbacks')
+        .where('hallId', isEqualTo: widget.hallId)
         .snapshots()
         .listen((s) {
           if (mounted) {
-            setState(() => _reviews = s.docs.map((d) => d.data()).toList());
+            final reviews = s.docs.map((d) => d.data()).toList();
+            // Sort client-side by submittedAt descending
+            reviews.sort((a, b) {
+              final aTs = a['submittedAt'] as Timestamp?;
+              final bTs = b['submittedAt'] as Timestamp?;
+              if (aTs == null && bTs == null) return 0;
+              if (aTs == null) return 1;
+              if (bTs == null) return -1;
+              return bTs.compareTo(aTs);
+            });
+            setState(() => _reviews = reviews);
           }
         });
 
@@ -191,6 +202,7 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
 
   @override
   void dispose() {
+    _reviewsSub?.cancel();
     _tabController.dispose();
     _pageCtrl.dispose();
     super.dispose();
@@ -1016,7 +1028,7 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
         _reviews.isEmpty
             ? _emptyTab('No reviews yet. Be the first!')
             : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
               children: [..._reviews.map(_reviewCard)],
             ),
   );
@@ -1024,7 +1036,13 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
   Widget _reviewCard(Map<String, dynamic> r) {
     final rating = (r['rating'] as num?)?.toDouble() ?? 0;
     final name = r['customerName'] as String? ?? 'Anonymous';
-    final comment = r['comment'] as String? ?? '';
+    final comment = r['reviewText'] as String? ?? ''; // ← correct field name
+    final Timestamp? ts = r['submittedAt'] as Timestamp?;
+    final dateLabel =
+        ts != null
+            ? _formatDate(ts.toDate())
+            : '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -1063,20 +1081,24 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
                     ),
                     Row(
                       children: [
-                        Text(
-                          rating.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                        // Star icons
+                        ...List.generate(
+                          5,
+                          (i) => Icon(
+                            i < rating.round()
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: Colors.amber,
+                            size: 14,
                           ),
                         ),
                         const SizedBox(width: 4),
-                        ...List.generate(
-                          rating.round(),
-                          (_) => const Icon(
-                            Icons.star,
-                            color: Colors.amber,
-                            size: 12,
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
                           ),
                         ),
                       ],
@@ -1084,20 +1106,40 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
                   ],
                 ),
               ),
+              if (dateLabel.isNotEmpty)
+                Text(
+                  dateLabel,
+                  style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+                ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            comment,
-            style: TextStyle(
-              color: Colors.grey[700],
-              fontSize: 12,
-              height: 1.4,
+          if (comment.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              comment,
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 12,
+                height: 1.4,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inDays == 0) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${date.day} ${months[date.month - 1]}, ${date.year}';
   }
 
   Widget _emptyTab(String msg) => Center(

@@ -15,7 +15,6 @@ class FavoritesScreen extends StatefulWidget {
 class _FavoritesScreenState extends State<FavoritesScreen> {
   final String _uid = AuthService.currentUid ?? '';
 
-  // Stream hallIds from favorites/{uid}/halls, then load HallModels
   Stream<List<HallModel>> _streamFavHalls() {
     if (_uid.isEmpty) return const Stream.empty();
     return FirebaseFirestore.instance
@@ -44,69 +43,65 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
         child: Column(
           children: [
-            // ── Header (identical to original) ──────────────────────────────
+            // ── Header ──────────────────────────────────────────────────
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    Color(0xFFF47C20),
-                    Color.fromARGB(255, 233, 184, 69),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFE8650A), Color(0xFFF47C20), Color(0xFFFAA94E)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
+                  bottomLeft: Radius.circular(28),
+                  bottomRight: Radius.circular(28),
                 ),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'My Favorites',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x33F47C20),
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
                   ),
-                  const SizedBox(width: 48),
                 ],
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+              child: const Center(
+                child: Text(
+                  'My Favorites',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
               ),
             ),
 
-            // ── Live favorites list ──────────────────────────────────────────
+            // ── List ────────────────────────────────────────────────────
             Expanded(
-              child:
-                  _uid.isEmpty
-                      ? _emptyState()
-                      : StreamBuilder<List<HallModel>>(
-                        stream: _streamFavHalls(),
-                        builder: (context, snap) {
-                          if (snap.connectionState == ConnectionState.waiting) {
-                            return const Center(
-                              child: CircularProgressIndicator(
-                                color: Color(0xFFF47C20),
-                              ),
-                            );
-                          }
-                          final halls = snap.data ?? [];
-                          if (halls.isEmpty) return _emptyState();
-                          return ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: halls.length,
-                            itemBuilder: (_, i) => _buildFavoriteCard(halls[i]),
+              child: _uid.isEmpty
+                  ? _emptyState()
+                  : StreamBuilder<List<HallModel>>(
+                      stream: _streamFavHalls(),
+                      builder: (context, snap) {
+                        if (snap.connectionState == ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(color: Color(0xFFF47C20)),
                           );
-                        },
-                      ),
+                        }
+                        final halls = snap.data ?? [];
+                        if (halls.isEmpty) return _emptyState();
+                        return ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                          itemCount: halls.length,
+                          itemBuilder: (_, i) => _buildFavoriteCard(halls[i]),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -114,129 +109,117 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  // ── Empty state (identical to original) ───────────────────────────────
+  // ── Empty state ────────────────────────────────────────────────────────
   Widget _emptyState() => Center(
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.favorite_border, size: 80, color: Colors.grey[400]),
-        const SizedBox(height: 16),
-        Text(
-          'No favorites yet',
-          style: TextStyle(
-            fontSize: 18,
-            color: Colors.grey[600],
-            fontWeight: FontWeight.w500,
+        Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF0E0),
+            shape: BoxShape.circle,
           ),
+          child: const Icon(Icons.favorite_border_rounded, size: 56, color: Color(0xFFF47C20)),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          'No favorites yet',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
         ),
         const SizedBox(height: 8),
         Text(
-          'Start adding venues and packages to your favorites!',
-          style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+          'Save venues you love and\nfind them here anytime.',
+          style: TextStyle(fontSize: 13, color: Colors.grey[500], height: 1.5),
           textAlign: TextAlign.center,
         ),
       ],
     ),
   );
 
-  // ── Favorite card (identical design to original) ───────────────────────
+  // ── Favorite card ──────────────────────────────────────────────────────
   Widget _buildFavoriteCard(HallModel h) {
     final img = h.imageUrls.isNotEmpty ? h.imageUrls.first : '';
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade400, width: 1),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.12),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.07),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Image
           Stack(
             children: [
-              // Image — tap to open venue
               ClipRRect(
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
+                  topLeft: Radius.circular(18),
+                  topRight: Radius.circular(18),
                 ),
                 child: InkWell(
-                  onTap:
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => VenueDetailsScreen(hallId: h.hallId),
-                        ),
-                      ),
-                  child:
-                      img.isNotEmpty
-                          ? CachedNetworkImage(
-                            imageUrl: img,
-                            height: 200,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            placeholder:
-                                (_, __) => Container(
-                                  height: 200,
-                                  color: Colors.grey[200],
-                                ),
-                            errorWidget: (_, __, ___) => _placeholder(),
-                          )
-                          : _placeholder(),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => VenueDetailsScreen(hallId: h.hallId)),
+                  ),
+                  child: img.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: img,
+                          height: 210,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(height: 210, color: Colors.grey[200]),
+                          errorWidget: (_, __, ___) => _placeholder(),
+                        )
+                      : _placeholder(),
                 ),
               ),
-              // Filled heart — tap to remove
+              // Remove (filled heart)
               Positioned(
                 top: 12,
                 right: 12,
                 child: GestureDetector(
                   onTap: () => _removeFav(h.hallId),
                   child: Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: const BoxDecoration(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 6),
+                      ],
                     ),
-                    child: const Icon(
-                      Icons.favorite,
-                      color: Colors.red,
-                      size: 20,
-                    ),
+                    child: const Icon(Icons.favorite_rounded, color: Colors.red, size: 18),
                   ),
                 ),
               ),
-              // Rating badge (top left — same as original venue card)
+              // Rating badge
               Positioned(
                 top: 12,
                 left: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 6),
+                    ],
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.star, size: 14, color: Colors.amber),
-                      const SizedBox(width: 3),
+                      const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                      const SizedBox(width: 4),
                       Text(
-                        h.ratingCount == 0
-                            ? 'New'
-                            : h.ratingAvg.toStringAsFixed(1),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
+                        h.ratingCount == 0 ? 'New' : h.ratingAvg.toStringAsFixed(1),
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                       ),
                     ],
                   ),
@@ -245,37 +228,103 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ],
           ),
 
-          // Info section (same design as original)
+          // Info section
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  h.hallName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                // Name + review count badge
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        h.hallName,
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1A1A1A)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF0E0),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${h.ratingCount} reviews',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFFF47C20), fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  h.address.isNotEmpty ? h.address : '—',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                // Address
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 13, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        h.address.isNotEmpty ? h.address : '—',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  '${h.capacityMin}–${h.capacityMax} Capacity',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                // Capacity
+                Row(
+                  children: [
+                    const Icon(Icons.people_alt_outlined, size: 13, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${h.capacityMin}–${h.capacityMax} Guests',
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  h.priceLabel,
-                  style: const TextStyle(
-                    color: Color(0xFFF47C20),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                const SizedBox(height: 10),
+                const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                const SizedBox(height: 10),
+                // Price + View button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Starting from', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                        Text(
+                          h.priceLabel,
+                          style: const TextStyle(
+                            color: Color(0xFFF47C20),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => VenueDetailsScreen(hallId: h.hallId)),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF47C20),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'View Details',
+                          style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -286,11 +335,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Widget _placeholder() => Container(
-    height: 200,
+    height: 210,
     width: double.infinity,
     color: Colors.grey[200],
-    child: const Center(
-      child: Icon(Icons.business, color: Colors.grey, size: 40),
-    ),
+    child: const Center(child: Icon(Icons.business, color: Colors.grey, size: 40)),
   );
 }

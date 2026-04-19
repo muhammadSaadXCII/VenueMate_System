@@ -64,7 +64,8 @@ class PendingRegistrationsScreen extends StatelessWidget {
                               crossAxisCount: screenWidth > 1500 ? 3 : 2,
                               crossAxisSpacing: 24,
                               mainAxisSpacing: 24,
-                              childAspectRatio: screenWidth > 1500 ? 1.7 : 1.9,
+                              // FIXED: Increased Aspect Ratio (width/height) to reduce vertical space
+                              childAspectRatio: screenWidth > 1500 ? 2.1 : 2.3,
                             ),
                             itemCount: halls.length,
                             itemBuilder: (context, i) => _RegistrationCard(
@@ -201,11 +202,9 @@ class _RegistrationCard extends StatelessWidget {
                       width: imgSize,
                       height: imgSize,
                       fit: BoxFit.cover,
-                      // FIX FOR OVERFLOW: Handles "StatusCode 0" or failed requests
                       errorBuilder: (context, error, stackTrace) {
                         return _placeholder(imgSize);
                       },
-                      // OPTIONAL: Shows a loader while downloading
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
                         return Container(
@@ -231,7 +230,8 @@ class _RegistrationCard extends StatelessWidget {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
+                // FIXED: Changed MainAxisAlignment to start and added a Spacer
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Text(
                     hall.hallName,
@@ -243,7 +243,7 @@ class _RegistrationCard extends StatelessWidget {
                       color: Color(0xFF2D3436),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   _infoRow(Icons.location_on_outlined, hall.address),
                   const SizedBox(height: 4),
                   _infoRow(Icons.phone_outlined, hall.contactPhone),
@@ -252,7 +252,8 @@ class _RegistrationCard extends StatelessWidget {
                     Icons.calendar_today_outlined,
                     _formatDate(hall.createdAt),
                   ),
-                  const SizedBox(height: 8),
+                  // This pushes the button to the bottom, removing "middle" empty space
+                  const Spacer(),
                   Align(
                     alignment: Alignment.bottomRight,
                     child: Container(

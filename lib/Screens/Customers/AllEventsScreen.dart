@@ -12,7 +12,7 @@ import 'ViewReciept.dart';
 class AllEventsScreen extends StatefulWidget {
   final int initialTabIndex;
 
-  const AllEventsScreen({Key? key, this.initialTabIndex = 0}) : super(key: key);
+  const AllEventsScreen({super.key, this.initialTabIndex = 0});
 
   @override
   State<AllEventsScreen> createState() => _AllEventsScreenState();
