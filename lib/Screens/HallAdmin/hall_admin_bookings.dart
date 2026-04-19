@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
@@ -56,7 +55,7 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
       return;
     }
     final hall = await HallService.getHallByOwnerId(uid);
-    if (mounted)
+    if (mounted) {
       setState(() {
         _hall = hall;
         _loadingHall = false;
@@ -71,6 +70,7 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
           );
         }
       });
+    }
   }
 
   @override
@@ -769,7 +769,6 @@ class _AdminBookingCard extends StatelessWidget {
   // ── Mark as Complete confirmation dialog ───────────────────────────────────
 
   void _confirmMarkAsComplete(BuildContext context) {
-    final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
 
     showDialog(
@@ -877,15 +876,6 @@ class _AdminBookingCard extends StatelessWidget {
     );
   }
 
-  void _showFeedbackSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _FeedbackViewSheet(bookingId: booking.bookingId),
-    );
-  }
-
   // ── Micro helpers ──────────────────────────────────────────────────────────
 
   Widget _imageFallback() => Container(
@@ -913,256 +903,6 @@ class _AdminBookingCard extends StatelessWidget {
       ],
     ),
   );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  FEEDBACK VIEW SHEET  (Hall Admin views customer feedback)
-// ══════════════════════════════════════════════════════════════════════════════
-
-class _FeedbackViewSheet extends StatelessWidget {
-  final String bookingId;
-  const _FeedbackViewSheet({required this.bookingId});
-
-  @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.55,
-      maxChildSize: 0.85,
-      minChildSize: 0.35,
-      builder:
-          (_, controller) => Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-            ),
-            child: StreamBuilder<Map<String, dynamic>?>(
-              stream: BookingService.streamFeedbackForBooking(bookingId),
-              builder: (context, snap) {
-                return ListView(
-                  controller: controller,
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
-                  children: [
-                    // Drag handle
-                    Center(
-                      child: Container(
-                        width: 50,
-                        height: 5,
-                        margin: const EdgeInsets.only(bottom: 20),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-
-                    const Text(
-                      'Customer Feedback',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    if (snap.connectionState == ConnectionState.waiting)
-                      const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFF47C20),
-                        ),
-                      )
-                    else if (!snap.hasData || snap.data == null)
-                      // No feedback yet
-                      Center(
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 20),
-                            Icon(
-                              Icons.rate_review_outlined,
-                              size: 60,
-                              color: Colors.grey[300],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No feedback yet',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'The customer hasn\'t submitted any feedback for this booking.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[400],
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      _buildFeedbackContent(snap.data!),
-                  ],
-                );
-              },
-            ),
-          ),
-    );
-  }
-
-  Widget _buildFeedbackContent(Map<String, dynamic> data) {
-    final int rating = (data['rating'] as num? ?? 0).toInt();
-    final String reviewText = data['reviewText'] as String? ?? '';
-    final String customerName = data['customerName'] as String? ?? 'Customer';
-    final Timestamp? submittedAt = data['submittedAt'] as Timestamp?;
-    final String dateStr =
-        submittedAt != null ? _formatDate(submittedAt.toDate()) : '';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Customer name + date
-        Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: const Color(0xFFFFF7ED),
-              radius: 22,
-              child: Text(
-                customerName.isNotEmpty ? customerName[0].toUpperCase() : 'C',
-                style: const TextStyle(
-                  color: Color(0xFFF47C20),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    customerName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
-                  if (dateStr.isNotEmpty)
-                    Text(
-                      dateStr,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 20),
-
-        // Star rating
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF7ED),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.orange.shade100),
-          ),
-          child: Column(
-            children: [
-              const Text(
-                'Rating',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black54,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (i) {
-                  return Icon(
-                    i < rating
-                        ? Icons.star_rounded
-                        : Icons.star_outline_rounded,
-                    color: Colors.orange,
-                    size: 36,
-                  );
-                }),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '$rating / 5',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFF47C20),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        if (reviewText.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Review',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFFF47C20),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  reviewText,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black87,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
-  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
