@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "1023649558072-knn11o7c0cgqemrha34mlpshg85q24b7.apps.googleusercontent.com",
+          "client_id": "1023649558072-dpmqb89mohiqmofvge3d1668fgo0peam.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.venuemate_system",
-            "certificate_hash": "ec34613a160554e56dc9e4dd0bc604b4fc77c9b9"
+            "certificate_hash": "bda2eb913bb0f6c981287ceac6adb91c8eb28d1e"
           }
         },
         {

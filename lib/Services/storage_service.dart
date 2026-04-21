@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
@@ -215,6 +216,27 @@ class StorageService {
       final ref = _storage.ref().child('refunds/$bookingId/$fileName');
       await ref.putFile(
         receiptFile,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      return await ref.getDownloadURL();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Web-safe variant: upload refund receipt from raw bytes (works on web + mobile).
+  /// Path: `refunds/{bookingId}/refund_{uuid}.jpg`
+  /// Returns the download URL, or null on failure.
+  static Future<String?> uploadRefundReceiptBytes({
+    required String bookingId,
+    required Uint8List receiptBytes,
+    String fileName = 'refund_receipt.jpg',
+  }) async {
+    try {
+      final String safeName = 'refund_${_uuid.v4()}.jpg';
+      final ref = _storage.ref().child('refunds/$bookingId/$safeName');
+      await ref.putData(
+        receiptBytes,
         SettableMetadata(contentType: 'image/jpeg'),
       );
       return await ref.getDownloadURL();

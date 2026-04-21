@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../Models/booking_model.dart';
@@ -497,6 +498,33 @@ class BookingService {
     }
   }
 
+  /// Web-safe variant: bytes instead of dart:io File.
+  /// Works identically on mobile — preferred for new code.
+  static Future<String?> uploadRefundReceiptBytes({
+    required String bookingId,
+    required Uint8List receiptBytes,
+    String fileName = 'refund_receipt.jpg',
+  }) async {
+    try {
+      final String? url = await StorageService.uploadRefundReceiptBytes(
+        bookingId: bookingId,
+        receiptBytes: receiptBytes,
+        fileName: fileName,
+      );
+      if (url == null) return 'Failed to upload refund receipt image.';
+
+      await _bookings.doc(bookingId).update({
+        'refundReceiptUrl': url,
+        'refundStatus': 'uploaded',
+        'refundRejectionReason': '',
+        'refundUploadedAt': Timestamp.fromDate(DateTime.now()),
+      });
+      return null;
+    } catch (e) {
+      return 'Failed to upload refund receipt: $e';
+    }
+  }
+
   /// Customer accepts the refund receipt — marks refund as complete.
   static Future<String?> acceptRefund(String bookingId) async {
     try {
@@ -544,7 +572,24 @@ class BookingService {
   }) async {
     try {
       final feedbackId = _uuid.v4();
-      await _feedbacks.doc(bookingId).set({
+      final hallRef = _db.collection('halls').doc(hallId);
+
+      // Read the hall rating BEFORE any writes (outside transaction/batch)
+      // so we can compute the new rolling average cleanly.
+      final hallSnap = await hallRef.get();
+      final data = hallSnap.data() ?? {};
+      final ratingMap = (data['rating'] as Map<String, dynamic>?) ?? {};
+      final oldCount = (ratingMap['count'] as num? ?? 0).toInt();
+      final oldAvg = (ratingMap['avg'] as num? ?? 0).toDouble();
+
+      // Compute new rolling average and incremented count.
+      final newCount = oldCount + 1;
+      final newAvg = ((oldAvg * oldCount) + rating) / newCount;
+
+      // Use a WriteBatch (writes only — no reads) for atomic commit.
+      final batch = _db.batch();
+
+      batch.set(_feedbacks.doc(bookingId), {
         'feedbackId': feedbackId,
         'bookingId': bookingId,
         'hallId': hallId,
@@ -555,6 +600,16 @@ class BookingService {
         'reviewText': reviewText,
         'submittedAt': Timestamp.fromDate(DateTime.now()),
       });
+
+      batch.update(hallRef, {
+        'rating': {
+          'count': newCount,
+          'avg': double.parse(newAvg.toStringAsFixed(2)),
+        },
+      });
+
+      await batch.commit();
+
       return null;
     } catch (e) {
       return 'Failed to submit feedback: $e';
