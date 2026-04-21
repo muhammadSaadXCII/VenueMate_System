@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +8,12 @@ import 'package:venuemate_system/Models/hall_model.dart';
 import 'package:venuemate_system/Services/booking_service.dart';
 import 'package:venuemate_system/Services/hall_service.dart';
 import 'package:venuemate_system/Widgets/common_button.dart';
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  BREAKPOINT — matches the root layout's _kHallWebBreak = 950
+// ══════════════════════════════════════════════════════════════════════════════
+
+const double _kBookingsWebBreak = 950;
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  HALL ADMIN BOOKINGS SCREEN
@@ -32,8 +39,21 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
   Stream<List<BookingModel>>? _completedStream;
   Stream<List<BookingModel>>? _cancelledStream;
 
-  // Tabs: Upcoming | Pending | Completed | Cancelled
   static const _tabs = ['Upcoming', 'Pending', 'Completed', 'Cancelled'];
+
+  static const _tabColors = [
+    Color(0xFF059669), // Upcoming  — green
+    Color(0xFFFBC02D), // Pending   — amber
+    Color(0xFF388E3C), // Completed — dark-green
+    Color(0xFFD32F2F), // Cancelled — red
+  ];
+
+  static const _tabIcons = [
+    Icons.event_available_outlined,
+    Icons.hourglass_empty_outlined,
+    Icons.check_circle_outline,
+    Icons.cancel_outlined,
+  ];
 
   @override
   void initState() {
@@ -75,6 +95,221 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (_loadingHall) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFFF47C20)),
+      );
+    }
+    if (_hall == null) return _buildNoHall();
+
+    final isWide = MediaQuery.of(context).size.width >= _kBookingsWebBreak;
+    return isWide ? _buildWebLayout() : _buildMobileLayout();
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  WEB LAYOUT  —  top bar + left filter panel + content grid
+  // ════════════════════════════════════════════════════════════════════════════
+
+  Widget _buildWebLayout() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: Column(
+        children: [
+          // ── Top bar ───────────────────────────────────────────────────────
+          Container(
+            height: 64,
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            color: Colors.white,
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today_rounded,
+                  color: Color(0xFFF47C20),
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Bookings',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF47C20).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _hall?.hallName ?? '',
+                    style: const TextStyle(
+                      color: Color(0xFFF47C20),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Body: side panel + content ────────────────────────────────────
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildWebSidePanel(),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _BookingTab(
+                        stream: _upcomingStream!,
+                        tabLabel: 'Upcoming',
+                        hall: _hall!,
+                        emptyMessage: 'No upcoming confirmed bookings yet.',
+                        isWeb: true,
+                      ),
+                      _BookingTab(
+                        stream: _pendingStream!,
+                        tabLabel: 'Pending',
+                        hall: _hall!,
+                        emptyMessage: 'No pending receipts to verify.',
+                        isWeb: true,
+                      ),
+                      _BookingTab(
+                        stream: _completedStream!,
+                        tabLabel: 'Completed',
+                        hall: _hall!,
+                        emptyMessage: 'No completed events yet.',
+                        isWeb: true,
+                      ),
+                      _BookingTab(
+                        stream: _cancelledStream!,
+                        tabLabel: 'Cancelled',
+                        hall: _hall!,
+                        emptyMessage: 'No cancelled bookings.',
+                        isWeb: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebSidePanel() {
+    return AnimatedBuilder(
+      animation: _tabController,
+      builder: (context, _) {
+        final selected = _tabController.index;
+        return Container(
+          width: 220,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(2, 0),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: Text(
+                  'FILTER BY STATUS',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[400],
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ),
+              ...List.generate(_tabs.length, (i) {
+                final isActive = selected == i;
+                final color = _tabColors[i];
+                return InkWell(
+                  onTap: () => _tabController.animateTo(i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 3,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 13,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          isActive
+                              ? color.withOpacity(0.10)
+                              : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      border:
+                          isActive
+                              ? Border.all(color: color.withOpacity(0.25))
+                              : null,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _tabIcons[i],
+                          size: 18,
+                          color: isActive ? color : Colors.grey[500],
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _tabs[i],
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight:
+                                  isActive
+                                      ? FontWeight.w700
+                                      : FontWeight.normal,
+                              color: isActive ? color : Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                        if (isActive)
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  //  MOBILE LAYOUT  —  original design, unchanged
+  // ════════════════════════════════════════════════════════════════════════════
+
+  Widget _buildMobileLayout() {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -91,51 +326,48 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
           ),
         ),
       ),
-      body:
-          _loadingHall
-              ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFFF47C20)),
-              )
-              : _hall == null
-              ? _buildNoHall()
-              : Column(
-                children: [
-                  const SizedBox(height: 10),
-                  _buildTabBar(),
-                  const SizedBox(height: 20),
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _BookingTab(
-                          stream: _upcomingStream!,
-                          tabLabel: 'Upcoming',
-                          hall: _hall!,
-                          emptyMessage: 'No upcoming confirmed bookings yet.',
-                        ),
-                        _BookingTab(
-                          stream: _pendingStream!,
-                          tabLabel: 'Pending',
-                          hall: _hall!,
-                          emptyMessage: 'No pending receipts to verify.',
-                        ),
-                        _BookingTab(
-                          stream: _completedStream!,
-                          tabLabel: 'Completed',
-                          hall: _hall!,
-                          emptyMessage: 'No completed events yet.',
-                        ),
-                        _BookingTab(
-                          stream: _cancelledStream!,
-                          tabLabel: 'Cancelled',
-                          hall: _hall!,
-                          emptyMessage: 'No cancelled bookings.',
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+      body: Column(
+        children: [
+          const SizedBox(height: 10),
+          _buildTabBar(),
+          const SizedBox(height: 20),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _BookingTab(
+                  stream: _upcomingStream!,
+                  tabLabel: 'Upcoming',
+                  hall: _hall!,
+                  emptyMessage: 'No upcoming confirmed bookings yet.',
+                  isWeb: false,
+                ),
+                _BookingTab(
+                  stream: _pendingStream!,
+                  tabLabel: 'Pending',
+                  hall: _hall!,
+                  emptyMessage: 'No pending receipts to verify.',
+                  isWeb: false,
+                ),
+                _BookingTab(
+                  stream: _completedStream!,
+                  tabLabel: 'Completed',
+                  hall: _hall!,
+                  emptyMessage: 'No completed events yet.',
+                  isWeb: false,
+                ),
+                _BookingTab(
+                  stream: _cancelledStream!,
+                  tabLabel: 'Cancelled',
+                  hall: _hall!,
+                  emptyMessage: 'No cancelled bookings.',
+                  isWeb: false,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -187,7 +419,7 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  BOOKING TAB (one per tab)
+//  BOOKING TAB  (one per tab)
 // ══════════════════════════════════════════════════════════════════════════════
 
 class _BookingTab extends StatelessWidget {
@@ -195,12 +427,14 @@ class _BookingTab extends StatelessWidget {
   final String tabLabel;
   final HallModel hall;
   final String emptyMessage;
+  final bool isWeb;
 
   const _BookingTab({
     required this.stream,
     required this.tabLabel,
     required this.hall,
     required this.emptyMessage,
+    required this.isWeb,
   });
 
   @override
@@ -214,9 +448,71 @@ class _BookingTab extends StatelessWidget {
           );
         }
         final bookings = snap.data ?? [];
-        if (bookings.isEmpty) {
-          return _emptyState();
+        if (bookings.isEmpty) return _emptyState();
+
+        if (isWeb) {
+          // Two-column self-sizing layout — cards grow to fit content, no
+          // fixed aspect ratio, so there is never empty space at the bottom.
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final twoCol = constraints.maxWidth > 800;
+              return ListView.builder(
+                padding: const EdgeInsets.all(24),
+                itemCount:
+                    twoCol ? (bookings.length / 2).ceil() : bookings.length,
+                itemBuilder: (_, rowIdx) {
+                  if (!twoCol) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: _AdminBookingCard(
+                        booking: bookings[rowIdx],
+                        tabLabel: tabLabel,
+                        hall: hall,
+                        isWeb: true,
+                      ),
+                    );
+                  }
+                  // Two-column row — IntrinsicHeight lets both cards share the
+                  // height of whichever is taller; no blank space at the bottom.
+                  final left = rowIdx * 2;
+                  final right = left + 1;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _AdminBookingCard(
+                              booking: bookings[left],
+                              tabLabel: tabLabel,
+                              hall: hall,
+                              isWeb: true,
+                            ),
+                          ),
+                          if (right < bookings.length) ...[
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: _AdminBookingCard(
+                                booking: bookings[right],
+                                tabLabel: tabLabel,
+                                hall: hall,
+                                isWeb: true,
+                              ),
+                            ),
+                          ] else
+                            const Expanded(child: SizedBox()),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          );
         }
+
+        // Mobile: original ListView
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           itemCount: bookings.length,
@@ -225,6 +521,7 @@ class _BookingTab extends StatelessWidget {
                 booking: bookings[i],
                 tabLabel: tabLabel,
                 hall: hall,
+                isWeb: false,
               ),
         );
       },
@@ -254,11 +551,13 @@ class _AdminBookingCard extends StatelessWidget {
   final BookingModel booking;
   final String tabLabel;
   final HallModel hall;
+  final bool isWeb;
 
   const _AdminBookingCard({
     required this.booking,
     required this.tabLabel,
     required this.hall,
+    required this.isWeb,
   });
 
   Color get _badgeBg {
@@ -304,15 +603,15 @@ class _AdminBookingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: isWeb ? EdgeInsets.zero : const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
+            color: Colors.grey.withOpacity(0.07),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -320,12 +619,12 @@ class _AdminBookingCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Header row ─────────────────────────────────────────────────
+          // ── Header row ──────────────────────────────────────────────────
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Hall image
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child:
@@ -431,7 +730,7 @@ class _AdminBookingCard extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          // ── Action buttons per tab ─────────────────────────────────────
+          // ── Action buttons per tab ───────────────────────────────────────
           if (tabLabel == 'Pending')
             _buildPendingActions(context)
           else if (tabLabel == 'Upcoming')
@@ -445,14 +744,14 @@ class _AdminBookingCard extends StatelessWidget {
     );
   }
 
-  // ── Pending tab ────────────────────────────────────────────────────────────
+  // ── Pending ────────────────────────────────────────────────────────────────
 
   Widget _buildPendingActions(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: 46,
       child: ElevatedButton.icon(
-        onPressed: () => _showReceiptSheet(context),
+        onPressed: () => _showReceiptView(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFF47C20),
           shape: RoundedRectangleBorder(
@@ -477,7 +776,7 @@ class _AdminBookingCard extends StatelessWidget {
     );
   }
 
-  // ── Upcoming tab: View Details + Mark as Complete ──────────────────────────
+  // ── Upcoming ───────────────────────────────────────────────────────────────
 
   Widget _buildUpcomingActions(BuildContext context) {
     final days = booking.daysUntilEvent;
@@ -516,12 +815,11 @@ class _AdminBookingCard extends StatelessWidget {
           ),
         Row(
           children: [
-            // View Details button
             Expanded(
               child: SizedBox(
-                height: 50,
+                height: 46,
                 child: OutlinedButton.icon(
-                  onPressed: () => _showBookingDetailSheet(context),
+                  onPressed: () => _showBookingDetailView(context),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: Colors.grey.shade300),
                     shape: RoundedRectangleBorder(
@@ -545,10 +843,9 @@ class _AdminBookingCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            // Mark as Complete button
             Expanded(
               child: SizedBox(
-                height: 50,
+                height: 46,
                 child: ElevatedButton.icon(
                   onPressed: () => _confirmMarkAsComplete(context),
                   style: ElevatedButton.styleFrom(
@@ -580,14 +877,14 @@ class _AdminBookingCard extends StatelessWidget {
     );
   }
 
-  // ── Completed tab: View Details only ──────────────────────────────────────
+  // ── Completed ──────────────────────────────────────────────────────────────
 
   Widget _buildCompletedActions(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: 46,
       child: OutlinedButton.icon(
-        onPressed: () => _showBookingDetailSheet(context),
+        onPressed: () => _showBookingDetailView(context),
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: Colors.grey.shade300),
           shape: RoundedRectangleBorder(
@@ -607,23 +904,23 @@ class _AdminBookingCard extends StatelessWidget {
     );
   }
 
+  // ── Cancelled ──────────────────────────────────────────────────────────────
+
   Widget _buildCancelledActions(BuildContext context) {
-    // Only show Manage Refund for customer-cancelled bookings with a refund applicable
     final showRefund = booking.isCancelled && booking.hasRefundApplicable;
 
     if (showRefund) {
       return Column(
         children: [
-          // Refund status mini-badge
           _buildAdminRefundBadge(),
           const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 50,
+                  height: 46,
                   child: OutlinedButton.icon(
-                    onPressed: () => _showBookingDetailSheet(context),
+                    onPressed: () => _showBookingDetailView(context),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: Colors.grey.shade300),
                       shape: RoundedRectangleBorder(
@@ -649,12 +946,12 @@ class _AdminBookingCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: SizedBox(
-                  height: 50,
+                  height: 46,
                   child: ElevatedButton.icon(
                     onPressed:
                         booking.refundStatus == 'accepted'
                             ? null
-                            : () => _showAdminRefundSheet(context),
+                            : () => _showAdminRefundView(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
                           booking.refundStatus == 'accepted'
@@ -694,9 +991,9 @@ class _AdminBookingCard extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: 46,
       child: OutlinedButton.icon(
-        onPressed: () => _showBookingDetailSheet(context),
+        onPressed: () => _showBookingDetailView(context),
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: Colors.grey.shade300),
           shape: RoundedRectangleBorder(
@@ -766,11 +1063,10 @@ class _AdminBookingCard extends StatelessWidget {
     );
   }
 
-  // ── Mark as Complete confirmation dialog ───────────────────────────────────
+  // ── Mark as Complete dialog ────────────────────────────────────────────────
 
   void _confirmMarkAsComplete(BuildContext context) {
     final messenger = ScaffoldMessenger.of(context);
-
     showDialog(
       context: context,
       builder:
@@ -847,32 +1143,77 @@ class _AdminBookingCard extends StatelessWidget {
     );
   }
 
-  // ── Sheet launchers ────────────────────────────────────────────────────────
+  // ── Panel / Dialog launchers ───────────────────────────────────────────────
 
-  void _showReceiptSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _ReceiptVerificationSheet(booking: booking),
-    );
+  void _showReceiptView(BuildContext context) {
+    if (isWeb) {
+      _showWebDialog(
+        context,
+        _ReceiptVerificationContent(booking: booking, isWeb: true),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder:
+            (_) => _ReceiptVerificationContent(booking: booking, isWeb: false),
+      );
+    }
   }
 
-  void _showBookingDetailSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _BookingDetailSheet(booking: booking),
-    );
+  void _showBookingDetailView(BuildContext context) {
+    if (isWeb) {
+      _showWebDialog(
+        context,
+        _BookingDetailContent(booking: booking, isWeb: true),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _BookingDetailContent(booking: booking, isWeb: false),
+      );
+    }
   }
 
-  void _showAdminRefundSheet(BuildContext context) {
-    showModalBottomSheet(
+  void _showAdminRefundView(BuildContext context) {
+    if (isWeb) {
+      _showWebDialog(
+        context,
+        _AdminRefundContent(booking: booking, isWeb: true),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _AdminRefundContent(booking: booking, isWeb: false),
+      );
+    }
+  }
+
+  /// Centred, max-width dialog for web.
+  void _showWebDialog(BuildContext context, Widget content) {
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _AdminRefundSheet(booking: booking),
+      barrierColor: Colors.black38,
+      builder:
+          (_) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 60,
+              vertical: 40,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: content,
+              ),
+            ),
+          ),
     );
   }
 
@@ -906,21 +1247,27 @@ class _AdminBookingCard extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  RECEIPT VERIFICATION SHEET
+//  RECEIPT VERIFICATION CONTENT
+//  Shared widget: isWeb=true → shown inside Dialog
+//                isWeb=false → shown inside ModalBottomSheet
 // ══════════════════════════════════════════════════════════════════════════════
 
-class _ReceiptVerificationSheet extends StatefulWidget {
+class _ReceiptVerificationContent extends StatefulWidget {
   final BookingModel booking;
-  const _ReceiptVerificationSheet({required this.booking});
+  final bool isWeb;
+  const _ReceiptVerificationContent({
+    required this.booking,
+    required this.isWeb,
+  });
 
   @override
-  State<_ReceiptVerificationSheet> createState() =>
-      _ReceiptVerificationSheetState();
+  State<_ReceiptVerificationContent> createState() =>
+      _ReceiptVerificationContentState();
 }
 
-class _ReceiptVerificationSheetState extends State<_ReceiptVerificationSheet> {
+class _ReceiptVerificationContentState
+    extends State<_ReceiptVerificationContent> {
   bool _processingConfirm = false;
-  bool _processingReject = false;
 
   Future<void> _confirm() async {
     setState(() => _processingConfirm = true);
@@ -943,52 +1290,78 @@ class _ReceiptVerificationSheetState extends State<_ReceiptVerificationSheet> {
 
   void _openRejectScreen() {
     Navigator.pop(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
+    if (widget.isWeb) {
+      showDialog(
+        context: context,
+        barrierColor: Colors.black38,
         builder:
-            (_) => _RejectPaymentScreen(bookingId: widget.booking.bookingId),
-      ),
-    );
+            (_) => Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 60,
+                vertical: 40,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: _RejectPaymentContent(
+                    bookingId: widget.booking.bookingId,
+                    isWeb: true,
+                  ),
+                ),
+              ),
+            ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (_) => _RejectPaymentScreen(bookingId: widget.booking.bookingId),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final b = widget.booking;
-    return SingleChildScrollView(
+
+    final scrollable = SingleChildScrollView(
       child: Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-          ),
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 50,
-                  height: 5,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(10),
+              // Header
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Verify Payment',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-
-              const Text(
-                'Verify Payment',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
+              // Event summary
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1068,7 +1441,6 @@ class _ReceiptVerificationSheetState extends State<_ReceiptVerificationSheet> {
               ),
 
               const SizedBox(height: 20),
-
               const Text(
                 'Uploaded Receipt',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
@@ -1111,14 +1483,13 @@ class _ReceiptVerificationSheetState extends State<_ReceiptVerificationSheet> {
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
               ),
-
               const SizedBox(height: 25),
 
               Row(
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTap: _processingReject ? null : _openRejectScreen,
+                      onTap: _openRejectScreen,
                       child: Container(
                         height: 50,
                         alignment: Alignment.center,
@@ -1160,6 +1531,32 @@ class _ReceiptVerificationSheetState extends State<_ReceiptVerificationSheet> {
         ),
       ),
     );
+
+    if (!widget.isWeb) {
+      // Mobile: bottom-sheet drag handle + content
+      return Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 50,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            Flexible(child: scrollable),
+          ],
+        ),
+      );
+    }
+    return scrollable; // Web: plain white scrollable
   }
 
   void _showFullImage(BuildContext context, String url) {
@@ -1229,213 +1626,20 @@ class _ReceiptVerificationSheetState extends State<_ReceiptVerificationSheet> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  BOOKING DETAIL SHEET
+//  REJECT PAYMENT CONTENT
+//  isWeb=true → inside Dialog   |   isWeb=false → inside Scaffold
 // ══════════════════════════════════════════════════════════════════════════════
 
-class _BookingDetailSheet extends StatelessWidget {
-  final BookingModel booking;
-  const _BookingDetailSheet({required this.booking});
-
-  @override
-  Widget build(BuildContext context) {
-    final b = booking;
-    return DraggableScrollableSheet(
-      initialChildSize: 0.75,
-      maxChildSize: 0.95,
-      minChildSize: 0.5,
-      builder:
-          (_, controller) => Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-            ),
-            child: ListView(
-              controller: controller,
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
-              children: [
-                Center(
-                  child: Container(
-                    width: 50,
-                    height: 5,
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-
-                const Text(
-                  'Booking Details',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-
-                _section('Customer Information', [
-                  _row('Name', b.customerName),
-                  _row('Phone', b.customerPhone),
-                  _row('Email', b.customerEmail),
-                  _row('CNIC', b.customerCnic),
-                ]),
-
-                const SizedBox(height: 16),
-
-                _section('Event Details', [
-                  _row('Event', b.eventName),
-                  _row('Date', b.eventDateLabel),
-                  _row('Guests', '${b.guestCount}'),
-                  _row('Booking', b.invoiceId),
-                ]),
-
-                const SizedBox(height: 16),
-
-                _section('Payment Summary', [
-                  _row('Hall Rent', 'Rs. ${b.hallRent.toStringAsFixed(0)}'),
-                  if (b.menuSubtotal > 0)
-                    _row('Menu', 'Rs. ${b.menuSubtotal.toStringAsFixed(0)}'),
-                  if (b.servicesSubtotal > 0)
-                    _row(
-                      'Services',
-                      'Rs. ${b.servicesSubtotal.toStringAsFixed(0)}',
-                    ),
-                  _row(
-                    'Grand Total',
-                    'Rs. ${b.grandTotal.toStringAsFixed(0)}',
-                    highlight: true,
-                  ),
-                  _row(
-                    'Advance Paid (25%)',
-                    'Rs. ${b.advancePayment.toStringAsFixed(0)}',
-                  ),
-                  _row(
-                    'Remaining',
-                    'Rs. ${b.remainingPayment.toStringAsFixed(0)}',
-                  ),
-                ]),
-
-                if (b.selectedMenuItems.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _section(
-                    'Menu Items (${b.selectedMenuItems.length})',
-                    b.selectedMenuItems
-                        .map((m) => _row(m.name, m.priceLabel))
-                        .toList(),
-                  ),
-                ],
-
-                if (b.selectedServices.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _section(
-                    'Services (${b.selectedServices.length})',
-                    b.selectedServices
-                        .map((s) => _row(s.name, s.priceLabel))
-                        .toList(),
-                  ),
-                ],
-
-                if (b.isRejected && b.rejectionReason.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red[50],
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.red[200]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Rejection Reason:',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          b.rejectionReason,
-                          style: TextStyle(
-                            color: Colors.red[700],
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-    );
-  }
-
-  Widget _section(String title, List<Widget> rows) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFF47C20),
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...rows,
-        ],
-      ),
-    );
-  }
-
-  Widget _row(String label, String value, {bool highlight = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: highlight ? const Color(0xFFF47C20) : Colors.black87,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  REJECT PAYMENT SCREEN
-// ══════════════════════════════════════════════════════════════════════════════
-
-class _RejectPaymentScreen extends StatefulWidget {
+class _RejectPaymentContent extends StatefulWidget {
   final String bookingId;
-  const _RejectPaymentScreen({required this.bookingId});
+  final bool isWeb;
+  const _RejectPaymentContent({required this.bookingId, required this.isWeb});
 
   @override
-  State<_RejectPaymentScreen> createState() => _RejectPaymentScreenState();
+  State<_RejectPaymentContent> createState() => _RejectPaymentContentState();
 }
 
-class _RejectPaymentScreenState extends State<_RejectPaymentScreen> {
+class _RejectPaymentContentState extends State<_RejectPaymentContent> {
   String? _selectedReason = 'Incorrect Amount';
   final TextEditingController _customController = TextEditingController();
   bool _submitting = false;
@@ -1459,7 +1663,6 @@ class _RejectPaymentScreenState extends State<_RejectPaymentScreen> {
         _selectedReason == 'Another reason'
             ? _customController.text.trim()
             : _selectedReason ?? '';
-
     if (reason.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1470,7 +1673,6 @@ class _RejectPaymentScreenState extends State<_RejectPaymentScreen> {
       );
       return;
     }
-
     setState(() => _submitting = true);
     final error = await BookingService.rejectBookingPayment(
       bookingId: widget.bookingId,
@@ -1478,7 +1680,6 @@ class _RejectPaymentScreenState extends State<_RejectPaymentScreen> {
     );
     if (!mounted) return;
     setState(() => _submitting = false);
-
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1495,128 +1696,113 @@ class _RejectPaymentScreenState extends State<_RejectPaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Reject Payment',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        color: Colors.transparent,
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
-        child: SizedBox(
-          height: 52,
-          child: ElevatedButton(
-            onPressed: _submitting ? null : _submit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF47C20),
-              disabledBackgroundColor: const Color(0xFFF47C20).withOpacity(0.6),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+    final body = SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Reason for Rejection',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
               ),
-              elevation: 2,
-            ),
-            child:
-                _submitting
-                    ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.5,
-                      ),
-                    )
-                    : const Text(
-                      'Submit Reason',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
           ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Center(
-              child: Text(
-                'Reason for Rejection',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+          const SizedBox(height: 20),
+          ..._reasons.map(_buildOption),
+          const SizedBox(height: 24),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: _selectedReason == 'Another reason' ? 150 : 0,
+            curve: Curves.easeInOut,
+            child: SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
+              child: Container(
+                height: 140,
+                margin: const EdgeInsets.only(top: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFFF47C20),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF47C20).withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  controller: _customController,
+                  enabled: _selectedReason == 'Another reason',
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  decoration: InputDecoration(
+                    hintText: 'Please describe the specific reason…',
+                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                  style: const TextStyle(fontSize: 15),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-            ..._reasons.map(_buildOption),
-            const SizedBox(height: 24),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              height: _selectedReason == 'Another reason' ? 150 : 0,
-              curve: Curves.easeInOut,
-              child: SingleChildScrollView(
-                physics: const NeverScrollableScrollPhysics(),
-                child: Container(
-                  height: 140,
-                  margin: const EdgeInsets.only(top: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0xFFF47C20),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFF47C20).withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _customController,
-                    enabled: _selectedReason == 'Another reason',
-                    maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    decoration: InputDecoration(
-                      hintText: 'Please describe the specific reason…',
-                      hintStyle: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 14,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.all(16),
-                    ),
-                    style: const TextStyle(fontSize: 15),
-                  ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _submitting ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF47C20),
+                disabledBackgroundColor: const Color(
+                  0xFFF47C20,
+                ).withOpacity(0.6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                elevation: 2,
               ),
+              child:
+                  _submitting
+                      ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                      : const Text(
+                        'Submit Reason',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+
+    if (widget.isWeb) {
+      return Container(color: Colors.white, child: body);
+    }
+    return Scaffold(backgroundColor: Colors.white, body: body);
   }
 
   Widget _buildOption(String label) {
@@ -1676,20 +1862,267 @@ class _RejectPaymentScreenState extends State<_RejectPaymentScreen> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  ADMIN REFUND SHEET
-//  Hall admin views original payment receipt, uploads refund receipt
+//  REJECT PAYMENT SCREEN  —  mobile-only full-screen wrapper
 // ══════════════════════════════════════════════════════════════════════════════
 
-class _AdminRefundSheet extends StatefulWidget {
-  final BookingModel booking;
-  const _AdminRefundSheet({required this.booking});
+class _RejectPaymentScreen extends StatelessWidget {
+  final String bookingId;
+  const _RejectPaymentScreen({required this.bookingId});
 
   @override
-  State<_AdminRefundSheet> createState() => _AdminRefundSheetState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Reject Payment',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      body: _RejectPaymentContent(bookingId: bookingId, isWeb: false),
+    );
+  }
 }
 
-class _AdminRefundSheetState extends State<_AdminRefundSheet> {
-  File? _refundReceiptFile;
+// ══════════════════════════════════════════════════════════════════════════════
+//  BOOKING DETAIL CONTENT
+//  isWeb=true → dialog   |   isWeb=false → DraggableScrollableSheet
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _BookingDetailContent extends StatelessWidget {
+  final BookingModel booking;
+  final bool isWeb;
+  const _BookingDetailContent({required this.booking, required this.isWeb});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = booking;
+
+    List<Widget> children = [
+      Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Booking Details',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+      const SizedBox(height: 20),
+      _section('Customer Information', [
+        _row('Name', b.customerName),
+        _row('Phone', b.customerPhone),
+        _row('Email', b.customerEmail),
+        _row('CNIC', b.customerCnic),
+      ]),
+      const SizedBox(height: 16),
+      _section('Event Details', [
+        _row('Event', b.eventName),
+        _row('Date', b.eventDateLabel),
+        _row('Guests', '${b.guestCount}'),
+        _row('Booking', b.invoiceId),
+      ]),
+      const SizedBox(height: 16),
+      _section('Payment Summary', [
+        _row('Hall Rent', 'Rs. ${b.hallRent.toStringAsFixed(0)}'),
+        if (b.menuSubtotal > 0)
+          _row('Menu', 'Rs. ${b.menuSubtotal.toStringAsFixed(0)}'),
+        if (b.servicesSubtotal > 0)
+          _row('Services', 'Rs. ${b.servicesSubtotal.toStringAsFixed(0)}'),
+        _row(
+          'Grand Total',
+          'Rs. ${b.grandTotal.toStringAsFixed(0)}',
+          highlight: true,
+        ),
+        _row(
+          'Advance Paid (25%)',
+          'Rs. ${b.advancePayment.toStringAsFixed(0)}',
+        ),
+        _row('Remaining', 'Rs. ${b.remainingPayment.toStringAsFixed(0)}'),
+      ]),
+      if (b.selectedMenuItems.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        _section(
+          'Menu Items (${b.selectedMenuItems.length})',
+          b.selectedMenuItems.map((m) => _row(m.name, m.priceLabel)).toList(),
+        ),
+      ],
+      if (b.selectedServices.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        _section(
+          'Services (${b.selectedServices.length})',
+          b.selectedServices.map((s) => _row(s.name, s.priceLabel)).toList(),
+        ),
+      ],
+      if (b.isRejected && b.rejectionReason.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.red[50],
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.red[200]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Rejection Reason:',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                b.rejectionReason,
+                style: TextStyle(color: Colors.red[700], fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ];
+
+    if (isWeb) {
+      return Container(
+        color: Colors.white,
+        constraints: const BoxConstraints(maxHeight: 680),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: children,
+          ),
+        ),
+      );
+    }
+
+    // Mobile: DraggableScrollableSheet
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      maxChildSize: 0.95,
+      minChildSize: 0.5,
+      builder:
+          (_, controller) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+            ),
+            child: ListView(
+              controller: controller,
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+              children: [
+                Center(
+                  child: Container(
+                    width: 50,
+                    height: 5,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                ...children,
+              ],
+            ),
+          ),
+    );
+  }
+
+  Widget _section(String title, List<Widget> rows) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFF47C20),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...rows,
+        ],
+      ),
+    );
+  }
+
+  Widget _row(String label, String value, {bool highlight = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: highlight ? const Color(0xFFF47C20) : Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  ADMIN REFUND CONTENT
+//  isWeb=true → dialog   |   isWeb=false → DraggableScrollableSheet
+//
+//  Web-safe image picking: stores Uint8List bytes; never imports dart:io.
+//  BookingService needs two methods:
+//    • uploadRefundReceipt(bookingId, receiptFile)       — mobile (existing)
+//    • uploadRefundReceiptBytes(bookingId, bytes, name)  — web (new)
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _AdminRefundContent extends StatefulWidget {
+  final BookingModel booking;
+  final bool isWeb;
+  const _AdminRefundContent({required this.booking, required this.isWeb});
+
+  @override
+  State<_AdminRefundContent> createState() => _AdminRefundContentState();
+}
+
+class _AdminRefundContentState extends State<_AdminRefundContent> {
+  Uint8List? _refundReceiptBytes;
+  String? _pickedFileName;
   bool _uploading = false;
   final ImagePicker _picker = ImagePicker();
 
@@ -1701,12 +2134,16 @@ class _AdminRefundSheetState extends State<_AdminRefundSheet> {
       imageQuality: 85,
     );
     if (picked != null && mounted) {
-      setState(() => _refundReceiptFile = File(picked.path));
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        _refundReceiptBytes = bytes;
+        _pickedFileName = picked.name;
+      });
     }
   }
 
   Future<void> _uploadRefund() async {
-    if (_refundReceiptFile == null) {
+    if (_refundReceiptBytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select a refund receipt image first'),
@@ -1717,10 +2154,24 @@ class _AdminRefundSheetState extends State<_AdminRefundSheet> {
       return;
     }
     setState(() => _uploading = true);
-    final error = await BookingService.uploadRefundReceipt(
-      bookingId: widget.booking.bookingId,
-      receiptFile: _refundReceiptFile!,
-    );
+
+    String? error;
+    if (kIsWeb) {
+      error = await BookingService.uploadRefundReceiptBytes(
+        bookingId: widget.booking.bookingId,
+        receiptBytes: _refundReceiptBytes!,
+        fileName: _pickedFileName ?? 'refund_receipt.jpg',
+      );
+    } else {
+      // On mobile XFile.readAsBytes() gave us the bytes; write them to a
+      // temp file via the bytes-based helper so dart:io never appears here.
+      error = await BookingService.uploadRefundReceiptBytes(
+        bookingId: widget.booking.bookingId,
+        receiptBytes: _refundReceiptBytes!,
+        fileName: _pickedFileName ?? 'refund_receipt.jpg',
+      );
+    }
+
     if (!mounted) return;
     setState(() => _uploading = false);
     Navigator.pop(context);
@@ -1743,6 +2194,20 @@ class _AdminRefundSheetState extends State<_AdminRefundSheet> {
       stream: BookingService.streamBookingById(widget.booking.bookingId),
       builder: (context, snap) {
         final booking = snap.data ?? widget.booking;
+
+        final innerContent = _buildInnerContent(booking, context);
+
+        if (widget.isWeb) {
+          return Container(
+            color: Colors.white,
+            constraints: const BoxConstraints(maxHeight: 700),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+              child: innerContent,
+            ),
+          );
+        }
+
         return DraggableScrollableSheet(
           initialChildSize: 0.88,
           maxChildSize: 0.95,
@@ -1757,7 +2222,6 @@ class _AdminRefundSheetState extends State<_AdminRefundSheet> {
                   controller: controller,
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
                   children: [
-                    // Drag handle
                     Center(
                       child: Container(
                         width: 50,
@@ -1769,345 +2233,337 @@ class _AdminRefundSheetState extends State<_AdminRefundSheet> {
                         ),
                       ),
                     ),
-
-                    const Text(
-                      'Manage Refund',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${booking.customerName} · ${booking.eventName}',
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ── Refund amount summary ─────────────────────────────────
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.account_balance_wallet_outlined,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                          const SizedBox(width: 16),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Rs. ${booking.refundAmount.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const Text(
-                                'Amount to refund to customer',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ── Status card ───────────────────────────────────────────
-                    _buildAdminStatusCard(booking),
-                    const SizedBox(height: 16),
-
-                    // ── Customer's original payment receipt ───────────────────
-                    const Text(
-                      'Customer\'s Original Payment Receipt',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Use the account number in this receipt to send the refund',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildNetworkImageBox(booking.receiptImageUrl, context),
-                    const SizedBox(height: 20),
-
-                    // ── Customer rejection reason (if re-upload needed) ───────
-                    if (booking.refundStatus == 'rejected_by_customer' &&
-                        booking.refundRejectionReason.isNotEmpty) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.red.shade200),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Customer rejection reason:',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red.shade700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              booking.refundRejectionReason,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.red.shade800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // ── Already accepted — success banner ─────────────────────
-                    if (booking.refundStatus == 'accepted') ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.green.shade300),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.check_circle_rounded,
-                              color: Colors.green.shade600,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'Refund Successfully Completed!',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green.shade800,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Customer has accepted the refund receipt.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.green.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-
-                    // ── Upload section (shown when needs to upload / re-upload) ─
-                    if (booking.refundStatus == 'pending_upload' ||
-                        booking.refundStatus == 'rejected_by_customer') ...[
-                      Text(
-                        booking.refundStatus == 'rejected_by_customer'
-                            ? 'Upload New Refund Receipt'
-                            : 'Upload Refund Receipt',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Send Rs. ${booking.refundAmount.toStringAsFixed(0)} to the account in the receipt above, then upload proof here.',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Image picker area
-                      GestureDetector(
-                        onTap: _pickImage,
-                        child: Container(
-                          width: double.infinity,
-                          height: 160,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color:
-                                  _refundReceiptFile != null
-                                      ? const Color(0xFFF47C20)
-                                      : Colors.grey.shade300,
-                              width: _refundReceiptFile != null ? 2 : 1,
-                            ),
-                          ),
-                          child:
-                              _refundReceiptFile != null
-                                  ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(13),
-                                    child: Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        Image.file(
-                                          _refundReceiptFile!,
-                                          fit: BoxFit.cover,
-                                        ),
-                                        Positioned(
-                                          top: 8,
-                                          right: 8,
-                                          child: GestureDetector(
-                                            onTap: _pickImage,
-                                            child: Container(
-                                              padding: const EdgeInsets.all(6),
-                                              decoration: BoxDecoration(
-                                                color: Colors.black54,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: const Icon(
-                                                Icons.edit,
-                                                color: Colors.white,
-                                                size: 16,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                  : Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.upload_file_outlined,
-                                        size: 40,
-                                        color: Colors.grey[400],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        'Tap to select refund receipt',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[500],
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Choose from gallery',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[400],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed:
-                              (_refundReceiptFile != null && !_uploading)
-                                  ? _uploadRefund
-                                  : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFF47C20),
-                            disabledBackgroundColor: Colors.grey[300],
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child:
-                              _uploading
-                                  ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2.5,
-                                    ),
-                                  )
-                                  : const Text(
-                                    'Upload Refund Receipt',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                        ),
-                      ),
-                    ],
-
-                    // ── Waiting for customer (uploaded state) ─────────────────
-                    if (booking.refundStatus == 'uploaded') ...[
-                      const Text(
-                        'Uploaded Refund Receipt',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildNetworkImageBox(booking.refundReceiptUrl, context),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.blue.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.hourglass_empty_outlined,
-                              color: Colors.blue.shade700,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Waiting for customer to verify and accept the refund receipt.',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.blue.shade800,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    innerContent,
                   ],
                 ),
               ),
         );
       },
+    );
+  }
+
+  Widget _buildInnerContent(BookingModel booking, BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Manage Refund',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+        Text(
+          '${booking.customerName} · ${booking.eventName}',
+          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 20),
+
+        // Refund amount gradient card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFF47C20), Color(0xFFFFD166)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.account_balance_wallet_outlined,
+                color: Colors.white,
+                size: 32,
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Rs. ${booking.refundAmount.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const Text(
+                    'Amount to refund to customer',
+                    style: TextStyle(fontSize: 12, color: Colors.white70),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        _buildAdminStatusCard(booking),
+        const SizedBox(height: 16),
+
+        // Customer's original receipt
+        const Text(
+          "Customer's Original Payment Receipt",
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Use the account number in this receipt to send the refund',
+          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+        ),
+        const SizedBox(height: 8),
+        _buildNetworkImageBox(booking.receiptImageUrl, context),
+        const SizedBox(height: 20),
+
+        // Customer rejection reason
+        if (booking.refundStatus == 'rejected_by_customer' &&
+            booking.refundRejectionReason.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Customer rejection reason:',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red.shade700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  booking.refundRejectionReason,
+                  style: TextStyle(fontSize: 13, color: Colors.red.shade800),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Accepted success banner
+        if (booking.refundStatus == 'accepted') ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.shade300),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: Colors.green.shade600,
+                  size: 48,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Refund Successfully Completed!',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Customer has accepted the refund receipt.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.green.shade700),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // Upload section
+        if (booking.refundStatus == 'pending_upload' ||
+            booking.refundStatus == 'rejected_by_customer') ...[
+          Text(
+            booking.refundStatus == 'rejected_by_customer'
+                ? 'Upload New Refund Receipt'
+                : 'Upload Refund Receipt',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Send Rs. ${booking.refundAmount.toStringAsFixed(0)} to the account in the receipt above, then upload proof here.',
+            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+          ),
+          const SizedBox(height: 10),
+
+          // Web-safe image picker (uses Uint8List, never File)
+          GestureDetector(
+            onTap: _pickImage,
+            child: Container(
+              width: double.infinity,
+              height: 160,
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color:
+                      _refundReceiptBytes != null
+                          ? const Color(0xFFF47C20)
+                          : Colors.grey.shade300,
+                  width: _refundReceiptBytes != null ? 2 : 1,
+                ),
+              ),
+              child:
+                  _refundReceiptBytes != null
+                      ? ClipRRect(
+                        borderRadius: BorderRadius.circular(13),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.memory(
+                              _refundReceiptBytes!,
+                              fit: BoxFit.cover,
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: GestureDetector(
+                                onTap: _pickImage,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.edit,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                      : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.upload_file_outlined,
+                            size: 40,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Tap to select refund receipt',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[500],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Choose from gallery',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[400],
+                            ),
+                          ),
+                        ],
+                      ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed:
+                  (_refundReceiptBytes != null && !_uploading)
+                      ? _uploadRefund
+                      : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF47C20),
+                disabledBackgroundColor: Colors.grey[300],
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child:
+                  _uploading
+                      ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                      : const Text(
+                        'Upload Refund Receipt',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+            ),
+          ),
+        ],
+
+        // Waiting for customer
+        if (booking.refundStatus == 'uploaded') ...[
+          const Text(
+            'Uploaded Refund Receipt',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          _buildNetworkImageBox(booking.refundReceiptUrl, context),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.hourglass_empty_outlined,
+                  color: Colors.blue.shade700,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Waiting for customer to verify and accept the refund receipt.',
+                    style: TextStyle(fontSize: 13, color: Colors.blue.shade800),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
