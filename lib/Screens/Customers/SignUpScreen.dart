@@ -421,12 +421,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     hint: 'Enter your full name',
                                     icon: Icons.person_outline,
                                     validator: (v) {
-                                      if (v == null ||
-                                          v.trim().isEmpty ||
-                                          v.trim().length < 3) {
-                                        return 'At least 3 characters';
+                                      if (v == null || v.trim().isEmpty) {
+                                        return 'Name must be at least 3 characters';
                                       }
-
+                                      if (v.trim().length < 3) {
+                                        return 'Please enter your name';
+                                      }
                                       return null;
                                     },
                                   ),
@@ -436,7 +436,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   child: _buildField(
                                     controller: _phoneController,
                                     label: 'Phone Number',
-                                    hint: '11-digit number',
+                                    hint: 'Enter 11-digit number',
                                     icon: Icons.phone_outlined,
                                     keyboardType: TextInputType.phone,
                                     formatters: [
@@ -444,12 +444,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       LengthLimitingTextInputFormatter(11),
                                     ],
                                     validator: (v) {
-                                      if (v == null ||
-                                          v.isEmpty ||
-                                          v.length != 11) {
-                                        return 'Must be 11 digits';
+                                      if (v == null || v.isEmpty) {
+                                        return 'Please enter your phone number';
                                       }
-
+                                      if (v.length != 11) {
+                                        return 'Phone must be exactly 11 digits';
+                                      }
                                       return null;
                                     },
                                   ),
@@ -488,7 +488,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   child: _buildField(
                                     controller: _passwordController,
                                     label: 'Password',
-                                    hint: 'Min 8 characters',
+                                    hint: 'Create a password (min 8 chars)',
                                     icon: Icons.lock_outline,
                                     obscureText: _obscurePassword,
                                     suffixIcon: IconButton(
@@ -507,10 +507,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     ),
                                     validator: (v) {
                                       if (v == null || v.isEmpty) {
-                                        return 'Enter a password';
+                                        return 'Please enter a password';
                                       }
                                       if (v.length < 8) {
-                                        return 'Min 8 characters';
+                                        return 'Create a password (min 8 chars)';
+                                      }
+                                      final digitCount =
+                                          RegExp(r'\d').allMatches(v).length;
+                                      if (digitCount < 2) {
+                                        return 'Must contain at least 2 digits';
+                                      }
+                                      if (!RegExp(
+                                        r'[!@#$%^&*(),.?":{}|<>]',
+                                      ).hasMatch(v)) {
+                                        return 'Must contain at least 1 special character';
                                       }
                                       return null;
                                     },
@@ -521,7 +531,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   child: _buildField(
                                     controller: _confirmPasswordController,
                                     label: 'Confirm Password',
-                                    hint: 'Re-enter password',
+                                    hint: 'Re-enter your password',
                                     icon: Icons.lock_outline,
                                     obscureText: _obscureConfirmPassword,
                                     suffixIcon: IconButton(
@@ -540,7 +550,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     ),
                                     validator: (v) {
                                       if (v == null || v.isEmpty) {
-                                        return 'Confirm your password';
+                                        return 'Please confirm your password';
                                       }
                                       if (v != _passwordController.text) {
                                         return 'Passwords do not match';
@@ -670,10 +680,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back,
-                          color: Colors.white,
-                        ),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
                         onPressed: () => Navigator.pop(context),
                       ),
                       const Spacer(),
@@ -848,6 +855,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             }
                             if (v.length < 8) {
                               return 'Password must be at least 8 characters';
+                            }
+                            final digitCount =
+                                RegExp(r'\d').allMatches(v).length;
+                            if (digitCount < 2) {
+                              return 'Must contain at least 2 digits';
+                            }
+                            if (!RegExp(
+                              r'[!@#$%^&*(),.?":{}|<>]',
+                            ).hasMatch(v)) {
+                              return 'Must contain at least 1 special character';
                             }
                             return null;
                           },

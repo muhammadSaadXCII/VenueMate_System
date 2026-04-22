@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:venuemate_system/Screens/Customers/LoginScreen.dart';
+import 'package:venuemate_system/Services/notification_service.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_profile.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_bookings.dart';
@@ -209,6 +212,8 @@ class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
         false;
     if (!confirm) return;
     try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) await NotificationService.removeToken(uid: uid);
       await AuthService.signOut();
       if (!context.mounted) return;
       Navigator.of(context).pushAndRemoveUntil(

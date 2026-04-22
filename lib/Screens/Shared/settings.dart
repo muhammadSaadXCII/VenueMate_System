@@ -4,7 +4,7 @@ import 'package:venuemate_system/Utils/theme_notifier.dart';
 import 'package:venuemate_system/Screens/Shared/about_us.dart';
 import 'package:venuemate_system/Screens/Shared/change_password.dart';
 import 'package:venuemate_system/Screens/Shared/terms_and_policy.dart';
-import 'package:venuemate_system/Screens/Shared/hep_and_support.dart.dart';
+import 'package:venuemate_system/Screens/Shared/help_and_support.dart.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,8 +13,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _pushNotifications = true;
-
   // Read live from ThemeNotifier so the UI reflects actual app theme
   bool get _isDarkMode => ThemeNotifier.instance.isDark;
 
@@ -80,18 +78,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSectionTitle('Notifications'),
-              const SizedBox(height: 10),
-              Container(
-                decoration: _cardDecoration(),
-                child: _SwitchTile(
-                  title: 'Push Notifications',
-                  value: _pushNotifications,
-                  onChanged: (val) => setState(() => _pushNotifications = val),
-                  icon: Icons.notifications_outlined,
-                ),
-              ),
-              const SizedBox(height: 24),
               _buildSectionTitle('Support'),
               const SizedBox(height: 10),
               Container(
@@ -169,18 +155,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(height: 24),
         _buildThemeCard(),
-        const SizedBox(height: 24),
-        _buildSectionTitle('Notifications'),
-        const SizedBox(height: 10),
-        Container(
-          decoration: _cardDecoration(),
-          child: _SwitchTile(
-            title: 'Push Notifications',
-            value: _pushNotifications,
-            onChanged: (val) => setState(() => _pushNotifications = val),
-            icon: Icons.notifications_outlined,
-          ),
-        ),
         const SizedBox(height: 24),
         _buildSectionTitle('Support'),
         const SizedBox(height: 10),
@@ -407,38 +381,5 @@ class _SettingsTile extends StatelessWidget {
       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
     ),
     trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-  );
-}
-
-class _SwitchTile extends StatelessWidget {
-  final String title;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  final IconData icon;
-  const _SwitchTile({
-    required this.title,
-    required this.value,
-    required this.onChanged,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) => SwitchListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-    activeColor: const Color(0xFFF47C20),
-    secondary: Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF3E0),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(icon, color: const Color(0xFFF47C20), size: 22),
-    ),
-    title: Text(
-      title,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-    ),
-    value: value,
-    onChanged: onChanged,
   );
 }

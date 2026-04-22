@@ -643,10 +643,9 @@ class _ReceiptContentState extends State<_ReceiptContent> {
 }
 
 class _DashedDivider extends StatelessWidget {
-  final double height;
   final Color color;
 
-  const _DashedDivider({this.height = 1, this.color = Colors.grey});
+  const _DashedDivider({this.color = Colors.grey});
 
   @override
   Widget build(BuildContext context) {
@@ -661,7 +660,7 @@ class _DashedDivider extends StatelessWidget {
           children: List.generate(dashCount, (_) {
             return SizedBox(
               width: dashWidth,
-              height: height,
+              height: 1,
               child: DecoratedBox(
                 decoration: BoxDecoration(color: color.withOpacity(0.3)),
               ),

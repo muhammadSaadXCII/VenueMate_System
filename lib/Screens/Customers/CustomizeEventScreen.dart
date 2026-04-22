@@ -23,7 +23,7 @@ class CustomizeEventScreen extends StatefulWidget {
   final DateTime eventDate;
 
   const CustomizeEventScreen({
-    Key? key,
+    super.key,
     required this.hall,
     required this.customerName,
     required this.customerPhone,
@@ -33,7 +33,7 @@ class CustomizeEventScreen extends StatefulWidget {
     required this.guestCount,
     required this.timeSlot,
     required this.eventDate,
-  }) : super(key: key);
+  });
 
   @override
   State<CustomizeEventScreen> createState() => _CustomizeEventScreenState();

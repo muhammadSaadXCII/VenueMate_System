@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
 import 'package:venuemate_system/Services/user_service.dart';
@@ -5,9 +6,10 @@ import 'package:venuemate_system/Models/user_model.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'package:venuemate_system/Screens/Shared/settings.dart';
 import 'package:venuemate_system/Screens/Customers/LoginScreen.dart';
+import 'package:venuemate_system/Services/notification_service.dart';
 import 'package:venuemate_system/Screens/Shared/user_complaint_center.dart';
 import 'AllEventsScreen.dart';
-import 'NotificationScreen.dart';
+import 'package:venuemate_system/Screens/Shared/user_notifications.dart';
 import 'EditProfileScreen.dart';
 
 class Profilescreen extends StatelessWidget {
@@ -174,7 +176,7 @@ class Profilescreen extends StatelessWidget {
                               onTap:
                                   () => AppNavigation.push(
                                     context,
-                                    const NotificationScreen(),
+                                    const UserNotificationsScreen(),
                                   ),
                             ),
                           ],
@@ -324,6 +326,8 @@ Future<void> _handleLogout(BuildContext context) async {
 
   if (!confirm) return;
   try {
+    final uid = AuthService.currentUid;
+    if (uid != null) await NotificationService.removeToken(uid: uid);
     await AuthService.signOut();
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

@@ -3,6 +3,7 @@ import 'package:venuemate_system/Screens/Customers/MainNavigation.dart';
 import 'LoginScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
+import 'package:venuemate_system/Services/notification_service.dart';
 import 'package:venuemate_system/Models/user_model.dart';
 import 'package:venuemate_system/Screens/Customers/OnBoardingScreen.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_registration_intro.dart';
@@ -63,12 +64,16 @@ class _SplashScreenState extends State<SplashScreen>
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const LoginScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(opacity: animation, child: child);
-                },
+            pageBuilder:
+                (context, animation, secondaryAnimation) => const LoginScreen(),
+            transitionsBuilder: (
+              context,
+              animation,
+              secondaryAnimation,
+              child,
+            ) {
+              return FadeTransition(opacity: animation, child: child);
+            },
             transitionDuration: const Duration(milliseconds: 500),
           ),
         );
@@ -85,17 +90,23 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (user == null) {
       // Logged in on Auth but no Firestore record — sign them out and restart
+      final uid = AuthService.currentUid;
+      if (uid != null) unawaited(NotificationService.removeToken(uid: uid));
       await AuthService.signOut();
       _navigateToOnboarding();
       return;
     }
 
     if (!user.isActive) {
+      unawaited(NotificationService.removeToken(uid: user.uid));
       await AuthService.signOut();
       if (!mounted) return;
       _showDeactivatedAndGoToOnboarding();
       return;
     }
+
+    // Init FCM token for this session
+    unawaited(NotificationService.initAndSaveToken(uid: user.uid));
 
     // Route based on role
     Widget destination;
@@ -116,92 +127,95 @@ class _SplashScreenState extends State<SplashScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Column(
-          children: [
-            Icon(Icons.block, color: Colors.red, size: 52),
-            SizedBox(height: 12),
-            Text(
-              'Account Deactivated',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: Colors.red,
-              ),
+      builder:
+          (_) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Your account has been deactivated by the system administrator.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[700], height: 1.5),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.red.shade200),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: Colors.red.shade700,
+            title: const Column(
+              children: [
+                Icon(Icons.block, color: Colors.red, size: 52),
+                SizedBox(height: 12),
+                Text(
+                  'Account Deactivated',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: Colors.red,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'If you believe this is a mistake, please contact VenueMate support.',
-                      style: TextStyle(
-                        fontSize: 12,
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Your account has been deactivated by the system administrator.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[700], height: 1.5),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
                         color: Colors.red.shade700,
-                        height: 1.4,
                       ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'If you believe this is a mistake, please contact VenueMate support.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red.shade700,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            actions: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _navigateToOnboarding();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _navigateToOnboarding();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: const Text(
-                'OK',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -247,11 +261,12 @@ class _SplashScreenState extends State<SplashScreen>
                   child: Image.asset(
                     'assets/images/venuemate.png',
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.account_balance,
-                      size: 50,
-                      color: Color(0xFFF47C20),
-                    ),
+                    errorBuilder:
+                        (_, __, ___) => const Icon(
+                          Icons.account_balance,
+                          size: 50,
+                          color: Color(0xFFF47C20),
+                        ),
                   ),
                 ),
                 const SizedBox(height: 20),

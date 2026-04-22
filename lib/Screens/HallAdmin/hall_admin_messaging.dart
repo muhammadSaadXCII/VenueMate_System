@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
+import 'package:venuemate_system/Services/notification_service.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
 
 const double _kMsgWebBreak = 950;
@@ -437,6 +439,7 @@ class _WebChatPanelState extends State<_WebChatPanel> {
   late final ChatUser _me;
   late final ChatUser _other;
   final _db = FirebaseFirestore.instance;
+  String _senderName = 'VenueMate User';
 
   Stream<List<ChatMessage>> get _msgStream => _db
       .collection('chats')
@@ -468,6 +471,13 @@ class _WebChatPanelState extends State<_WebChatPanel> {
       firstName: widget.otherName,
       profileImage: widget.otherPhoto.isNotEmpty ? widget.otherPhoto : null,
     );
+    // Fetch sender's display name for notifications
+    _db.collection('users').doc(widget.currentUid).get().then((doc) {
+      if (doc.exists) {
+        final name = (doc.data()?['name'] as String?) ?? '';
+        if (name.isNotEmpty && mounted) setState(() => _senderName = name);
+      }
+    });
     _db.collection('chats').doc(widget.chatId).update({
       'unreadCount.${widget.currentUid}': 0,
     });
@@ -490,6 +500,14 @@ class _WebChatPanelState extends State<_WebChatPanel> {
       'unreadCount.${widget.currentUid}': 0,
     });
     await batch.commit();
+    unawaited(
+      NotificationService.sendNewMessage(
+        recipientUid: widget.otherId,
+        conversationId: widget.chatId,
+        senderName: _senderName,
+        messagePreview: message.text,
+      ),
+    );
   }
 
   @override
@@ -742,6 +760,7 @@ class _ChattingScreenState extends State<_ChattingScreen> {
   late final ChatUser _me;
   late final ChatUser _other;
   final _db = FirebaseFirestore.instance;
+  String _senderName = 'VenueMate User';
 
   Stream<List<ChatMessage>> get _msgStream => _db
       .collection('chats')
@@ -773,6 +792,13 @@ class _ChattingScreenState extends State<_ChattingScreen> {
       firstName: widget.otherName,
       profileImage: widget.otherPhoto.isNotEmpty ? widget.otherPhoto : null,
     );
+    // Fetch sender's display name for notifications
+    _db.collection('users').doc(widget.currentUid).get().then((doc) {
+      if (doc.exists) {
+        final name = (doc.data()?['name'] as String?) ?? '';
+        if (name.isNotEmpty && mounted) setState(() => _senderName = name);
+      }
+    });
     _db.collection('chats').doc(widget.chatId).update({
       'unreadCount.${widget.currentUid}': 0,
     });
@@ -795,6 +821,14 @@ class _ChattingScreenState extends State<_ChattingScreen> {
       'unreadCount.${widget.currentUid}': 0,
     });
     await batch.commit();
+    unawaited(
+      NotificationService.sendNewMessage(
+        recipientUid: widget.otherId,
+        conversationId: widget.chatId,
+        senderName: _senderName,
+        messagePreview: message.text,
+      ),
+    );
   }
 
   @override
