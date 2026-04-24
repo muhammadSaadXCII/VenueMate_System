@@ -1138,7 +1138,18 @@ class _EditDetailsDialogState extends State<_EditDetailsDialog> {
                   ),
                 ],
               ),
-              _f('Description', _descCtrl, 'Enter description', maxLines: 3),
+              _f(
+                'Description',
+                _descCtrl,
+                'Enter description',
+                maxLines: 3,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Description is required';
+                  }
+                  return null;
+                },
+              ),
               _f(
                 'Contact Phone',
                 _phoneCtrl,
@@ -1405,7 +1416,18 @@ class _EditDetailsSheetState extends State<_EditDetailsSheet> {
                   return null;
                 },
               ),
-              _f('Description', _descCtrl, 'Enter description', maxLines: 3),
+              _f(
+                'Description',
+                _descCtrl,
+                'Enter description',
+                maxLines: 3,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Description is required';
+                  }
+                  return null;
+                },
+              ),
               _f(
                 'Contact Phone',
                 _phoneCtrl,

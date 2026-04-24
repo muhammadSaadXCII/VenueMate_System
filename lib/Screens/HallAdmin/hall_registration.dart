@@ -185,7 +185,7 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
         }
         final rentText = _data.rentController.text.trim();
         if (rentText.isEmpty) {
-          _snack('Hall Rent is required.');
+          _snack('Please enter hall rent');
           return false;
         }
         final rent = double.tryParse(rentText);
@@ -215,6 +215,10 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
         }
         if (minCap >= maxCap) {
           _snack('Minimum capacity must be less than maximum capacity.');
+          return false;
+        }
+        if (_data.descController.text.trim().isEmpty) {
+          _snack('Please enter hall description.');
           return false;
         }
         return true;
@@ -1539,8 +1543,9 @@ class _MenuServicesStepState extends State<MenuServicesStep> {
     if (!mounted) return;
     setState(() {
       widget.data.menuItems.removeAt(index);
-      if (index < widget.data.menuXFiles.length)
+      if (index < widget.data.menuXFiles.length) {
         widget.data.menuXFiles.removeAt(index);
+      }
     });
     widget.onChanged();
   }
