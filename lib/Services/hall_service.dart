@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../Models/hall_model.dart';
+import 'notification_service.dart';
 import 'storage_service.dart';
 
 /// Handles all Firestore and Storage operations for the `halls` collection.
@@ -421,6 +423,22 @@ class HallService {
         'isVisible': true,
         'rejectionReason': '',
       });
+      // Notify venue owner
+      try {
+        final doc = await _halls.doc(hallId).get();
+        final data = doc.data() ?? {};
+        final ownerId = (data['ownerId'] as String?) ?? '';
+        final hallName = (data['hallName'] as String?) ?? 'your hall';
+        if (ownerId.isNotEmpty) {
+          unawaited(
+            NotificationService.sendHallApproved(
+              venueOwnerUid: ownerId,
+              hallId: hallId,
+              hallName: hallName,
+            ),
+          );
+        }
+      } catch (_) {}
       return null;
     } catch (_) {
       return 'Failed to approve hall.';
@@ -437,6 +455,23 @@ class HallService {
         'isVisible': false,
         'rejectionReason': reason,
       });
+      // Notify venue owner
+      try {
+        final doc = await _halls.doc(hallId).get();
+        final data = doc.data() ?? {};
+        final ownerId = (data['ownerId'] as String?) ?? '';
+        final hallName = (data['hallName'] as String?) ?? 'your hall';
+        if (ownerId.isNotEmpty) {
+          unawaited(
+            NotificationService.sendHallRejected(
+              venueOwnerUid: ownerId,
+              hallId: hallId,
+              hallName: hallName,
+              reason: reason,
+            ),
+          );
+        }
+      } catch (_) {}
       return null;
     } catch (_) {
       return 'Failed to reject hall.';

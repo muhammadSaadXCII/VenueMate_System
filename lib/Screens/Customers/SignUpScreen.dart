@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:venuemate_system/Screens/Shared/terms_and_policy.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'LoginScreen.dart';
 
 const double _kSignUpWebBreak = 900;
@@ -421,12 +423,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     hint: 'Enter your full name',
                                     icon: Icons.person_outline,
                                     validator: (v) {
-                                      if (v == null ||
-                                          v.trim().isEmpty ||
-                                          v.trim().length < 3) {
-                                        return 'At least 3 characters';
+                                      if (v == null || v.trim().isEmpty) {
+                                        return 'Name must be at least 3 characters';
                                       }
-
+                                      if (v.trim().length < 3) {
+                                        return 'Please enter your name';
+                                      }
                                       return null;
                                     },
                                   ),
@@ -436,7 +438,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   child: _buildField(
                                     controller: _phoneController,
                                     label: 'Phone Number',
-                                    hint: '11-digit number',
+                                    hint: 'Enter 11-digit number',
                                     icon: Icons.phone_outlined,
                                     keyboardType: TextInputType.phone,
                                     formatters: [
@@ -444,12 +446,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       LengthLimitingTextInputFormatter(11),
                                     ],
                                     validator: (v) {
-                                      if (v == null ||
-                                          v.isEmpty ||
-                                          v.length != 11) {
-                                        return 'Must be 11 digits';
+                                      if (v == null || v.isEmpty) {
+                                        return 'Please enter your phone number';
                                       }
-
+                                      if (v.length != 11) {
+                                        return 'Phone must be exactly 11 digits';
+                                      }
+                                      if (!v.startsWith("03")) {
+                                        return "Phone number must start with 03";
+                                      }
                                       return null;
                                     },
                                   ),
@@ -488,7 +493,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   child: _buildField(
                                     controller: _passwordController,
                                     label: 'Password',
-                                    hint: 'Min 8 characters',
+                                    hint: 'Create a password (min 8 chars)',
                                     icon: Icons.lock_outline,
                                     obscureText: _obscurePassword,
                                     suffixIcon: IconButton(
@@ -507,10 +512,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     ),
                                     validator: (v) {
                                       if (v == null || v.isEmpty) {
-                                        return 'Enter a password';
+                                        return 'Please enter a password';
                                       }
                                       if (v.length < 8) {
-                                        return 'Min 8 characters';
+                                        return 'Create a password (min 8 chars)';
+                                      }
+                                      final digitCount =
+                                          RegExp(r'\d').allMatches(v).length;
+                                      if (digitCount < 2) {
+                                        return 'Must contain at least 2 digits';
+                                      }
+                                      if (!RegExp(
+                                        r'[!@#$%^&*(),.?":{}|<>]',
+                                      ).hasMatch(v)) {
+                                        return 'Must contain at least 1 special character';
                                       }
                                       return null;
                                     },
@@ -521,7 +536,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   child: _buildField(
                                     controller: _confirmPasswordController,
                                     label: 'Confirm Password',
-                                    hint: 'Re-enter password',
+                                    hint: 'Re-enter your password',
                                     icon: Icons.lock_outline,
                                     obscureText: _obscureConfirmPassword,
                                     suffixIcon: IconButton(
@@ -540,7 +555,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     ),
                                     validator: (v) {
                                       if (v == null || v.isEmpty) {
-                                        return 'Confirm your password';
+                                        return 'Please confirm your password';
                                       }
                                       if (v != _passwordController.text) {
                                         return 'Passwords do not match';
@@ -560,15 +575,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       (v) => setState(() => _agreeToTerms = v!),
                                   activeColor: const Color(0xFFF47C20),
                                 ),
-                                const Expanded(
+                                Expanded(
                                   child: Wrap(
                                     children: [
-                                      Text('I agree to the '),
-                                      Text(
-                                        'Terms & Conditions',
-                                        style: TextStyle(
-                                          color: Color(0xFFF47C20),
-                                          fontWeight: FontWeight.bold,
+                                      const Text('I agree to the '),
+                                      GestureDetector(
+                                        onTap: () {
+                                          AppNavigation.push(
+                                            context,
+                                            TermsConditionsScreen(),
+                                          );
+                                        },
+                                        child: const Text(
+                                          'Terms & Conditions',
+                                          style: TextStyle(
+                                            color: Color(0xFFF47C20),
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -670,10 +693,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back,
-                          color: Colors.white,
-                        ),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
                         onPressed: () => Navigator.pop(context),
                       ),
                       const Spacer(),
@@ -772,6 +792,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             if (v.length != 11) {
                               return 'Phone must be exactly 11 digits';
                             }
+                            if (!v.startsWith("03")) {
+                              return "Phone number must start with 03";
+                            }
                             return null;
                           },
                         ),
@@ -849,6 +872,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             if (v.length < 8) {
                               return 'Password must be at least 8 characters';
                             }
+                            final digitCount =
+                                RegExp(r'\d').allMatches(v).length;
+                            if (digitCount < 2) {
+                              return 'Must contain at least 2 digits';
+                            }
+                            if (!RegExp(
+                              r'[!@#$%^&*(),.?":{}|<>]',
+                            ).hasMatch(v)) {
+                              return 'Must contain at least 1 special character';
+                            }
                             return null;
                           },
                         ),
@@ -892,15 +925,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   (v) => setState(() => _agreeToTerms = v!),
                               activeColor: const Color(0xFFF47C20),
                             ),
-                            const Expanded(
+                            Expanded(
                               child: Wrap(
                                 children: [
-                                  Text('I agree to the '),
-                                  Text(
-                                    'Terms & Conditions',
-                                    style: TextStyle(
-                                      color: Color(0xFFF47C20),
-                                      fontWeight: FontWeight.bold,
+                                  const Text('I agree to the '),
+                                  GestureDetector(
+                                    onTap: () {
+                                      AppNavigation.push(
+                                        context,
+                                        TermsConditionsScreen(),
+                                      );
+                                    },
+                                    child: const Text(
+                                      'Terms & Conditions',
+                                      style: TextStyle(
+                                        color: Color(0xFFF47C20),
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ],

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
+import 'package:venuemate_system/Services/notification_service.dart';
 import 'package:venuemate_system/Services/user_service.dart';
 import 'package:venuemate_system/Models/user_model.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
@@ -622,6 +624,8 @@ Future<void> _handleLogout(BuildContext context) async {
       false;
   if (!confirm) return;
   try {
+    final uid = AuthService.currentUid;
+    if (uid != null) await NotificationService.removeToken(uid: uid);
     await AuthService.signOut();
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

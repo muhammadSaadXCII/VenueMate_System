@@ -252,8 +252,6 @@ class _RegistrationCard extends StatelessWidget {
                     Icons.calendar_today_outlined,
                     _formatDate(hall.createdAt),
                   ),
-                  // This pushes the button to the bottom, removing "middle" empty space
-                  const Spacer(),
                   Align(
                     alignment: Alignment.bottomRight,
                     child: Container(

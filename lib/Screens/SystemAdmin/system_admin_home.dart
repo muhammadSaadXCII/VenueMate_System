@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:venuemate_system/Services/notification_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
@@ -880,6 +882,8 @@ void _handleLogout(BuildContext context) async {
 
   if (!confirm) return;
   try {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) await NotificationService.removeToken(uid: uid);
     await FirebaseAuth.instance.signOut();
     final g = GoogleSignIn();
     if (await g.isSignedIn()) {

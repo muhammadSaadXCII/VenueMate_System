@@ -11,13 +11,13 @@ class EventDetailsScreen extends StatefulWidget {
   final String customerEmail;
 
   const EventDetailsScreen({
-    Key? key,
+    super.key,
     required this.hall,
     required this.customerName,
     required this.customerPhone,
     required this.customerCnic,
     required this.customerEmail,
-  }) : super(key: key);
+  });
 
   @override
   State<EventDetailsScreen> createState() => _EventDetailsScreenState();

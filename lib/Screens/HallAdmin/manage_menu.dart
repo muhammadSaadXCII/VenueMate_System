@@ -436,8 +436,9 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
         price: price,
         priceUnit: _selectedUnit,
         description: _descController.text.trim(),
-        imageXFile: _pickedXFile,             // Send the new photo if picked
-        oldImageUrl: widget.existing!.imageUrl, // Send old URL to cleanup Storage
+        imageXFile: _pickedXFile, // Send the new photo if picked
+        oldImageUrl:
+            widget.existing!.imageUrl, // Send old URL to cleanup Storage
       );
     } else {
       error = await MenuService.addMenuItemXFile(

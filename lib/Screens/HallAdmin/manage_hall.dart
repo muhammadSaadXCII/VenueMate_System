@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
 import 'package:venuemate_system/Services/hall_service.dart';
 import 'package:venuemate_system/Services/storage_service.dart';
@@ -961,6 +962,7 @@ class _EditDetailsDialog extends StatefulWidget {
 }
 
 class _EditDetailsDialogState extends State<_EditDetailsDialog> {
+  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl,
       _descCtrl,
       _phoneCtrl,
@@ -968,6 +970,7 @@ class _EditDetailsDialogState extends State<_EditDetailsDialog> {
       _minCtrl,
       _maxCtrl;
   bool _isSaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -994,13 +997,63 @@ class _EditDetailsDialogState extends State<_EditDetailsDialog> {
     ]) {
       c.dispose();
     }
-
     super.dispose();
   }
 
+  /// Returns null if valid, otherwise an error message.
+  String? _validate() {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) return 'Hall name is required.';
+    if (name.length < 3) return 'Hall name must be at least 3 characters.';
+
+    final phone = _phoneCtrl.text.trim();
+    if (phone.isEmpty) {
+      return 'Phone number is required.';
+    }
+    if (phone.length != 11) {
+      return 'Phone must be exactly 11 digits.';
+    }
+    if (!phone.startsWith("03")) {
+      return "Phone number must start with 03.";
+    }
+
+    final priceText = _priceCtrl.text.trim();
+    if (priceText.isEmpty) return 'Price per event is required.';
+    final price = double.tryParse(priceText);
+    if (price == null || price <= 0) {
+      return 'Enter a valid price.';
+    }
+
+    final minText = _minCtrl.text.trim();
+    final maxText = _maxCtrl.text.trim();
+    if (minText.isEmpty || maxText.isEmpty) {
+      return 'Both minimum and maximum capacity are required.';
+    }
+    final minCap = int.tryParse(minText);
+    final maxCap = int.tryParse(maxText);
+    if (minCap == null || minCap <= 0) {
+      return 'Minimum capacity must be a positive number.';
+    }
+    if (maxCap == null || maxCap <= 0) {
+      return 'Maximum capacity must be a positive number.';
+    }
+    if (minCap >= maxCap) {
+      return 'Minimum capacity must be less than maximum capacity.';
+    }
+
+    return null;
+  }
+
   Future<void> _save() async {
+    final error = _validate();
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.red),
+      );
+      return;
+    }
     setState(() => _isSaving = true);
-    final error = await HallService.updateHallDetails(
+    final serviceError = await HallService.updateHallDetails(
       hallId: widget.hall.hallId,
       hallName: _nameCtrl.text.trim(),
       description: _descCtrl.text.trim(),
@@ -1011,9 +1064,9 @@ class _EditDetailsDialogState extends State<_EditDetailsDialog> {
     );
     if (!mounted) return;
     setState(() => _isSaving = false);
-    if (error != null) {
+    if (serviceError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red),
+        SnackBar(content: Text(serviceError), backgroundColor: Colors.red),
       );
     } else {
       widget.onSaved();
@@ -1028,73 +1081,159 @@ class _EditDetailsDialogState extends State<_EditDetailsDialog> {
       width: 560,
       padding: const EdgeInsets.all(28),
       child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Edit Public Details',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(child: _f('Hall Name', _nameCtrl, 'Enter hall name')),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _f(
-                    'Price Per Event (Rs.)',
-                    _priceCtrl,
-                    'Enter price',
-                    type: TextInputType.number,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Edit Public Details',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
-            ),
-            _f('Description', _descCtrl, 'Enter description', maxLines: 3),
-            _f(
-              'Contact Phone',
-              _phoneCtrl,
-              'Phone number',
-              type: TextInputType.phone,
-            ),
-            const Text(
-              'Guest Capacity',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: _fRaw(_minCtrl, 'Min', TextInputType.number)),
-                const SizedBox(width: 16),
-                Expanded(child: _fRaw(_maxCtrl, 'Max', TextInputType.number)),
-              ],
-            ),
-            const SizedBox(height: 20),
-            CommonButton(
-              text: 'Save Changes',
-              onTap: _isSaving ? () {} : _save,
-            ),
-          ],
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: _f(
+                      'Hall Name',
+                      _nameCtrl,
+                      'Enter hall name',
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Name is required';
+                        }
+                        if (v.trim().length < 3) return 'Min 3 characters';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _f(
+                      'Price Per Event (Rs.)',
+                      _priceCtrl,
+                      'Enter price',
+                      type: TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Price is required';
+                        }
+                        final p = double.tryParse(v.trim());
+                        if (p == null || p <= 0) {
+                          return 'Enter a valid price';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              _f(
+                'Description',
+                _descCtrl,
+                'Enter description',
+                maxLines: 3,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Description is required';
+                  }
+                  return null;
+                },
+              ),
+              _f(
+                'Contact Phone',
+                _phoneCtrl,
+                'Phone number',
+                type: TextInputType.phone,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Phone number is required';
+                  }
+                  if (v.trim().length != 11) {
+                    return 'Phone must be exactly 11 digits';
+                  }
+                  if (!v.startsWith("03")) {
+                    return "Phone number must start with 03";
+                  }
+                  return null;
+                },
+                formatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(11),
+                ],
+              ),
+              const Text(
+                'Guest Capacity',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _fRaw(
+                      _minCtrl,
+                      'Min',
+                      TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Min Guest is required';
+                        }
+                        final n = int.tryParse(v.trim());
+                        if (n == null || n <= 0) return 'Must be > 0';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _fRaw(
+                      _maxCtrl,
+                      'Max',
+                      TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Max Guest is required';
+                        }
+                        final n = int.tryParse(v.trim());
+                        if (n == null || n <= 0) return 'Must be > 0';
+                        final min = int.tryParse(_minCtrl.text.trim()) ?? 0;
+                        if (n <= min) return 'Must be > min';
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              CommonButton(
+                text: 'Save Changes',
+                onTap: _isSaving ? () {} : _save,
+              ),
+            ],
+          ),
         ),
       ),
     ),
   );
+
   Widget _f(
     String l,
     TextEditingController c,
     String h, {
     int maxLines = 1,
     TextInputType? type,
+    String? Function(String?)? validator,
+    List<TextInputFormatter>? formatters,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 16),
     child: Column(
@@ -1109,15 +1248,31 @@ class _EditDetailsDialogState extends State<_EditDetailsDialog> {
           controller: c,
           maxLines: maxLines,
           keyboardType: type,
+          validator: validator,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           decoration: _dec(h),
+          inputFormatters: formatters,
         ),
       ],
     ),
   );
-  Widget _fRaw(TextEditingController c, String h, TextInputType t) => Padding(
+
+  Widget _fRaw(
+    TextEditingController c,
+    String h,
+    TextInputType t, {
+    String? Function(String?)? validator,
+  }) => Padding(
     padding: const EdgeInsets.only(bottom: 16),
-    child: TextFormField(controller: c, keyboardType: t, decoration: _dec(h)),
+    child: TextFormField(
+      controller: c,
+      keyboardType: t,
+      validator: validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      decoration: _dec(h),
+    ),
   );
+
   InputDecoration _dec(String h) => InputDecoration(
     hintText: h,
     hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
@@ -1135,11 +1290,19 @@ class _EditDetailsDialogState extends State<_EditDetailsDialog> {
       borderRadius: BorderRadius.circular(8),
       borderSide: const BorderSide(color: Color(0xFFF97316), width: 1.5),
     ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+    ),
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
   );
 }
 
-// ── Mobile sheet (unchanged) ────────────────────────────────────────────────
+// ── Mobile sheet ────────────────────────────────────────────────────────────
 class _EditDetailsSheet extends StatefulWidget {
   final HallModel hall;
   final VoidCallback onSaved;
@@ -1149,6 +1312,7 @@ class _EditDetailsSheet extends StatefulWidget {
 }
 
 class _EditDetailsSheetState extends State<_EditDetailsSheet> {
+  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl,
       _descCtrl,
       _phoneCtrl,
@@ -1156,6 +1320,7 @@ class _EditDetailsSheetState extends State<_EditDetailsSheet> {
       _minCtrl,
       _maxCtrl;
   bool _isSaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -1186,6 +1351,7 @@ class _EditDetailsSheetState extends State<_EditDetailsSheet> {
   }
 
   Future<void> _save() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _isSaving = true);
     final error = await HallService.updateHallDetails(
       hallId: widget.hall.hallId,
@@ -1218,69 +1384,147 @@ class _EditDetailsSheetState extends State<_EditDetailsSheet> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 50,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(10),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Edit Public Details',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            _f('Hall Name', _nameCtrl, 'Enter hall name'),
-            _f('Description', _descCtrl, 'Enter description', maxLines: 3),
-            _f(
-              'Contact Phone',
-              _phoneCtrl,
-              'Phone number',
-              type: TextInputType.phone,
-            ),
-            _f(
-              'Price Per Event (Rs.)',
-              _priceCtrl,
-              'Enter price',
-              type: TextInputType.number,
-            ),
-            const Text(
-              'Guest Capacity',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: _fRaw(_minCtrl, 'Min', TextInputType.number)),
-                const SizedBox(width: 16),
-                Expanded(child: _fRaw(_maxCtrl, 'Max', TextInputType.number)),
-              ],
-            ),
-            const SizedBox(height: 24),
-            CommonButton(
-              text: 'Save Changes',
-              onTap: _isSaving ? () {} : _save,
-            ),
-            SizedBox(height: MediaQuery.of(context).padding.bottom + 10),
-          ],
+              const SizedBox(height: 20),
+              const Text(
+                'Edit Public Details',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              _f(
+                'Hall Name',
+                _nameCtrl,
+                'Enter hall name',
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Name is required';
+                  if (v.trim().length < 3) return 'Min 3 characters';
+                  return null;
+                },
+              ),
+              _f(
+                'Description',
+                _descCtrl,
+                'Enter description',
+                maxLines: 3,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Description is required';
+                  }
+                  return null;
+                },
+              ),
+              _f(
+                'Contact Phone',
+                _phoneCtrl,
+                'Phone number',
+                type: TextInputType.phone,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Phone number is required';
+                  }
+                  if (v.trim().length != 11) {
+                    return 'Phone must be exactly 11 digits';
+                  }
+                  if (!v.startsWith("03")) {
+                    return "Phone number must start with 03";
+                  }
+                  return null;
+                },
+                formatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(11),
+                ],
+              ),
+              _f(
+                'Price Per Event (Rs.)',
+                _priceCtrl,
+                'Enter price',
+                type: TextInputType.number,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Price is required';
+                  final p = double.tryParse(v.trim());
+                  if (p == null || p <= 0) return 'Enter a valid price';
+                  return null;
+                },
+              ),
+              const Text(
+                'Guest Capacity',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _fRaw(
+                      _minCtrl,
+                      'Min',
+                      TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Min Guest is required';
+                        }
+                        final n = int.tryParse(v.trim());
+                        if (n == null || n <= 0) return 'Must be > 0';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _fRaw(
+                      _maxCtrl,
+                      'Max',
+                      TextInputType.number,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Max Guest is required';
+                        }
+                        final n = int.tryParse(v.trim());
+                        if (n == null || n <= 0) return 'Must be > 0';
+                        final min = int.tryParse(_minCtrl.text.trim()) ?? 0;
+                        if (n <= min) return 'Must be > min';
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              CommonButton(
+                text: 'Save Changes',
+                onTap: _isSaving ? () {} : _save,
+              ),
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 10),
+            ],
+          ),
         ),
       ),
     ),
   );
+
   Widget _f(
     String l,
     TextEditingController c,
     String h, {
     int maxLines = 1,
     TextInputType? type,
+    String? Function(String?)? validator,
+    List<TextInputFormatter>? formatters,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 16),
     child: Column(
@@ -1295,15 +1539,31 @@ class _EditDetailsSheetState extends State<_EditDetailsSheet> {
           controller: c,
           maxLines: maxLines,
           keyboardType: type,
+          validator: validator,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           decoration: _dec(h),
+          inputFormatters: formatters,
         ),
       ],
     ),
   );
-  Widget _fRaw(TextEditingController c, String h, TextInputType t) => Padding(
+
+  Widget _fRaw(
+    TextEditingController c,
+    String h,
+    TextInputType t, {
+    String? Function(String?)? validator,
+  }) => Padding(
     padding: const EdgeInsets.only(bottom: 16),
-    child: TextFormField(controller: c, keyboardType: t, decoration: _dec(h)),
+    child: TextFormField(
+      controller: c,
+      keyboardType: t,
+      validator: validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      decoration: _dec(h),
+    ),
   );
+
   InputDecoration _dec(String h) => InputDecoration(
     hintText: h,
     hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
@@ -1321,6 +1581,14 @@ class _EditDetailsSheetState extends State<_EditDetailsSheet> {
       borderRadius: BorderRadius.circular(8),
       borderSide: const BorderSide(color: Color(0xFFF97316), width: 1.5),
     ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+    ),
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
   );
 }
@@ -1337,8 +1605,10 @@ class _EditBankDialog extends StatefulWidget {
 }
 
 class _EditBankDialogState extends State<_EditBankDialog> {
+  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _bankCtrl, _accCtrl;
   bool _isSaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -1354,6 +1624,7 @@ class _EditBankDialogState extends State<_EditBankDialog> {
   }
 
   Future<void> _save() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _isSaving = true);
     await FirebaseUpdateHelper.updateBankDetails(
       hallId: widget.hall.hallId,
@@ -1373,46 +1644,68 @@ class _EditBankDialogState extends State<_EditBankDialog> {
       width: 480,
       padding: const EdgeInsets.all(28),
       child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Edit Payout Details',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _f('Bank Name', _bankCtrl, 'Enter bank name'),
-            _f(
-              'Bank Account Number',
-              _accCtrl,
-              'Enter account number',
-              type: TextInputType.number,
-            ),
-            const SizedBox(height: 8),
-            CommonButton(
-              text: 'Save Changes',
-              onTap: _isSaving ? () {} : _save,
-            ),
-          ],
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Edit Payout Details',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _f(
+                'Bank Name',
+                _bankCtrl,
+                'Enter bank name',
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Bank name is required';
+                  }
+                  if (v.trim().length < 2) return 'Enter a valid bank name';
+                  return null;
+                },
+              ),
+              _f(
+                'Bank Account Number',
+                _accCtrl,
+                'Enter account number',
+                type: TextInputType.number,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Account number is required';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 8),
+              CommonButton(
+                text: 'Save Changes',
+                onTap: _isSaving ? () {} : _save,
+              ),
+            ],
+          ),
         ),
       ),
     ),
   );
+
   Widget _f(
     String l,
     TextEditingController c,
     String h, {
     TextInputType? type,
+    String? Function(String?)? validator,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 16),
     child: Column(
@@ -1426,6 +1719,8 @@ class _EditBankDialogState extends State<_EditBankDialog> {
         TextFormField(
           controller: c,
           keyboardType: type,
+          validator: validator,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           decoration: InputDecoration(
             hintText: h,
             hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
@@ -1445,6 +1740,14 @@ class _EditBankDialogState extends State<_EditBankDialog> {
                 color: Color(0xFFF97316),
                 width: 1.5,
               ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.red, width: 1.5),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.red, width: 1.5),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
@@ -1466,8 +1769,10 @@ class _EditBankSheet extends StatefulWidget {
 }
 
 class _EditBankSheetState extends State<_EditBankSheet> {
+  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _bankCtrl, _accCtrl;
   bool _isSaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -1483,6 +1788,7 @@ class _EditBankSheetState extends State<_EditBankSheet> {
   }
 
   Future<void> _save() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _isSaving = true);
     await FirebaseUpdateHelper.updateBankDetails(
       hallId: widget.hall.hallId,
@@ -1504,45 +1810,70 @@ class _EditBankSheetState extends State<_EditBankSheet> {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 50,
-              height: 5,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(10),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Edit Payout Details',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          _f('Bank Name', _bankCtrl, 'Enter bank name'),
-          _f(
-            'Bank Account Number',
-            _accCtrl,
-            'Enter account number',
-            type: TextInputType.number,
-          ),
-          const SizedBox(height: 16),
-          CommonButton(text: 'Save Changes', onTap: _isSaving ? () {} : _save),
-          SizedBox(height: MediaQuery.of(context).padding.bottom + 10),
-        ],
+            const SizedBox(height: 20),
+            const Text(
+              'Edit Payout Details',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            _f(
+              'Bank Name',
+              _bankCtrl,
+              'Enter bank name',
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) {
+                  return 'Bank name is required';
+                }
+                if (v.trim().length < 2) return 'Enter a valid bank name';
+                return null;
+              },
+            ),
+            _f(
+              'Bank Account Number',
+              _accCtrl,
+              'Enter account number',
+              type: TextInputType.number,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) {
+                  return 'Account number is required';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            CommonButton(
+              text: 'Save Changes',
+              onTap: _isSaving ? () {} : _save,
+            ),
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 10),
+          ],
+        ),
       ),
     ),
   );
+
   Widget _f(
     String l,
     TextEditingController c,
     String h, {
     TextInputType? type,
+    String? Function(String?)? validator,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 16),
     child: Column(
@@ -1556,6 +1887,8 @@ class _EditBankSheetState extends State<_EditBankSheet> {
         TextFormField(
           controller: c,
           keyboardType: type,
+          validator: validator,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           decoration: InputDecoration(
             hintText: h,
             hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
@@ -1575,6 +1908,14 @@ class _EditBankSheetState extends State<_EditBankSheet> {
                 color: Color(0xFFF97316),
                 width: 1.5,
               ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.red, width: 1.5),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.red, width: 1.5),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,

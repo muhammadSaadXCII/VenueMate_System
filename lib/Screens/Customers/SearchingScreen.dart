@@ -288,7 +288,7 @@ class _FilterSearchScreenState extends State<FilterSearchScreen> {
                                 'My Location',
                                 Icons.my_location_rounded,
                                 'current',
-                                'Halls within 2 km of you',
+                                'Halls within 5 km of you',
                               ),
                             ),
                           ],
@@ -312,7 +312,7 @@ class _FilterSearchScreenState extends State<FilterSearchScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    'Only halls within 2 km of your current GPS position will be shown.',
+                                    'Only halls within 5 km of your current GPS position will be shown.',
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: Colors.blue.shade900,
@@ -689,7 +689,7 @@ class _FilterSearchScreenState extends State<FilterSearchScreen> {
                       'Location',
                       selectedLocation == 'nearby'
                           ? 'Filters only (no location)'
-                          : 'Within 2 km of me',
+                          : 'Within 5 km of me',
                     ),
                     if (selectedServiceNames.isNotEmpty)
                       _buildSummaryItem(
@@ -796,7 +796,7 @@ class _FilterSearchScreenState extends State<FilterSearchScreen> {
                 h.latitude,
                 h.longitude,
               );
-              return distance <= 2000; // 2 km
+              return distance <= 5000; // 5 km
             }).toList();
       }
 

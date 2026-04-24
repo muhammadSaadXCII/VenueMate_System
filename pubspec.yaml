@@ -62,6 +62,7 @@ dependencies:
   http: 
   firebase_messaging: ^16.2.0
   googleapis_auth: 
+  flutter_local_notifications: ^17.0.0
 
 dependency_overrides: 
   vector_math: ^2.2.0
@@ -77,6 +78,15 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/images/app_logo.jpeg"
+
+  web:
+    generate: true
+    image_path: "assets/images/venuemate.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:venuemate_system/Services/notification_service.dart';
 
 class ResolveComplaintSheet extends StatefulWidget {
   final String complaintId;
@@ -38,14 +40,36 @@ class _ResolveComplaintSheetState extends State<ResolveComplaintSheet> {
     setState(() => _isResolving = true);
 
     try {
-      await FirebaseFirestore.instance
+      final complaintRef = FirebaseFirestore.instance
           .collection('complaints')
-          .doc(widget.complaintId)
-          .update({
-            'status': 'Resolved',
-            'adminResponse': response,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+          .doc(widget.complaintId);
+
+      // Fetch userId + subject before updating (for notification)
+      String complaintUserId = '';
+      String complaintSubject = '';
+      try {
+        final snap = await complaintRef.get();
+        final d = snap.data() ?? {};
+        complaintUserId = (d['userId'] as String?) ?? '';
+        complaintSubject = (d['subject'] as String?) ?? '';
+      } catch (_) {}
+
+      await complaintRef.update({
+        'status': 'Resolved',
+        'adminResponse': response,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Notify the user who filed the complaint
+      if (complaintUserId.isNotEmpty) {
+        unawaited(
+          NotificationService.sendComplaintResolved(
+            userUid: complaintUserId,
+            complaintId: widget.complaintId,
+            subject: complaintSubject,
+          ),
+        );
+      }
 
       if (!mounted) return;
       Navigator.pop(context); // close sheet

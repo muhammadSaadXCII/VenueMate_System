@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:venuemate_system/Screens/Customers/MainNavigation.dart';
@@ -7,6 +8,7 @@ import 'package:venuemate_system/Screens/Customers/ForgotPasswordScreen.dart';
 import 'package:venuemate_system/Screens/Customers/SelectRoleScreen.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_registration_intro.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
+import 'package:venuemate_system/Services/notification_service.dart';
 
 const double _kLoginWebBreak = 900;
 
@@ -91,6 +93,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       destination = const MainNavigation();
     }
+    // Init FCM token for push notifications
+    unawaited(NotificationService.initAndSaveToken(uid: user.uid));
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => destination),

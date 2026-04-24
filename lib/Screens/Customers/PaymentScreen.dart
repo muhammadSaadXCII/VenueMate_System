@@ -22,7 +22,7 @@ class PaymentScreen extends StatefulWidget {
   final List<ServiceItemModel> selectedServices;
 
   const PaymentScreen({
-    Key? key,
+    super.key,
     required this.hall,
     required this.customerName,
     required this.customerPhone,
@@ -34,7 +34,7 @@ class PaymentScreen extends StatefulWidget {
     required this.eventDate,
     required this.selectedMenuItems,
     required this.selectedServices,
-  }) : super(key: key);
+  });
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();

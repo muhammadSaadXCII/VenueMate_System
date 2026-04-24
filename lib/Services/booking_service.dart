@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../Models/booking_model.dart';
 import '../Models/menu_item_model.dart';
 import '../Models/service_item_model.dart';
+import 'notification_service.dart';
 import 'storage_service.dart';
 
 /// Handles all Firestore + Storage operations for the `bookings` collection.
@@ -183,6 +184,31 @@ class BookingService {
 
     // 5. Save to Firestore
     await _bookings.doc(bookingId).set(booking.toMap());
+
+    // 6. Notify hall admin of new booking (fetch ownerId from halls collection)
+    try {
+      final hallDoc = await _db.collection('halls').doc(hallId).get();
+      final ownerId = (hallDoc.data()?['ownerId'] as String?) ?? '';
+      if (ownerId.isNotEmpty) {
+        unawaited(
+          NotificationService.sendBookingReceived(
+            hallAdminUid: ownerId,
+            bookingId: bookingId,
+            customerName: customerName,
+            eventDate: booking.shortDateLabel,
+          ),
+        );
+        unawaited(
+          NotificationService.sendPaymentUploaded(
+            hallAdminUid: ownerId,
+            bookingId: bookingId,
+            customerName: customerName,
+            amount: advancePayment.toStringAsFixed(0),
+          ),
+        );
+      }
+    } catch (_) {}
+
     return bookingId;
   }
 
@@ -334,6 +360,26 @@ class BookingService {
         'rejectionReason': '',
         'confirmedAt': Timestamp.fromDate(DateTime.now()),
       });
+      // Notify customer
+      try {
+        final doc = await _bookings.doc(bookingId).get();
+        final b = BookingModel.fromDoc(doc);
+        unawaited(
+          NotificationService.sendBookingConfirmed(
+            customerUid: b.customerId,
+            bookingId: bookingId,
+            hallName: b.hallName,
+            eventDate: b.shortDateLabel,
+          ),
+        );
+        unawaited(
+          NotificationService.sendPaymentApproved(
+            customerUid: b.customerId,
+            bookingId: bookingId,
+            hallName: b.hallName,
+          ),
+        );
+      } catch (_) {}
       return null;
     } catch (e) {
       return 'Failed to confirm booking: $e';
@@ -346,6 +392,19 @@ class BookingService {
         'status': 'completed',
         'completedAt': Timestamp.fromDate(DateTime.now()),
       });
+      // Notify customer their event has been marked as completed
+      try {
+        final doc = await _bookings.doc(bookingId).get();
+        final b = BookingModel.fromDoc(doc);
+        unawaited(
+          NotificationService.sendBookingCompleted(
+            customerUid: b.customerId,
+            bookingId: bookingId,
+            eventName: b.eventName,
+            hallName: b.hallName,
+          ),
+        );
+      } catch (_) {}
       return null;
     } catch (e) {
       return 'Failed to mark as completed: $e';
@@ -361,6 +420,27 @@ class BookingService {
         'status': 'rejected',
         'rejectionReason': reason,
       });
+      // Notify customer
+      try {
+        final doc = await _bookings.doc(bookingId).get();
+        final b = BookingModel.fromDoc(doc);
+        unawaited(
+          NotificationService.sendPaymentRejected(
+            customerUid: b.customerId,
+            bookingId: bookingId,
+            hallName: b.hallName,
+            reason: reason,
+          ),
+        );
+        unawaited(
+          NotificationService.sendBookingRejected(
+            customerUid: b.customerId,
+            bookingId: bookingId,
+            hallName: b.hallName,
+            reason: reason,
+          ),
+        );
+      } catch (_) {}
       return null;
     } catch (e) {
       return 'Failed to reject booking: $e';
@@ -419,6 +499,23 @@ class BookingService {
         'refundReceiptUrl': '',
         'refundRejectionReason': '',
       });
+      // Notify hall admin of the cancellation
+      try {
+        final doc = await _bookings.doc(bookingId).get();
+        final b = BookingModel.fromDoc(doc);
+        final hallDoc = await _db.collection('halls').doc(b.hallId).get();
+        final ownerId = (hallDoc.data()?['ownerId'] as String?) ?? '';
+        if (ownerId.isNotEmpty) {
+          unawaited(
+            NotificationService.sendBookingCancelled(
+              hallAdminUid: ownerId,
+              bookingId: bookingId,
+              customerName: b.customerName,
+              eventDate: b.shortDateLabel,
+            ),
+          );
+        }
+      } catch (_) {}
       return null;
     } catch (e) {
       return 'Failed to cancel booking: $e';
@@ -463,6 +560,23 @@ class BookingService {
         'rejectionReason': '',
         'resubmittedAt': Timestamp.fromDate(DateTime.now()),
       });
+      // Notify hall admin that customer re-uploaded a payment receipt
+      try {
+        final doc = await _bookings.doc(bookingId).get();
+        final b = BookingModel.fromDoc(doc);
+        final hallDoc = await _db.collection('halls').doc(b.hallId).get();
+        final ownerId = (hallDoc.data()?['ownerId'] as String?) ?? '';
+        if (ownerId.isNotEmpty) {
+          unawaited(
+            NotificationService.sendPaymentUploaded(
+              hallAdminUid: ownerId,
+              bookingId: bookingId,
+              customerName: b.customerName,
+              amount: b.advancePayment.toStringAsFixed(0),
+            ),
+          );
+        }
+      } catch (_) {}
       return null;
     } catch (e) {
       return 'Failed to resubmit receipt: $e';
@@ -519,6 +633,18 @@ class BookingService {
         'refundRejectionReason': '',
         'refundUploadedAt': Timestamp.fromDate(DateTime.now()),
       });
+      // Notify customer that refund receipt has been uploaded
+      try {
+        final doc = await _bookings.doc(bookingId).get();
+        final b = BookingModel.fromDoc(doc);
+        unawaited(
+          NotificationService.sendRefundProcessed(
+            customerUid: b.customerId,
+            bookingId: bookingId,
+            amount: b.refundAmount.toStringAsFixed(0),
+          ),
+        );
+      } catch (_) {}
       return null;
     } catch (e) {
       return 'Failed to upload refund receipt: $e';
@@ -532,6 +658,23 @@ class BookingService {
         'refundStatus': 'accepted',
         'refundAcceptedAt': Timestamp.fromDate(DateTime.now()),
       });
+      // Notify hall admin that customer accepted the refund
+      try {
+        final doc = await _bookings.doc(bookingId).get();
+        final b = BookingModel.fromDoc(doc);
+        final hallDoc = await _db.collection('halls').doc(b.hallId).get();
+        final ownerId = (hallDoc.data()?['ownerId'] as String?) ?? '';
+        if (ownerId.isNotEmpty) {
+          unawaited(
+            NotificationService.sendRefundAccepted(
+              hallAdminUid: ownerId,
+              bookingId: bookingId,
+              customerName: b.customerName,
+              amount: b.refundAmount.toStringAsFixed(0),
+            ),
+          );
+        }
+      } catch (_) {}
       return null;
     } catch (e) {
       return 'Failed to accept refund: $e';
@@ -551,6 +694,23 @@ class BookingService {
         'refundReceiptUrl': '',
         'refundRejectedAt': Timestamp.fromDate(DateTime.now()),
       });
+      // Notify hall admin that customer rejected their refund receipt
+      try {
+        final doc = await _bookings.doc(bookingId).get();
+        final b = BookingModel.fromDoc(doc);
+        final hallDoc = await _db.collection('halls').doc(b.hallId).get();
+        final ownerId = (hallDoc.data()?['ownerId'] as String?) ?? '';
+        if (ownerId.isNotEmpty) {
+          unawaited(
+            NotificationService.sendRefundRejected(
+              hallAdminUid: ownerId,
+              bookingId: bookingId,
+              customerName: b.customerName,
+              reason: reason,
+            ),
+          );
+        }
+      } catch (_) {}
       return null;
     } catch (e) {
       return 'Failed to reject refund: $e';
@@ -609,6 +769,22 @@ class BookingService {
       });
 
       await batch.commit();
+
+      // Notify hall admin that a new review was submitted
+      try {
+        final ownerId = (data['ownerId'] as String?) ?? '';
+        if (ownerId.isNotEmpty) {
+          unawaited(
+            NotificationService.sendFeedbackReceived(
+              hallAdminUid: ownerId,
+              hallId: hallId,
+              hallName: hallName,
+              customerName: customerName,
+              rating: rating,
+            ),
+          );
+        }
+      } catch (_) {}
 
       return null;
     } catch (e) {

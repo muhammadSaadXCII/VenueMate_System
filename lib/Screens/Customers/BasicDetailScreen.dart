@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:venuemate_system/Models/hall_model.dart';
 import 'EventDetailScreen.dart';
 
 class BasicDetailsScreen extends StatefulWidget {
   final HallModel hall;
 
-  const BasicDetailsScreen({Key? key, required this.hall}) : super(key: key);
+  const BasicDetailsScreen({super.key, required this.hall});
 
   @override
   State<BasicDetailsScreen> createState() => _BasicDetailsScreenState();
@@ -67,18 +68,20 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen> {
   String? _validatePhone(String? v) {
     if (v == null || v.trim().isEmpty) return 'Phone number is required';
     final digits = v.trim().replaceAll(RegExp(r'\D'), '');
-    if (digits.length < 10 || digits.length > 13) {
-      return 'Enter a valid phone number (e.g. 03001234567)';
+    if (digits.length != 11) {
+      return 'Enter a valid phone number (e.g. 03XXXXXXXXX)';
+    }
+    if (!v.startsWith("03")) {
+      return "Phone number must start with 03";
     }
     return null;
   }
 
   String? _validateCnic(String? v) {
     if (v == null || v.trim().isEmpty) return 'CNIC is required';
-    // Accept XXXXX-XXXXXXX-X or 13 raw digits
     final clean = v.trim().replaceAll('-', '');
     if (!RegExp(r'^\d{13}$').hasMatch(clean)) {
-      return 'Enter CNIC in format XXXXX-XXXXXXX-X';
+      return 'Enter CNIC in format XXXXXXXXXXXXX';
     }
     return null;
   }
@@ -148,9 +151,13 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen> {
                     const SizedBox(height: 8),
                     _buildTextField(
                       controller: _phoneController,
-                      hintText: '03001234567',
+                      hintText: '03XXXXXXXXX',
                       keyboardType: TextInputType.phone,
                       validator: _validatePhone,
+                      formatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(11),
+                      ],
                     ),
                     const SizedBox(height: 16),
 
@@ -158,9 +165,13 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen> {
                     const SizedBox(height: 8),
                     _buildTextField(
                       controller: _cnicController,
-                      hintText: 'XXXXX-XXXXXXX-X',
-                      keyboardType: TextInputType.text,
+                      hintText: 'XXXXXXXXXXXXX',
+                      keyboardType: TextInputType.phone,
                       validator: _validateCnic,
+                      formatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(13),
+                      ],
                     ),
                     const SizedBox(height: 16),
 
@@ -322,10 +333,12 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen> {
     required String hintText,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    List<TextInputFormatter>? formatters,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      inputFormatters: formatters,
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         hintText: hintText,

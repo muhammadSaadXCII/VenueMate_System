@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
+import 'package:venuemate_system/Services/notification_service.dart';
 import 'package:venuemate_system/Services/user_service.dart';
 import 'package:venuemate_system/Services/storage_service.dart';
 import 'package:venuemate_system/Widgets/common_button.dart';
@@ -83,20 +85,42 @@ class _FileComplaintScreenState extends State<FileComplaintScreen> {
         attachmentUrl = await _uploadAttachment(complaintId) ?? '';
       }
 
-      await FirebaseFirestore.instance.collection('complaints').add({
-        'userId': uid,
-        'userName': userName,
-        'userRole': userRole,
-        'subject': _subjectCtrl.text.trim(),
-        'category': _selectedCategory,
-        'priority': _selectedPriority,
-        'description': _descriptionCtrl.text.trim(),
-        'attachmentUrl': attachmentUrl,
-        'status': 'Pending',
-        'adminResponse': '',
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final complaintDocRef = await FirebaseFirestore.instance
+          .collection('complaints')
+          .add({
+            'userId': uid,
+            'userName': userName,
+            'userRole': userRole,
+            'subject': _subjectCtrl.text.trim(),
+            'category': _selectedCategory,
+            'priority': _selectedPriority,
+            'description': _descriptionCtrl.text.trim(),
+            'attachmentUrl': attachmentUrl,
+            'status': 'Pending',
+            'adminResponse': '',
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+      // Notify system admin
+      try {
+        final adminSnap =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .where('role', isEqualTo: 'system_admin')
+                .limit(1)
+                .get();
+        if (adminSnap.docs.isNotEmpty) {
+          unawaited(
+            NotificationService.sendComplaintFiled(
+              systemAdminUid: adminSnap.docs.first.id,
+              complaintId: complaintDocRef.id,
+              filedByName: userName,
+              subject: _subjectCtrl.text.trim(),
+            ),
+          );
+        }
+      } catch (_) {}
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
