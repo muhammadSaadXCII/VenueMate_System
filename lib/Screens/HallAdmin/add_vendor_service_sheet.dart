@@ -50,10 +50,15 @@ class _AddServiceSheetState extends State<AddServiceSheet> {
     final price = _priceController.text.trim();
 
     if (name.isEmpty) {
-      _snack('Please enter service name.');
+      _snack('Service Name is required.');
       return;
     }
-    if (price.isEmpty || double.tryParse(price) == null) {
+    if (price.isEmpty) {
+      _snack('Price is required.');
+      return;
+    }
+    final priceInt = double.tryParse(price);
+    if (priceInt == null || priceInt <= 0) {
       _snack('Please enter a valid price.');
       return;
     }

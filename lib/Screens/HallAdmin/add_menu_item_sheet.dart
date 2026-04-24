@@ -19,27 +19,23 @@ class AddMenuItemSheet extends StatefulWidget {
   /// [xFile] is the picked image — null if no new image was picked.
   final void Function(Map<String, String> item, XFile? xFile) onSave;
 
-  const AddMenuItemSheet({
-    super.key,
-    this.existing,
-    required this.onSave,
-  });
+  const AddMenuItemSheet({super.key, this.existing, required this.onSave});
 
   @override
   State<AddMenuItemSheet> createState() => _AddMenuItemSheetState();
 }
 
 class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
-  final _nameController  = TextEditingController();
-  final _descController  = TextEditingController();
+  final _nameController = TextEditingController();
+  final _descController = TextEditingController();
   final _priceController = TextEditingController();
 
-  String    _selectedUnit  = '/Serving';
-  XFile?    _pickedXFile;
+  String _selectedUnit = '/Serving';
+  XFile? _pickedXFile;
   Uint8List? _imageBytes;
 
-  bool _isSaving       = false;
-  bool _imageRequired  = false;
+  bool _isSaving = false;
+  bool _imageRequired = false;
 
   final List<String> _units = ['/Plate', '/Serving', '/Head', '/Pcs'];
 
@@ -50,11 +46,12 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
     super.initState();
     if (_isEditing) {
       final e = widget.existing!;
-      _nameController.text  = e['name']        ?? '';
-      _descController.text  = e['description'] ?? '';
-      _priceController.text = e['price']       ?? '';
+      _nameController.text = e['name'] ?? '';
+      _descController.text = e['description'] ?? '';
+      _priceController.text = e['price'] ?? '';
       // priceUnit stored as "Serving", dropdown values are "/Serving"
-      _selectedUnit = e['priceUnit'] != null ? '/${e['priceUnit']}' : '/Serving';
+      _selectedUnit =
+          e['priceUnit'] != null ? '/${e['priceUnit']}' : '/Serving';
     }
   }
 
@@ -73,21 +70,26 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
     final bytes = await xf.readAsBytes();
 
     setState(() {
-      _pickedXFile   = xf;
-      _imageBytes    = bytes;
+      _pickedXFile = xf;
+      _imageBytes = bytes;
       _imageRequired = false;
     });
   }
 
   void _save() {
-    final name  = _nameController.text.trim();
+    final name = _nameController.text.trim();
     final price = _priceController.text.trim();
 
     if (name.isEmpty) {
-      _snack('Please enter item name.');
+      _snack('Item Name is required.');
       return;
     }
-    if (price.isEmpty || double.tryParse(price) == null) {
+    if (price.isEmpty) {
+      _snack('Price is required.');
+      return;
+    }
+    final priceInt = double.tryParse(price);
+    if (priceInt == null || priceInt <= 0) {
       _snack('Please enter a valid price.');
       return;
     }
@@ -116,16 +118,13 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
     }
     // ───────────────────────────────────────────────────────────────────────
 
-    widget.onSave(
-      {
-        'name':        name,
-        'description': _descController.text.trim(),
-        'price':       price,
-        'priceUnit':   _selectedUnit.replaceFirst('/', ''),
-        'imageUrl':    imageUrl, // ← was always '' before, now carries real data
-      },
-      _pickedXFile,
-    );
+    widget.onSave({
+      'name': name,
+      'description': _descController.text.trim(),
+      'price': price,
+      'priceUnit': _selectedUnit.replaceFirst('/', ''),
+      'imageUrl': imageUrl, // ← was always '' before, now carries real data
+    }, _pickedXFile);
 
     Navigator.pop(context);
   }
@@ -194,7 +193,10 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
 
               Text(
                 _isEditing ? 'Edit Menu Item' : 'Add New Menu Item',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
 
               const SizedBox(height: 20),
@@ -212,31 +214,37 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
                         color: Colors.grey[200],
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: _imageRequired
-                              ? Colors.red
-                              : _imageBytes != null
+                          color:
+                              _imageRequired
+                                  ? Colors.red
+                                  : _imageBytes != null
                                   ? const Color(0xFFF47C20)
                                   : Colors.grey,
-                          width: (_imageRequired || _imageBytes != null) ? 2 : 1,
+                          width:
+                              (_imageRequired || _imageBytes != null) ? 2 : 1,
                         ),
                       ),
-                      child: _imageBytes != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(11),
-                              child: Image.memory(_imageBytes!, fit: BoxFit.cover),
-                            )
-                          : const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.cloud_upload_outlined),
-                                SizedBox(height: 4),
-                                Text(
-                                  'Tap to upload\nPhoto*',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 10),
+                      child:
+                          _imageBytes != null
+                              ? ClipRRect(
+                                borderRadius: BorderRadius.circular(11),
+                                child: Image.memory(
+                                  _imageBytes!,
+                                  fit: BoxFit.cover,
                                 ),
-                              ],
-                            ),
+                              )
+                              : const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.cloud_upload_outlined),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Tap to upload\nPhoto*',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 10),
+                                  ),
+                                ],
+                              ),
                     ),
                   ),
 
@@ -276,9 +284,13 @@ class _AddMenuItemSheetState extends State<AddMenuItemSheet> {
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       value: _selectedUnit,
-                      items: _units
-                          .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                          .toList(),
+                      items:
+                          _units
+                              .map(
+                                (u) =>
+                                    DropdownMenuItem(value: u, child: Text(u)),
+                              )
+                              .toList(),
                       onChanged: (v) => setState(() => _selectedUnit = v!),
                     ),
                   ),

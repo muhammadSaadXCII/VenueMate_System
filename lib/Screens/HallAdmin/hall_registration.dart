@@ -147,8 +147,18 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
           _snack('Phone number must be exactly 11 digits.');
           return false;
         }
+        if (!(_data.phoneController.text.trim().startsWith("03"))) {
+          _snack("Phone number must start with 03");
+          return false;
+        }
         if (_data.emailController.text.trim().isEmpty) {
           _snack('Please enter your email.');
+          return false;
+        }
+        if (!(RegExp(
+          r'^[\w.-]+@[\w.-]+\.\w{2,}$',
+        ).hasMatch(_data.emailController.text.trim()))) {
+          _snack('Enter a valid email address');
           return false;
         }
         if (_data.cnicController.text.trim().isEmpty) {
@@ -173,8 +183,13 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
           _snack('Please enter hall name.');
           return false;
         }
-        if (_data.rentController.text.trim().isEmpty ||
-            double.tryParse(_data.rentController.text.trim()) == null) {
+        final rentText = _data.rentController.text.trim();
+        if (rentText.isEmpty) {
+          _snack('Hall Rent is required.');
+          return false;
+        }
+        final rent = double.tryParse(rentText);
+        if (rent == null || rent <= 0) {
           _snack('Please enter a valid hall rent.');
           return false;
         }
@@ -182,9 +197,24 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
           _snack('Please select a location.');
           return false;
         }
-        if (_data.minController.text.trim().isEmpty ||
-            _data.maxController.text.trim().isEmpty) {
-          _snack('Please enter guest capacity (min and max).');
+        final minText = _data.minController.text.trim();
+        final maxText = _data.maxController.text.trim();
+        if (minText.isEmpty || maxText.isEmpty) {
+          _snack('Both minimum and maximum capacity are required.');
+          return false;
+        }
+        final minCap = int.tryParse(minText);
+        final maxCap = int.tryParse(maxText);
+        if (minCap == null || minCap <= 0) {
+          _snack('Minimum capacity must be a positive number.');
+          return false;
+        }
+        if (maxCap == null || maxCap <= 0) {
+          _snack('Maximum capacity must be a positive number.');
+          return false;
+        }
+        if (minCap >= maxCap) {
+          _snack('Minimum capacity must be less than maximum capacity.');
           return false;
         }
         return true;

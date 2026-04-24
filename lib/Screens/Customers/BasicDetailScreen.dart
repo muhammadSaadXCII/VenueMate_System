@@ -71,6 +71,9 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen> {
     if (digits.length != 11) {
       return 'Enter a valid phone number (e.g. 03XXXXXXXXX)';
     }
+    if (!v.startsWith("03")) {
+      return "Phone number must start with 03";
+    }
     return null;
   }
 

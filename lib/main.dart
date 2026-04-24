@@ -4,7 +4,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:venuemate_system/Screens/Customers/SplashScreen.dart';
-import 'package:venuemate_system/Utils/theme_notifier.dart';
 
 // ── FCM background message handler ───────────────────────────────────────
 // Must be a top-level function (not a class method).
@@ -118,7 +117,6 @@ Future<void> main() async {
   await _initLocalNotifications();
   _listenForegroundMessages();
 
-  await ThemeNotifier.instance.init();
   runApp(const MyApp());
 }
 
@@ -127,51 +125,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: ThemeNotifier.instance,
-      builder: (context, themeMode, _) {
-        return MaterialApp(
-          title: 'VenueMate',
-          debugShowCheckedModeBanner: false,
-          themeMode: themeMode,
-          // ── Light theme ──────────────────────────────────────────────────
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFFF47C20),
-            ),
-            fontFamily: "Roboto",
-            useMaterial3: true,
-            brightness: Brightness.light,
-            scaffoldBackgroundColor: Colors.white,
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black87,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-            ),
-            cardColor: Colors.white,
-          ),
-          // ── Dark theme ───────────────────────────────────────────────────
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFFF47C20),
-              brightness: Brightness.dark,
-            ),
-            fontFamily: "Roboto",
-            useMaterial3: true,
-            brightness: Brightness.dark,
-            scaffoldBackgroundColor: const Color(0xFF1A1A2E),
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Color(0xFF16213E),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-            ),
-            cardColor: const Color(0xFF16213E),
-          ),
-          home: const SplashScreen(),
-        );
-      },
+    return MaterialApp(
+      title: 'VenueMate',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFF47C20)),
+        fontFamily: "Roboto",
+        useMaterial3: true,
+      ),
+      home: const SplashScreen(),
     );
   }
 }

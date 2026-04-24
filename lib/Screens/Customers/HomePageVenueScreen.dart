@@ -96,7 +96,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchLocation();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchLocation();
+    });
     _loadRecentlyViewed();
   }
 
@@ -120,15 +122,25 @@ class _HomeScreenState extends State<HomeScreen> {
         desiredAccuracy: LocationAccuracy.medium,
       );
       final marks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
-      if (marks.isNotEmpty && mounted) {
+      if (!mounted) return;
+      if (marks.isNotEmpty) {
         final m = marks.first;
         final parts =
             [
               m.subLocality,
               m.locality,
             ].where((s) => s != null && s.isNotEmpty).toList();
+        final label =
+            parts.isNotEmpty
+                ? parts.take(2).join(', ')
+                : '${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)}';
         setState(() {
-          _locationText = parts.take(2).join(', ');
+          _locationText = label;
+          _locationLoading = false;
+        });
+      } else {
+        setState(() {
+          _locationText = 'Location found';
           _locationLoading = false;
         });
       }
@@ -279,20 +291,19 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Colors.white,
                             ),
                           )
-                          : Text(
-                            _locationText,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                          : GestureDetector(
+                            onTap: () {
+                              _fetchLocation();
+                            },
+                            child: Text(
+                              _locationText,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 18,
-                        color: Colors.white70,
-                      ),
                     ],
                   ),
                 ],
@@ -385,7 +396,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Search venues, packages...',
+                    'Filter halls...',
                     style: TextStyle(color: Colors.grey[400], fontSize: 14),
                   ),
                 ],

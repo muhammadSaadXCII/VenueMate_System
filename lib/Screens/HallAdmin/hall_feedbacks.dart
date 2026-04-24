@@ -58,25 +58,35 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
 
   int _filterToRating(String filter) {
     switch (filter) {
-      case '5 Stars': return 5;
-      case '4 Stars': return 4;
-      case '3 Stars': return 3;
-      case '2 Stars': return 2;
-      case '1 Star':  return 1;
-      default:        return 0;
+      case '5 Stars':
+        return 5;
+      case '4 Stars':
+        return 4;
+      case '3 Stars':
+        return 3;
+      case '2 Stars':
+        return 2;
+      case '1 Star':
+        return 1;
+      default:
+        return 0;
     }
   }
 
   List<Map<String, dynamic>> _applyFilter(List<Map<String, dynamic>> all) {
     if (_selectedFilter == 'All') return all;
     final star = _filterToRating(_selectedFilter);
-    return all.where((f) => (f['rating'] as num? ?? 0).toInt() == star).toList();
+    return all
+        .where((f) => (f['rating'] as num? ?? 0).toInt() == star)
+        .toList();
   }
 
   double _computeAverage(List<Map<String, dynamic>> all) {
     if (all.isEmpty) return 0.0;
     final sum = all.fold<double>(
-        0, (prev, f) => prev + (f['rating'] as num? ?? 0).toDouble());
+      0,
+      (prev, f) => prev + (f['rating'] as num? ?? 0).toDouble(),
+    );
     return sum / all.length;
   }
 
@@ -98,8 +108,18 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
     if (diff.inDays < 14) return '1 week ago';
     if (diff.inDays < 30) return '${(diff.inDays / 7).floor()} weeks ago';
     const months = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
@@ -131,9 +151,9 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
           );
         }
         final allFeedbacks = snap.data ?? [];
-        final filtered  = _applyFilter(allFeedbacks);
-        final average   = _computeAverage(allFeedbacks);
-        final dist      = _computeDistribution(allFeedbacks);
+        final filtered = _applyFilter(allFeedbacks);
+        final average = _computeAverage(allFeedbacks);
+        final dist = _computeDistribution(allFeedbacks);
 
         return isWide
             ? _buildWebLayout(allFeedbacks, filtered, average, dist)
@@ -169,8 +189,11 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
                   tooltip: 'Back',
                 ),
                 const SizedBox(width: 6),
-                const Icon(Icons.star_rounded,
-                    color: Color(0xFFF47C20), size: 22),
+                const Icon(
+                  Icons.star_rounded,
+                  color: Color(0xFFF47C20),
+                  size: 22,
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   'Feedbacks',
@@ -180,7 +203,9 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
                 if (allFeedbacks.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 3),
+                      horizontal: 10,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF47C20).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
@@ -243,19 +268,24 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        ..._filters.map((f) => _WebFilterTile(
-                              label: f,
-                              isSelected: _selectedFilter == f,
-                              count: f == 'All'
-                                  ? allFeedbacks.length
-                                  : allFeedbacks
-                                      .where((fb) =>
-                                          (fb['rating'] as num? ?? 0).toInt() ==
-                                          _filterToRating(f))
-                                      .length,
-                              onTap: () =>
-                                  setState(() => _selectedFilter = f),
-                            )),
+                        ..._filters.map(
+                          (f) => _WebFilterTile(
+                            label: f,
+                            isSelected: _selectedFilter == f,
+                            count:
+                                f == 'All'
+                                    ? allFeedbacks.length
+                                    : allFeedbacks
+                                        .where(
+                                          (fb) =>
+                                              (fb['rating'] as num? ?? 0)
+                                                  .toInt() ==
+                                              _filterToRating(f),
+                                        )
+                                        .length,
+                            onTap: () => setState(() => _selectedFilter = f),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -263,36 +293,36 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
 
                 // ── Right panel: review list ──────────────────────────────
                 Expanded(
-                  child: filtered.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(28),
-                          itemCount: filtered.length,
-                          itemBuilder: (_, i) {
-                            final f = filtered[i];
-                            final int rating =
-                                (f['rating'] as num? ?? 0).toInt();
-                            final String name =
-                                f['customerName'] as String? ?? 'Customer';
-                            final String comment =
-                                f['reviewText'] as String? ?? '';
-                            final Timestamp? ts =
-                                f['submittedAt'] as Timestamp?;
-                            final String dateStr = ts != null
-                                ? _formatDate(ts.toDate())
-                                : '';
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: _ReviewCard(
-                                name: name,
-                                date: dateStr,
-                                rating: rating,
-                                comment: comment,
-                                isWeb: true,
-                              ),
-                            );
-                          },
-                        ),
+                  child:
+                      filtered.isEmpty
+                          ? _buildEmptyState()
+                          : ListView.builder(
+                            padding: const EdgeInsets.all(28),
+                            itemCount: filtered.length,
+                            itemBuilder: (_, i) {
+                              final f = filtered[i];
+                              final int rating =
+                                  (f['rating'] as num? ?? 0).toInt();
+                              final String name =
+                                  f['customerName'] as String? ?? 'Customer';
+                              final String comment =
+                                  f['reviewText'] as String? ?? '';
+                              final Timestamp? ts =
+                                  f['submittedAt'] as Timestamp?;
+                              final String dateStr =
+                                  ts != null ? _formatDate(ts.toDate()) : '';
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: _ReviewCard(
+                                  name: name,
+                                  date: dateStr,
+                                  rating: rating,
+                                  comment: comment,
+                                  isWeb: true,
+                                ),
+                              );
+                            },
+                          ),
                 ),
               ],
             ),
@@ -397,7 +427,9 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
                 Text(
                   '$star',
                   style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -408,7 +440,8 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
                       minHeight: 7,
                       backgroundColor: Colors.grey.shade100,
                       valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFFF47C20)),
+                        Color(0xFFF47C20),
+                      ),
                     ),
                   ),
                 ),
@@ -419,9 +452,10 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
                     '$count',
                     textAlign: TextAlign.end,
                     style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[500],
-                        fontWeight: FontWeight.w500),
+                      fontSize: 11,
+                      color: Colors.grey[500],
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
@@ -455,7 +489,10 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
         title: const Text(
           'Feedbacks',
           style: TextStyle(
-              color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
+            color: Colors.black,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -469,20 +506,25 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: _filters
-                    .map((filter) => _FilterChip(
-                          label: filter,
-                          isSelected: _selectedFilter == filter,
-                          onTap: () =>
-                              setState(() => _selectedFilter = filter),
-                        ))
-                    .toList(),
+                children:
+                    _filters
+                        .map(
+                          (filter) => _FilterChip(
+                            label: filter,
+                            isSelected: _selectedFilter == filter,
+                            onTap:
+                                () => setState(() => _selectedFilter = filter),
+                          ),
+                        )
+                        .toList(),
               ),
             ),
 
             const SizedBox(height: 20),
-            const Text('Reviews',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Reviews',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 15),
 
             if (filtered.isEmpty)
@@ -490,8 +532,7 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
             else
               ...filtered.map((f) {
                 final int rating = (f['rating'] as num? ?? 0).toInt();
-                final String name =
-                    f['customerName'] as String? ?? 'Customer';
+                final String name = f['customerName'] as String? ?? 'Customer';
                 final String comment = f['reviewText'] as String? ?? '';
                 final Timestamp? ts = f['submittedAt'] as Timestamp?;
                 final String dateStr =
@@ -570,9 +611,7 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
                   children: List.generate(
                     5,
                     (index) => Icon(
-                      index < filledStars
-                          ? Icons.star
-                          : Icons.star_outline,
+                      index < filledStars ? Icons.star : Icons.star_outline,
                       color: Colors.white,
                       size: 24,
                     ),
@@ -598,58 +637,63 @@ class _HallFeedbacksScreenState extends State<HallFeedbacksScreen> {
   }
 
   Widget _buildEmptyState() => Center(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 60),
-          child: Column(
-            children: [
-              Icon(Icons.rate_review_outlined, size: 60, color: Colors.grey[300]),
-              const SizedBox(height: 16),
-              Text(
-                _selectedFilter == 'All'
-                    ? 'No feedback yet.'
-                    : 'No $_selectedFilter reviews.',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.grey[500],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.only(top: 60),
+      child: Column(
+        children: [
+          Icon(Icons.rate_review_outlined, size: 60, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text(
+            _selectedFilter == 'All'
+                ? 'No feedback yet.'
+                : 'No $_selectedFilter reviews.',
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey[500],
+              fontWeight: FontWeight.w500,
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 
   Widget _buildNoHall(bool isWide) => Scaffold(
-        backgroundColor:
-            isWide ? const Color(0xFFF5F7FA) : const Color(0xFFF9FAFB),
-        appBar: isWide
+    backgroundColor: isWide ? const Color(0xFFF5F7FA) : const Color(0xFFF9FAFB),
+    appBar:
+        isWide
             ? null
             : AppBar(
-                backgroundColor: Colors.white,
-                elevation: 0,
-                centerTitle: true,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.black),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                title: const Text('Feedbacks',
-                    style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold)),
+              backgroundColor: Colors.white,
+              elevation: 0,
+              centerTitle: true,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () => Navigator.pop(context),
               ),
-        body: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.store_outlined, size: 60, color: Colors.grey),
-              SizedBox(height: 12),
-              Text('No hall registered.',
-                  style: TextStyle(color: Colors.grey, fontSize: 14)),
-            ],
+              title: const Text(
+                'Feedbacks',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+    body: const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.store_outlined, size: 60, color: Colors.grey),
+          SizedBox(height: 12),
+          Text(
+            'No hall registered.',
+            style: TextStyle(color: Colors.grey, fontSize: 14),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -678,14 +722,12 @@ class _WebFilterTile extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         margin: const EdgeInsets.only(bottom: 4),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
           color: isSelected ? orange.withOpacity(0.09) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
-          border: isSelected
-              ? Border.all(color: orange.withOpacity(0.25))
-              : null,
+          border:
+              isSelected ? Border.all(color: orange.withOpacity(0.25)) : null,
         ),
         child: Row(
           children: [
@@ -693,29 +735,30 @@ class _WebFilterTile extends StatelessWidget {
             if (label != 'All')
               const Icon(Icons.star, color: Colors.amber, size: 15)
             else
-              Icon(Icons.all_inclusive,
-                  size: 15,
-                  color: isSelected ? orange : Colors.grey[500]),
+              Icon(
+                Icons.all_inclusive,
+                size: 15,
+                color: isSelected ? orange : Colors.grey[500],
+              ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 label,
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight:
-                      isSelected ? FontWeight.w700 : FontWeight.normal,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
                   color: isSelected ? orange : Colors.grey[600],
                 ),
               ),
             ),
             // Count badge
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? orange.withOpacity(0.12)
-                    : Colors.grey.shade100,
+                color:
+                    isSelected
+                        ? orange.withOpacity(0.12)
+                        : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -730,10 +773,13 @@ class _WebFilterTile extends StatelessWidget {
             if (isSelected) ...[
               const SizedBox(width: 8),
               Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                      color: orange, shape: BoxShape.circle)),
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: orange,
+                  shape: BoxShape.circle,
+                ),
+              ),
             ],
           ],
         ),
@@ -763,23 +809,21 @@ class _FilterChip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(right: 10),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFFF47C20) : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: isSelected
-              ? null
-              : Border.all(color: Colors.grey.shade300),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFF47C20).withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : null,
+          border: isSelected ? null : Border.all(color: Colors.grey.shade300),
+          boxShadow:
+              isSelected
+                  ? [
+                    BoxShadow(
+                      color: const Color(0xFFF47C20).withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                  : null,
         ),
         child: Text(
           label,
@@ -828,7 +872,8 @@ class _ReviewCard extends StatelessWidget {
           ),
         ],
         border: Border.all(
-            color: isWeb ? Colors.grey.shade200 : Colors.grey.shade100),
+          color: isWeb ? Colors.grey.shade200 : Colors.grey.shade100,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -863,16 +908,14 @@ class _ReviewCard extends StatelessWidget {
                     if (date.isNotEmpty)
                       Text(
                         date,
-                        style: TextStyle(
-                            color: Colors.grey[500], fontSize: 11),
+                        style: TextStyle(color: Colors.grey[500], fontSize: 11),
                       ),
                   ],
                 ),
               ),
               // Star rating badge
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF8E1),
                   borderRadius: BorderRadius.circular(8),
@@ -915,7 +958,10 @@ class _ReviewCard extends StatelessWidget {
             Text(
               comment,
               style: const TextStyle(
-                  color: Colors.black87, fontSize: 14, height: 1.5),
+                color: Colors.black87,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
           ],
         ],

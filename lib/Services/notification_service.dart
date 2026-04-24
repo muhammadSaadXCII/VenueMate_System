@@ -97,16 +97,7 @@ class NotificationService {
 
       // 2. Get token
       String? token;
-      // if (kIsWeb) {
-      //   // Web requires the VAPID key from Firebase Console →
-      //   // Project Settings → Cloud Messaging → Web configuration
-      //   token = await _messaging.getToken(
-      //     vapidKey:
-      //         'BAfms5uRGzpVU6lhFeMrLRjfDnJMdyTM3J076hfmzYjmFbAgGz4NZNynzHu47ZAlzEUOxThg2z2ftclxZ6veCrM',
-      //   );
-      // } else {
       token = await _messaging.getToken();
-      // }
 
       if (token == null) {
         print('❌ FCM: Could not retrieve token.');

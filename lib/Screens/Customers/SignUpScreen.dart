@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:venuemate_system/Screens/Shared/terms_and_policy.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
+import 'package:venuemate_system/Utils/app_navigation.dart';
 import 'LoginScreen.dart';
 
 const double _kSignUpWebBreak = 900;
@@ -450,6 +452,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       if (v.length != 11) {
                                         return 'Phone must be exactly 11 digits';
                                       }
+                                      if (!v.startsWith("03")) {
+                                        return "Phone number must start with 03";
+                                      }
                                       return null;
                                     },
                                   ),
@@ -570,15 +575,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       (v) => setState(() => _agreeToTerms = v!),
                                   activeColor: const Color(0xFFF47C20),
                                 ),
-                                const Expanded(
+                                Expanded(
                                   child: Wrap(
                                     children: [
-                                      Text('I agree to the '),
-                                      Text(
-                                        'Terms & Conditions',
-                                        style: TextStyle(
-                                          color: Color(0xFFF47C20),
-                                          fontWeight: FontWeight.bold,
+                                      const Text('I agree to the '),
+                                      GestureDetector(
+                                        onTap: () {
+                                          AppNavigation.push(
+                                            context,
+                                            TermsConditionsScreen(),
+                                          );
+                                        },
+                                        child: const Text(
+                                          'Terms & Conditions',
+                                          style: TextStyle(
+                                            color: Color(0xFFF47C20),
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -779,6 +792,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             if (v.length != 11) {
                               return 'Phone must be exactly 11 digits';
                             }
+                            if (!v.startsWith("03")) {
+                              return "Phone number must start with 03";
+                            }
                             return null;
                           },
                         ),
@@ -909,15 +925,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   (v) => setState(() => _agreeToTerms = v!),
                               activeColor: const Color(0xFFF47C20),
                             ),
-                            const Expanded(
+                            Expanded(
                               child: Wrap(
                                 children: [
-                                  Text('I agree to the '),
-                                  Text(
-                                    'Terms & Conditions',
-                                    style: TextStyle(
-                                      color: Color(0xFFF47C20),
-                                      fontWeight: FontWeight.bold,
+                                  const Text('I agree to the '),
+                                  GestureDetector(
+                                    onTap: () {
+                                      AppNavigation.push(
+                                        context,
+                                        TermsConditionsScreen(),
+                                      );
+                                    },
+                                    child: const Text(
+                                      'Terms & Conditions',
+                                      style: TextStyle(
+                                        color: Color(0xFFF47C20),
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ],
