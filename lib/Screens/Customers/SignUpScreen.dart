@@ -510,6 +510,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                                     !_obscurePassword,
                                           ),
                                     ),
+                                    helperText:
+                                        'Min 8 characters, at least 2 digits & 1 special character (e.g. !@#\\\$%)',
                                     validator: (v) {
                                       if (v == null || v.isEmpty) {
                                         return 'Please enter a password';
@@ -865,6 +867,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   () => _obscurePassword = !_obscurePassword,
                                 ),
                           ),
+                          helperText:
+                              'Min 8 characters, at least 2 digits & 1 special character (e.g. !@#\$%)',
                           validator: (v) {
                             if (v == null || v.isEmpty) {
                               return 'Please enter a password';
@@ -1058,6 +1062,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     Widget? suffixIcon,
     List<TextInputFormatter>? formatters,
     String? Function(String?)? validator,
+    String? helperText,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1094,6 +1099,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
           validator: validator,
         ),
+        if (helperText != null) ...[
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline, size: 14, color: Colors.grey),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  helperText,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
