@@ -547,6 +547,35 @@ class NotificationService {
     referenceType: 'hall',
   );
 
+  /// Notify venue owner that their hall was disabled by the system admin.
+  static Future<bool> sendHallDisabled({
+    required String venueOwnerUid,
+    required String hallId,
+    required String hallName,
+    required String reason,
+  }) => _sendNotification(
+    recipientUid: venueOwnerUid,
+    title: 'Hall Disabled',
+    body: '"$hallName" has been disabled. Reason: $reason',
+    type: NotificationType.hallDisabled,
+    referenceId: hallId,
+    referenceType: 'hall',
+  );
+
+  /// Notify venue owner that their hall has been re-enabled by the system admin.
+  static Future<bool> sendHallEnabled({
+    required String venueOwnerUid,
+    required String hallId,
+    required String hallName,
+  }) => _sendNotification(
+    recipientUid: venueOwnerUid,
+    title: 'Hall Re-enabled',
+    body: '"$hallName" is now visible to customers again.',
+    type: NotificationType.hallEnabled,
+    referenceId: hallId,
+    referenceType: 'hall',
+  );
+
   // ── Feedback ───────────────────────────────────────────────────────────────
 
   /// Notify hall admin (venue owner) that a customer left a review.

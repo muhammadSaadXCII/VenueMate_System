@@ -21,6 +21,8 @@ enum NotificationType {
   registrationSubmitted, // System admin ← venue owner submitted hall for review
   hallApproved,          // Venue owner ← system admin approved hall
   hallRejected,          // Venue owner ← system admin rejected hall
+  hallDisabled,          // Venue owner ← system admin disabled hall
+  hallEnabled,           // Venue owner ← system admin re-enabled hall
 
   // ── Messaging ──────────────────────────────────────────────────────────────
   newMessage,         // Any user ← received a chat message
@@ -56,6 +58,8 @@ extension NotificationTypeX on NotificationType {
       case NotificationType.registrationSubmitted:
       case NotificationType.hallApproved:
       case NotificationType.hallRejected:
+      case NotificationType.hallDisabled:
+      case NotificationType.hallEnabled:
         return 'registration';
       case NotificationType.newMessage:
         return 'message';
