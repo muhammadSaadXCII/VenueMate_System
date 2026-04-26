@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:venuemate_system/Services/auth_service.dart';
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:venuemate_system/Screens/Customers/LoginScreen.dart';
 import 'package:venuemate_system/Services/notification_service.dart';
+import 'package:venuemate_system/Services/hall_service.dart';
+import 'package:venuemate_system/Models/hall_model.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_home.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_profile.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_admin_bookings.dart';
@@ -20,6 +23,55 @@ class HallAdminRootLayout extends StatefulWidget {
 
 class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
   int _selectedIndex = 0;
+  Stream<HallModel?>? _hallStream;
+  StreamSubscription<DocumentSnapshot>? _userSub;
+
+  @override
+  void initState() {
+    super.initState();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      _hallStream = HallService.streamHallByOwnerId(uid);
+      _listenForDisable(uid);
+    }
+  }
+
+  void _listenForDisable(String uid) {
+    _userSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .listen((snap) {
+          if (!snap.exists) return;
+          final data = snap.data();
+          if (data == null) return;
+          final isDisabled = data['isDisabled'] as bool? ?? false;
+          if (isDisabled && mounted) _forceLogout();
+        });
+  }
+
+  Future<void> _forceLogout() async {
+    await _userSub?.cancel();
+    final uid = AuthService.currentUid;
+    if (uid != null) await NotificationService.removeToken(uid: uid);
+    await AuthService.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _DisabledDialog(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _userSub?.cancel();
+    super.dispose();
+  }
 
   static const _navItems = [
     {
@@ -53,20 +105,30 @@ class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width >= _kHallWebBreak;
-    return isWide ? _buildWebLayout() : _buildMobileLayout();
+    return StreamBuilder<HallModel?>(
+      stream: _hallStream,
+      builder: (context, snap) {
+        final hallDisabled =
+            snap.hasData && snap.data != null && !snap.data!.isVisible;
+        final isWide = MediaQuery.of(context).size.width >= _kHallWebBreak;
+        return isWide
+            ? _buildWebLayout(hallDisabled: hallDisabled)
+            : _buildMobileLayout(hallDisabled: hallDisabled);
+      },
+    );
   }
 
   // ════════════════════════════════════════════════════════════════════════════
   //  WEB LAYOUT — sidebar + content
   // ════════════════════════════════════════════════════════════════════════════
-  Widget _buildWebLayout() {
+  Widget _buildWebLayout({required bool hallDisabled}) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: Row(
         children: [
           _WebSidebar(
             selectedIndex: _selectedIndex,
+            hallDisabled: hallDisabled,
             onSelect: (i) {
               if (i == 4) {
                 _handleLogout(context);
@@ -86,7 +148,7 @@ class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
   // ════════════════════════════════════════════════════════════════════════════
   //  MOBILE LAYOUT — unchanged bottom nav
   // ════════════════════════════════════════════════════════════════════════════
-  Widget _buildMobileLayout() {
+  Widget _buildMobileLayout({required bool hallDisabled}) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: LayoutBuilder(
@@ -132,7 +194,11 @@ class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
                       Row(
                         children: List.generate(
                           _navItems.length,
-                          (index) => _buildNavItem(index, tabWidth),
+                          (index) => _buildNavItem(
+                            index,
+                            tabWidth,
+                            hallDisabled: hallDisabled,
+                          ),
                         ),
                       ),
                     ],
@@ -146,38 +212,55 @@ class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
     );
   }
 
-  Widget _buildNavItem(int index, double tabWidth) {
+  Widget _buildNavItem(
+    int index,
+    double tabWidth, {
+    bool hallDisabled = false,
+  }) {
     final bool isSelected = _selectedIndex == index;
     const Color brandOrange = Color(0xFFF47C20);
     const Color inactiveGrey = Colors.black54;
+    // index 1 = Bookings tab
+    final bool isBookingsTab = index == 1;
+    final bool isLocked = isBookingsTab && hallDisabled;
+
+    final Color itemColor =
+        isLocked
+            ? Colors.grey.shade400
+            : (isSelected ? brandOrange : inactiveGrey);
+
     final icon =
-        isSelected
-            ? _navItems[index]['activeIcon'] as IconData
-            : _navItems[index]['icon'] as IconData;
+        isLocked
+            ? Icons.block_rounded
+            : (isSelected
+                ? _navItems[index]['activeIcon'] as IconData
+                : _navItems[index]['icon'] as IconData);
 
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedIndex = index),
+        onTap: () {
+          if (isLocked) return; // block navigation to Bookings when disabled
+          setState(() => _selectedIndex = index);
+        },
         behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 6),
-            Icon(
-              icon,
-              color: isSelected ? brandOrange : inactiveGrey,
-              size: 30,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _navItems[index]['label'] as String,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? brandOrange : inactiveGrey,
+        child: Opacity(
+          opacity: isLocked ? 0.5 : 1.0,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 6),
+              Icon(icon, color: itemColor, size: 30),
+              const SizedBox(height: 4),
+              Text(
+                _navItems[index]['label'] as String,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: itemColor,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -236,8 +319,13 @@ class _HallAdminRootLayoutState extends State<HallAdminRootLayout> {
 class _WebSidebar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelect;
+  final bool hallDisabled;
 
-  const _WebSidebar({required this.selectedIndex, required this.onSelect});
+  const _WebSidebar({
+    required this.selectedIndex,
+    required this.onSelect,
+    this.hallDisabled = false,
+  });
 
   static const _items = [
     {
@@ -331,48 +419,65 @@ class _WebSidebar extends StatelessWidget {
                   ),
                   ...List.generate(_items.length, (i) {
                     final isActive = selectedIndex == i;
+                    // index 1 = Bookings tab
+                    final isLocked = i == 1 && hallDisabled;
                     final color =
-                        isActive ? const Color(0xFFF47C20) : Colors.grey[700]!;
+                        isLocked
+                            ? Colors.grey.shade400
+                            : (isActive
+                                ? const Color(0xFFF47C20)
+                                : Colors.grey[700]!);
                     final icon =
-                        isActive
-                            ? _items[i]['activeIcon'] as IconData
-                            : _items[i]['icon'] as IconData;
-                    return InkWell(
-                      onTap: () => onSelect(i),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 2,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              isActive
-                                  ? const Color(0xFFF47C20).withOpacity(0.08)
-                                  : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(icon, size: 20, color: color),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _items[i]['label'] as String,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight:
-                                      isActive
-                                          ? FontWeight.w600
-                                          : FontWeight.normal,
-                                  color: color,
+                        isLocked
+                            ? Icons.block_rounded
+                            : (isActive
+                                ? _items[i]['activeIcon'] as IconData
+                                : _items[i]['icon'] as IconData);
+                    return Opacity(
+                      opacity: isLocked ? 0.5 : 1.0,
+                      child: InkWell(
+                        onTap: isLocked ? null : () => onSelect(i),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 2,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                isActive && !isLocked
+                                    ? const Color(0xFFF47C20).withOpacity(0.08)
+                                    : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(icon, size: 20, color: color),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _items[i]['label'] as String,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight:
+                                        isActive && !isLocked
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                    color: color,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                              if (isLocked)
+                                const Icon(
+                                  Icons.lock_outline,
+                                  size: 14,
+                                  color: Colors.grey,
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -410,6 +515,103 @@ class _WebSidebar extends StatelessWidget {
           const SizedBox(height: 8),
         ],
       ),
+    );
+  }
+}
+
+// ── Shared disabled-account dialog ────────────────────────────────────────────
+class _DisabledDialog extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Column(
+        children: [
+          Icon(Icons.block_rounded, color: Color(0xFFD92D20), size: 56),
+          SizedBox(height: 12),
+          Text(
+            'Account Deactivated',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: Color(0xFFD92D20),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Your account has been deactivated by the system administrator. '
+            'You have been signed out automatically.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey[700],
+              height: 1.6,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF0F1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFD92D20).withOpacity(0.2),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: Color(0xFFD92D20),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'If you believe this is a mistake, please contact VenueMate support.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.red.shade700,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      actions: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD92D20),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: const Text(
+              'OK',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

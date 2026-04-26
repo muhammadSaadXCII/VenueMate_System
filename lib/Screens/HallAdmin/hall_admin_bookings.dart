@@ -32,6 +32,7 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
   late TabController _tabController;
   HallModel? _hall;
   bool _loadingHall = true;
+  Stream<HallModel?>? _hallStream;
 
   // ── Cached streams — created ONCE when hall loads, never recreated on rebuild
   Stream<List<BookingModel>>? _upcomingStream;
@@ -74,6 +75,9 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
       setState(() => _loadingHall = false);
       return;
     }
+
+    // Use a one-time fetch to initialise booking streams, then keep a
+    // real-time stream so isVisible changes are reflected immediately.
     final hall = await HallService.getHallByOwnerId(uid);
     if (mounted) {
       setState(() {
@@ -88,6 +92,8 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
           _cancelledStream = BookingService.streamCancelledBookings(
             hall.hallId,
           );
+          // Keep watching for isVisible / status changes in real-time
+          _hallStream = HallService.streamHallByOwnerId(uid);
         }
       });
     }
@@ -102,8 +108,24 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
     }
     if (_hall == null) return _buildNoHall();
 
-    final isWide = MediaQuery.of(context).size.width >= _kBookingsWebBreak;
-    return isWide ? _buildWebLayout() : _buildMobileLayout();
+    // Wrap in a StreamBuilder so the UI reacts instantly when the system
+    // admin toggles isVisible without requiring a restart.
+    return StreamBuilder<HallModel?>(
+      stream: _hallStream,
+      initialData: _hall,
+      builder: (context, snap) {
+        final hall = snap.data ?? _hall!;
+
+        // ── Hall is disabled: show a full-screen blocked state ───────────────
+        if (!hall.isVisible) {
+          return _buildDisabledState(hall);
+        }
+
+        // ── Hall is active: normal bookings UI ───────────────────────────────
+        final isWide = MediaQuery.of(context).size.width >= _kBookingsWebBreak;
+        return isWide ? _buildWebLayout() : _buildMobileLayout();
+      },
+    );
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -399,6 +421,109 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
         labelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
         padding: EdgeInsets.zero,
         tabs: _tabs.map((t) => Tab(text: t)).toList(),
+      ),
+    );
+  }
+
+  // ── Hall disabled by system admin ─────────────────────────────────────────
+  Widget _buildDisabledState(HallModel hall) {
+    final reason = hall.disabledReason.trim();
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF0F1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFFD92D20).withOpacity(0.15),
+                  width: 2,
+                ),
+              ),
+              child: const Icon(
+                Icons.block_rounded,
+                size: 52,
+                color: Color(0xFFD92D20),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Bookings Disabled',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2D3436),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Your hall has been disabled by the system administrator. '
+              'You cannot receive or manage bookings at this time.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[600],
+                height: 1.6,
+              ),
+            ),
+            if (reason.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3CD),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFFFFD166).withOpacity(0.6),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: Color(0xFF856404),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Reason given by admin',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF856404),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      reason,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF533F03),
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            Text(
+              'Please contact support if you believe this is a mistake.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -780,6 +905,11 @@ class _AdminBookingCard extends StatelessWidget {
 
   Widget _buildUpcomingActions(BuildContext context) {
     final days = booking.daysUntilEvent;
+
+    // "Mark Complete" is only allowed the day AFTER the event date.
+    // daysUntilEvent < 0 means the event date is in the past.
+    final canMarkComplete = days < 0;
+
     return Column(
       children: [
         if (days <= 3 && days >= 0)
@@ -813,6 +943,43 @@ class _AdminBookingCard extends StatelessWidget {
               ],
             ),
           ),
+
+        // Info banner shown on the event day telling admin they can mark
+        // complete starting tomorrow.
+        if (days == 0)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: const Color(0xFF388E3C).withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.info_outline,
+                  size: 15,
+                  color: Color(0xFF388E3C),
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'You can mark this as completed from tomorrow onwards.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF2E7D32),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         Row(
           children: [
             Expanded(
@@ -844,28 +1011,42 @@ class _AdminBookingCard extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: SizedBox(
-                height: 46,
-                child: ElevatedButton.icon(
-                  onPressed: () => _confirmMarkAsComplete(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF388E3C),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+              child: Tooltip(
+                message:
+                    canMarkComplete
+                        ? ''
+                        : 'Available the day after the event date',
+                child: SizedBox(
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    onPressed:
+                        canMarkComplete
+                            ? () => _confirmMarkAsComplete(context)
+                            : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF388E3C),
+                      disabledBackgroundColor: Colors.grey.shade300,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
                     ),
-                    elevation: 0,
-                  ),
-                  icon: const Icon(
-                    Icons.check_circle_outline,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                  label: const Text(
-                    'Mark Complete',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                    icon: Icon(
+                      Icons.check_circle_outline,
+                      color:
+                          canMarkComplete ? Colors.white : Colors.grey.shade500,
+                      size: 18,
+                    ),
+                    label: Text(
+                      'Mark Complete',
+                      style: TextStyle(
+                        color:
+                            canMarkComplete
+                                ? Colors.white
+                                : Colors.grey.shade500,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),

@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:venuemate_system/Models/hall_model.dart';
 import 'package:venuemate_system/Services/hall_service.dart';
+import 'package:venuemate_system/Services/notification_service.dart';
 
 class ManageHallDetailsScreen extends StatefulWidget {
   final HallModel hall;
@@ -77,10 +78,48 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
     final hall = _hall;
     if (hall == null) return;
     final willDisable = hall.isVisible;
-    final action = willDisable ? 'Disable' : 'Enable';
 
-    final confirmed = await showDialog<bool>(
+    if (willDisable) {
+      // ── Disable: ask for a reason first ────────────────────────────────────
+      final reason = await _showDisableReasonDialog();
+      if (reason == null) return; // user cancelled
+      setState(() => _isUpdating = true);
+      final error = await _disable(
+        hall.hallId,
+        hall.ownerId,
+        hall.hallName,
+        reason,
+      );
+      if (!mounted) return;
+      setState(() => _isUpdating = false);
+      _snack(
+        error ?? 'Hall disabled. Hidden from customers.',
+        isError: error != null,
+      );
+    } else {
+      // ── Enable: simple confirmation dialog ─────────────────────────────────
+      final confirmed = await _showEnableConfirmDialog();
+      if (confirmed != true) return;
+      setState(() => _isUpdating = true);
+      final error = await _enable(hall.hallId, hall.ownerId, hall.hallName);
+      if (!mounted) return;
+      setState(() => _isUpdating = false);
+      _snack(
+        error ?? 'Hall enabled. Visible to customers again.',
+        isError: error != null,
+      );
+    }
+  }
+
+  /// Shows a dialog with a required text field for the disable reason.
+  /// Returns the typed reason string, or null if the user cancelled.
+  Future<String?> _showDisableReasonDialog() {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    return showDialog<String>(
       context: context,
+      barrierDismissible: false,
       builder:
           (_) => AlertDialog(
             shape: RoundedRectangleBorder(
@@ -88,28 +127,62 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
             ),
             title: Column(
               children: [
-                Icon(
-                  willDisable ? Icons.block : Icons.check_circle_outline,
-                  color: willDisable ? Colors.red : Colors.green,
-                  size: 52,
-                ),
+                const Icon(Icons.block, color: Color(0xFFD92D20), size: 52),
                 const SizedBox(height: 12),
-                Text(
-                  '$action Hall?',
+                const Text(
+                  'Disable Hall?',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                 ),
               ],
             ),
-            content: Text(
-              willDisable
-                  ? 'This hall will be hidden from customers.'
-                  : 'This hall will become visible to customers again.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600], height: 1.5),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'This hall will be hidden from customers. Please provide a reason — it will be sent to the hall admin.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      height: 1.5,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: controller,
+                    maxLines: 3,
+                    maxLength: 300,
+                    decoration: InputDecoration(
+                      hintText: 'Enter reason for disabling...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 13,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFD92D20)),
+                      ),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                    validator:
+                        (v) =>
+                            (v == null || v.trim().isEmpty)
+                                ? 'Reason is required'
+                                : null,
+                  ),
+                ],
+              ),
             ),
             actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             actions: [
@@ -117,7 +190,7 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context, false),
+                      onPressed: () => Navigator.pop(context, null),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: Colors.grey.shade300),
                         shape: RoundedRectangleBorder(
@@ -137,21 +210,22 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
+                      onPressed: () {
+                        if (formKey.currentState!.validate()) {
+                          Navigator.pop(context, controller.text.trim());
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            willDisable
-                                ? const Color(0xFFD92D20)
-                                : Colors.green,
+                        backgroundColor: const Color(0xFFD92D20),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: Text(
-                        action,
-                        style: const TextStyle(
+                      child: const Text(
+                        'Disable',
+                        style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
@@ -163,38 +237,124 @@ class _ManageHallDetailsScreenState extends State<ManageHallDetailsScreen> {
             ],
           ),
     );
-
-    if (confirmed != true) return;
-    setState(() => _isUpdating = true);
-    final error =
-        await (willDisable ? _disable(hall.hallId) : _enable(hall.hallId));
-    if (!mounted) return;
-    setState(() => _isUpdating = false);
-    _snack(
-      error ??
-          (willDisable
-              ? 'Hall disabled. Hidden from customers.'
-              : 'Hall enabled. Visible to customers again.'),
-      isError: error != null,
-    );
   }
 
-  static Future<String?> _disable(String id) async {
+  /// Shows a simple confirmation dialog for re-enabling a hall.
+  Future<bool?> _showEnableConfirmDialog() => showDialog<bool>(
+    context: context,
+    builder:
+        (_) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Column(
+            children: [
+              const Icon(
+                Icons.check_circle_outline,
+                color: Colors.green,
+                size: 52,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Enable Hall?',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+            ],
+          ),
+          content: Text(
+            'This hall will become visible to customers again.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey[600], height: 1.5),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      'Enable',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+  );
+
+  static Future<String?> _disable(
+    String hallId,
+    String ownerId,
+    String hallName,
+    String reason,
+  ) async {
     try {
-      await FirebaseFirestore.instance.collection('halls').doc(id).update({
+      await FirebaseFirestore.instance.collection('halls').doc(hallId).update({
         'isVisible': false,
+        'disabledReason': reason,
       });
+      await NotificationService.sendHallDisabled(
+        venueOwnerUid: ownerId,
+        hallId: hallId,
+        hallName: hallName,
+        reason: reason,
+      );
       return null;
     } catch (e) {
       return 'Failed: $e';
     }
   }
 
-  static Future<String?> _enable(String id) async {
+  static Future<String?> _enable(
+    String hallId,
+    String ownerId,
+    String hallName,
+  ) async {
     try {
-      await FirebaseFirestore.instance.collection('halls').doc(id).update({
+      await FirebaseFirestore.instance.collection('halls').doc(hallId).update({
         'isVisible': true,
+        'disabledReason': '',
       });
+      await NotificationService.sendHallEnabled(
+        venueOwnerUid: ownerId,
+        hallId: hallId,
+        hallName: hallName,
+      );
       return null;
     } catch (e) {
       return 'Failed: $e';

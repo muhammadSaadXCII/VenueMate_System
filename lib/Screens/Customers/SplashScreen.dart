@@ -8,6 +8,7 @@ import 'package:venuemate_system/Models/user_model.dart';
 import 'package:venuemate_system/Screens/Customers/OnBoardingScreen.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_registration_intro.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
+import 'package:venuemate_system/Utils/user_guard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -111,11 +112,11 @@ class _SplashScreenState extends State<SplashScreen>
     // Route based on role
     Widget destination;
     if (user.isSystemAdmin) {
-      destination = const SystemAdminHome();
+      destination = const UserGuard(child: SystemAdminHome());
     } else if (user.isVenueOwner) {
-      destination = const HallRegistrationIntroScreen();
+      destination = const UserGuard(child: HallRegistrationIntroScreen());
     } else {
-      destination = const MainNavigation();
+      destination = const UserGuard(child: MainNavigation());
     }
 
     Navigator.of(

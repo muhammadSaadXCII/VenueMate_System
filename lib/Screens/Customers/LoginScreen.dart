@@ -9,6 +9,7 @@ import 'package:venuemate_system/Screens/Customers/SelectRoleScreen.dart';
 import 'package:venuemate_system/Screens/HallAdmin/hall_registration_intro.dart';
 import 'package:venuemate_system/Screens/SystemAdmin/system_admin_home.dart';
 import 'package:venuemate_system/Services/notification_service.dart';
+import 'package:venuemate_system/Utils/user_guard.dart';
 
 const double _kLoginWebBreak = 900;
 
@@ -87,11 +88,11 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     Widget destination;
     if (user.isSystemAdmin) {
-      destination = const SystemAdminHome();
+      destination = const UserGuard(child: SystemAdminHome());
     } else if (user.isVenueOwner) {
-      destination = const HallRegistrationIntroScreen();
+      destination = const UserGuard(child: HallRegistrationIntroScreen());
     } else {
-      destination = const MainNavigation();
+      destination = const UserGuard(child: MainNavigation());
     }
     // Init FCM token for push notifications
     unawaited(NotificationService.initAndSaveToken(uid: user.uid));

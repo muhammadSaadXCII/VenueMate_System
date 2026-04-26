@@ -22,6 +22,7 @@ class HallModel {
   final String businessLicenseUrl;
   final String status; // 'pending' | 'approved' | 'rejected'
   final String rejectionReason;
+  final String disabledReason; // set by system admin when disabling
   final double ratingAvg;
   final int ratingCount;
   final bool isVisible;
@@ -48,6 +49,7 @@ class HallModel {
     this.businessLicenseUrl = '',
     this.status = 'pending',
     this.rejectionReason = '',
+    this.disabledReason = '',
     this.ratingAvg = 0.0,
     this.ratingCount = 0,
     this.isVisible = false,
@@ -81,6 +83,7 @@ class HallModel {
       businessLicenseUrl: map['businessLicenseUrl'] ?? '',
       status: map['status'] ?? 'pending',
       rejectionReason: map['rejectionReason'] ?? '',
+      disabledReason: map['disabledReason'] ?? '',
       ratingAvg: (rating['avg'] ?? 0).toDouble(),
       ratingCount: (rating['count'] ?? 0).toInt(),
       isVisible: map['isVisible'] ?? false,
@@ -114,6 +117,7 @@ class HallModel {
       'businessLicenseUrl': businessLicenseUrl,
       'status': status,
       'rejectionReason': rejectionReason,
+      'disabledReason': disabledReason,
       'rating': {'avg': ratingAvg, 'count': ratingCount},
       'isVisible': isVisible,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -136,6 +140,7 @@ class HallModel {
     String? bankAccountNumber,
     String? status,
     String? rejectionReason,
+    String? disabledReason,
     double? ratingAvg,
     int? ratingCount,
     bool? isVisible,
@@ -161,6 +166,7 @@ class HallModel {
       businessLicenseUrl: businessLicenseUrl,
       status: status ?? this.status,
       rejectionReason: rejectionReason ?? this.rejectionReason,
+      disabledReason: disabledReason ?? this.disabledReason,
       ratingAvg: ratingAvg ?? this.ratingAvg,
       ratingCount: ratingCount ?? this.ratingCount,
       isVisible: isVisible ?? this.isVisible,
