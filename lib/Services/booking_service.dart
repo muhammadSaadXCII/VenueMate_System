@@ -41,19 +41,32 @@ class BookingService {
       final dayStart = DateTime(date.year, date.month, date.day);
       final dayEnd = dayStart.add(const Duration(days: 1));
 
-      final snap =
-          await _bookings
-              .where('hallId', isEqualTo: hallId)
-              .where('timeSlot', isEqualTo: timeSlot)
-              .where('status', isEqualTo: 'confirmed')
-              .where(
-                'eventDate',
-                isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart),
-              )
-              .where('eventDate', isLessThan: Timestamp.fromDate(dayEnd))
-              .get();
+      final results = await Future.wait([
+        _bookings
+            .where('hallId', isEqualTo: hallId)
+            .where('timeSlot', isEqualTo: timeSlot)
+            .where('status', isEqualTo: 'pending')
+            .where(
+              'eventDate',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart),
+            )
+            .where('eventDate', isLessThan: Timestamp.fromDate(dayEnd))
+            .get(),
 
-      final bookedGuests = snap.docs
+        _bookings
+            .where('hallId', isEqualTo: hallId)
+            .where('timeSlot', isEqualTo: timeSlot)
+            .where('status', isEqualTo: 'confirmed')
+            .where(
+              'eventDate',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(dayStart),
+            )
+            .where('eventDate', isLessThan: Timestamp.fromDate(dayEnd))
+            .get(),
+      ]);
+
+      final bookedGuests = results
+          .expand((snap) => snap.docs)
           .map((d) => (d.data()['guestCount'] as num? ?? 0).toInt())
           .fold(0, (a, b) => a + b);
 
@@ -64,7 +77,7 @@ class BookingService {
         remainingSlots: remaining.clamp(0, hallCapacityMax),
         isFullyBooked: remaining <= 0,
       );
-    } catch (_) {
+    } catch (e) {
       return SlotAvailability(
         hallCapacityMax: hallCapacityMax,
         bookedGuests: 0,
@@ -127,7 +140,7 @@ class BookingService {
     // 3. Compute totals
     final double menuSubtotal = selectedMenuItems.fold(
       0.0,
-      (s, m) => s + m.price,
+      (s, m) => s + (m.price * guestCount),
     );
     final double servicesSubtotal = selectedServices.fold(
       0.0,

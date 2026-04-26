@@ -81,7 +81,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen> {
     if (v == null || v.trim().isEmpty) return 'CNIC is required';
     final clean = v.trim().replaceAll('-', '');
     if (!RegExp(r'^\d{13}$').hasMatch(clean)) {
-      return 'Enter CNIC in format XXXXXXXXXXXXX';
+      return 'Enter CNIC as XXXXX-XXXXXXX-X';
     }
     return null;
   }
@@ -165,12 +165,13 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen> {
                     const SizedBox(height: 8),
                     _buildTextField(
                       controller: _cnicController,
-                      hintText: 'XXXXXXXXXXXXX',
+                      hintText: 'XXXXX-XXXXXXX-X',
                       keyboardType: TextInputType.phone,
                       validator: _validateCnic,
                       formatters: [
                         FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(13),
+                        LengthLimitingTextInputFormatter(15),
+                        _CnicInputFormatter(),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -373,6 +374,30 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen> {
       validator:
           validator ??
           (v) => (v == null || v.isEmpty) ? 'This field is required' : null,
+    );
+  }
+}
+
+class _CnicInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Strip everything except digits
+    final digits = newValue.text.replaceAll('-', '');
+
+    // Build formatted string: XXXXX-XXXXXXX-X
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length && i < 13; i++) {
+      if (i == 5 || i == 12) buffer.write('-');
+      buffer.write(digits[i]);
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

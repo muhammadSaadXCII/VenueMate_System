@@ -46,10 +46,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
   final ImagePicker _picker = ImagePicker();
 
   double get _hallRent => widget.hall.pricePerEvent;
-  double get _menuSubtotal =>
-      widget.selectedMenuItems.fold(0.0, (s, m) => s + m.price);
+
+  // ── Menu subtotal: price per guest × number of guests ─────────────────────
+  double get _menuSubtotal => widget.selectedMenuItems.fold(
+    0.0,
+    (s, m) => s + (m.price * widget.guestCount),
+  );
+
+  // ── Services are flat per-event prices — no guest multiplication ──────────
   double get _servicesSubtotal =>
       widget.selectedServices.fold(0.0, (s, sv) => s + sv.price);
+
   double get _grandTotal => _hallRent + _menuSubtotal + _servicesSubtotal;
   double get _advancePayment => _grandTotal * 0.25;
 
@@ -103,9 +110,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (result == 'SLOT_FULL') {
         _showSnack('Sorry! This slot just got fully booked.', Colors.red);
       } else if (result != null) {
-        // ✅ SUCCESS — navigate to Congratulations screen
-        // Customer will see "pending" status there, which updates in real-time
-        // when the hall admin approves the booking.
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
@@ -114,14 +118,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
           (route) => route.isFirst,
         );
       }
-      // Note: createBooking now throws on error instead of returning null,
-      // so this branch is unreachable — errors go to catch block below.
     } catch (e) {
-      // ── FIX: Show the REAL error message, not the generic "check connection"
-      //         This is how you find out the actual problem (permissions, bad
-      //         API key, missing Storage rules, etc.)
       if (mounted) setState(() => _isSubmitting = false);
-
       final errorMsg = e.toString().replaceFirst('Exception: ', '');
       _showDetailedError(errorMsg);
     }
@@ -137,8 +135,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  /// Shows a dialog with the full error — much more useful than a snackbar
-  /// for debugging. In production you can replace this with _showSnack.
   void _showDetailedError(String errorMsg) {
     showDialog(
       context: context,
@@ -235,9 +231,40 @@ class _PaymentScreenState extends State<PaymentScreen> {
           _summaryRow('Hall Rent', 'Rs. ${_hallRent.toStringAsFixed(0)}'),
           if (widget.selectedMenuItems.isNotEmpty) ...[
             const SizedBox(height: 8),
-            _summaryRow('Menu', 'Rs. ${_menuSubtotal.toStringAsFixed(0)}'),
+            // Show per-item breakdown
+            ...widget.selectedMenuItems.map(
+              (m) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: _summaryRow(
+                  '${m.name} × ${widget.guestCount}',
+                  'Rs. ${(m.price * widget.guestCount).toStringAsFixed(0)}',
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            _summaryRow(
+              'Menu Subtotal',
+              'Rs. ${_menuSubtotal.toStringAsFixed(0)}',
+            ),
           ],
-          const SizedBox(height: 16),
+          if (widget.selectedServices.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...widget.selectedServices.map(
+              (sv) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: _summaryRow(
+                  sv.name,
+                  'Rs. ${sv.price.toStringAsFixed(0)}',
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            _summaryRow(
+              'Services Subtotal',
+              'Rs. ${_servicesSubtotal.toStringAsFixed(0)}',
+            ),
+          ],
+          const Divider(height: 20),
           _summaryRow(
             'Grand Total',
             'Rs. ${_grandTotal.toStringAsFixed(0)}',
@@ -375,33 +402,146 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  Widget _summaryRow(String l, String v, {bool isBold = false}) => Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      Text(
-        l,
-        style: TextStyle(
-          fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+  Widget _summaryRow(String l, String v, {bool isBold = false}) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Text(
+            l,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              color: Colors.black87,
+            ),
+          ),
         ),
-      ),
-      Text(
-        v,
-        style: TextStyle(
-          fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+        Text(
+          v,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+            color: isBold ? Colors.black : Colors.black87,
+          ),
         ),
-      ),
-    ],
+      ],
+    ),
   );
 
-  Widget _bankRow(String l, String v) => Row(
-    children: [
-      SizedBox(width: 70, child: Text(l)),
-      Text(': $v', style: const TextStyle(fontWeight: FontWeight.bold)),
-    ],
+  Widget _bankRow(String l, String v) => Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 70,
+          child: Text(l, style: const TextStyle(fontSize: 13)),
+        ),
+        Text(
+          ': $v',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+      ],
+    ),
   );
 
-  Widget _buildStepIndicator(int step) => Container(
-    padding: const EdgeInsets.all(16),
-    child: Text("Step $step of 4: Payment"),
-  );
+  Widget _buildStepIndicator(int currentStep) {
+    final steps = [
+      'Basic Details',
+      'Event Details',
+      'Customize event',
+      'Payment',
+    ];
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children:
+                steps.asMap().entries.map((e) {
+                  final isActive = (e.key + 1) == currentStep;
+                  return Expanded(
+                    child: Center(
+                      child: Text(
+                        e.value,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight:
+                              isActive ? FontWeight.w600 : FontWeight.w400,
+                          color: isActive ? Colors.black : Colors.grey[400],
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  );
+                }).toList(),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: List.generate(steps.length, (index) {
+              final stepNum = index + 1;
+              final isActive = stepNum == currentStep;
+              final isDone = stepNum < currentStep;
+              return Expanded(
+                child: Column(
+                  children: [
+                    Container(
+                      height: 3,
+                      margin: EdgeInsets.only(right: index < 3 ? 4 : 0),
+                      decoration: BoxDecoration(
+                        color:
+                            (isActive || isDone)
+                                ? const Color(0xFFF97316)
+                                : const Color(0xFFE5E7EB),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color:
+                            isDone
+                                ? const Color(0xFF10B981)
+                                : isActive
+                                ? const Color(0xFFF97316)
+                                : Colors.grey[300],
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child:
+                            isDone
+                                ? const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                  size: 14,
+                                )
+                                : Text(
+                                  '$stepNum',
+                                  style: TextStyle(
+                                    color:
+                                        isActive
+                                            ? Colors.white
+                                            : Colors.grey[600],
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
 }

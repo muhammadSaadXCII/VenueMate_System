@@ -1006,6 +1006,10 @@ class _EditDetailsDialogState extends State<_EditDetailsDialog> {
     if (name.isEmpty) return 'Hall name is required.';
     if (name.length < 3) return 'Hall name must be at least 3 characters.';
 
+    final desc = _descCtrl.text.trim();
+    if (desc.isEmpty) return 'Description is required.';
+    if (desc.length < 10) return 'Description must be at least 10 characters.';
+
     final phone = _phoneCtrl.text.trim();
     if (phone.isEmpty) {
       return 'Phone number is required.';
@@ -1146,6 +1150,9 @@ class _EditDetailsDialogState extends State<_EditDetailsDialog> {
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
                     return 'Description is required';
+                  }
+                  if (v.trim().length < 10) {
+                    return 'Description must be at least 10 characters';
                   }
                   return null;
                 },
@@ -1424,6 +1431,9 @@ class _EditDetailsSheetState extends State<_EditDetailsSheet> {
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
                     return 'Description is required';
+                  }
+                  if (v.trim().length < 10) {
+                    return 'Description must be at least 10 characters';
                   }
                   return null;
                 },

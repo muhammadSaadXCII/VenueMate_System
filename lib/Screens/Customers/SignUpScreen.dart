@@ -511,13 +511,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                           ),
                                     ),
                                     helperText:
-                                        'Min 8 characters, at least 2 digits & 1 special character (e.g. !@#\\\$%)',
+                                        'Min 8 chars, 1 uppercase, 1 lowercase letter, 2 digits & 1 special character (!@#\$%)',
                                     validator: (v) {
                                       if (v == null || v.isEmpty) {
                                         return 'Please enter a password';
                                       }
                                       if (v.length < 8) {
                                         return 'Create a password (min 8 chars)';
+                                      }
+                                      if (!RegExp(r'[A-Z]').hasMatch(v)) {
+                                        return 'Must contain at least 1 uppercase letter';
+                                      }
+                                      if (!RegExp(r'[a-z]').hasMatch(v)) {
+                                        return 'Must contain at least 1 lowercase letter';
                                       }
                                       final digitCount =
                                           RegExp(r'\d').allMatches(v).length;
@@ -868,13 +874,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 ),
                           ),
                           helperText:
-                              'Min 8 characters, at least 2 digits & 1 special character (e.g. !@#\$%)',
+                              'Min 8 chars, 1 uppercase, 1 lowercase letter, 2 digits & 1 special character (!@#\$%)',
                           validator: (v) {
                             if (v == null || v.isEmpty) {
                               return 'Please enter a password';
                             }
                             if (v.length < 8) {
                               return 'Password must be at least 8 characters';
+                            }
+                            if (!RegExp(r'[A-Z]').hasMatch(v)) {
+                              return 'Must contain at least 1 uppercase letter';
+                            }
+                            if (!RegExp(r'[a-z]').hasMatch(v)) {
+                              return 'Must contain at least 1 lowercase letter';
                             }
                             final digitCount =
                                 RegExp(r'\d').allMatches(v).length;

@@ -37,6 +37,20 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       _snack('New password must be at least 8 characters.', isError: true);
       return;
     }
+    if (!RegExp(r'[A-Z]').hasMatch(newPass)) {
+      _snack(
+        'New password must contain at least 1 uppercase letter.',
+        isError: true,
+      );
+      return;
+    }
+    if (!RegExp(r'[a-z]').hasMatch(newPass)) {
+      _snack(
+        'New password must contain at least 1 lowercase letter.',
+        isError: true,
+      );
+      return;
+    }
     final digitCount = RegExp(r'\d').allMatches(newPass).length;
     if (digitCount < 2) {
       _snack('New Password must contain at least 2 digits.', isError: true);

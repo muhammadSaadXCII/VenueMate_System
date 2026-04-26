@@ -76,6 +76,9 @@ class _CustomizeEventScreenState extends State<CustomizeEventScreen> {
     }
   }
 
+  /// Price per guest × guest count = total for that menu item
+  double _menuItemTotal(MenuItemModel item) => item.price * widget.guestCount;
+
   // ── Navigation ─────────────────────────────────────────────────────────────
 
   void _navigateToNext() {
@@ -152,6 +155,39 @@ class _CustomizeEventScreenState extends State<CustomizeEventScreen> {
                     'Select items from ${widget.hall.hallName}\'s menu and services',
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
+
+                  // ── Guest count info banner ────────────────────────────────
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7ED),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFED7AA)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.people_outline,
+                          color: Color(0xFFF97316),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Menu prices shown for ${widget.guestCount} guests',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF92400E),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   const SizedBox(height: 24),
 
                   // ── Menu Items ─────────────────────────────────────────────
@@ -288,6 +324,8 @@ class _CustomizeEventScreenState extends State<CustomizeEventScreen> {
 
   Widget _buildMenuCard(MenuItemModel item) {
     final isAdded = _selectedMenuIds.contains(item.itemId);
+    final totalPrice = _menuItemTotal(item);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -335,12 +373,19 @@ class _CustomizeEventScreenState extends State<CustomizeEventScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 const SizedBox(height: 4),
+                // ── Per-guest price ────────────────────────────────────
                 Text(
-                  item.priceLabel,
+                  'Rs. ${item.price.toStringAsFixed(0)} × ${widget.guestCount} guests',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
+                const SizedBox(height: 2),
+                // ── Total price for all guests ─────────────────────────
+                Text(
+                  'Rs. ${totalPrice.toStringAsFixed(0)} total',
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: Color(0xFFF97316),
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
@@ -472,8 +517,9 @@ class _CustomizeEventScreenState extends State<CustomizeEventScreen> {
                   ),
                 ],
                 const SizedBox(height: 4),
+                // Services are flat per-event price, not multiplied by guests
                 Text(
-                  svc.priceLabel,
+                  'Rs. ${svc.price.toStringAsFixed(0)} / Event',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFFF97316),
@@ -524,9 +570,12 @@ class _CustomizeEventScreenState extends State<CustomizeEventScreen> {
   // ── Selection Summary Card ─────────────────────────────────────────────────
 
   Widget _buildSelectionSummary() {
+    // Menu total = price per guest × guest count × number of selected items
     final menuTotal = _menuItems
         .where((m) => _selectedMenuIds.contains(m.itemId))
-        .fold(0.0, (s, m) => s + m.price);
+        .fold(0.0, (s, m) => s + _menuItemTotal(m));
+
+    // Services are flat per-event prices — no guest multiplication
     final svcTotal = _services
         .where((s) => _selectedServiceIds.contains(s.serviceId))
         .fold(0.0, (s, svc) => s + svc.price);
@@ -542,7 +591,7 @@ class _CustomizeEventScreenState extends State<CustomizeEventScreen> {
         children: [
           if (_selectedMenuIds.isNotEmpty)
             _buildSummaryRow(
-              'Menu (${_selectedMenuIds.length} item${_selectedMenuIds.length > 1 ? 's' : ''})',
+              'Menu (${_selectedMenuIds.length} item${_selectedMenuIds.length > 1 ? 's' : ''} × ${widget.guestCount} guests)',
               'Rs. ${menuTotal.toStringAsFixed(0)}',
             ),
           if (_selectedServiceIds.isNotEmpty)
@@ -567,12 +616,14 @@ class _CustomizeEventScreenState extends State<CustomizeEventScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
-              color: Colors.black87,
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+                color: Colors.black87,
+              ),
             ),
           ),
           Text(

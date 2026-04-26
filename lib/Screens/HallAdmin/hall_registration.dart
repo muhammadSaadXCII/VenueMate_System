@@ -165,8 +165,9 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
           _snack('Please enter your CNIC.');
           return false;
         }
-        if (_data.cnicController.text.trim().length != 13) {
-          _snack('CNIC must be exactly 13 digits.');
+        final cnicClean = _data.cnicController.text.trim().replaceAll('-', '');
+        if (!RegExp(r'^\d{13}$').hasMatch(cnicClean)) {
+          _snack('Enter CNIC as XXXXX-XXXXXXX-X');
           return false;
         }
         if (_data.cnicFront == null) {
@@ -219,6 +220,10 @@ class _HallRegistrationScreenState extends State<HallRegistrationScreen> {
         }
         if (_data.descController.text.trim().isEmpty) {
           _snack('Please enter hall description.');
+          return false;
+        }
+        if (_data.descController.text.trim().length < 10) {
+          _snack('Hall description must be at least 10 characters.');
           return false;
         }
         return true;
@@ -968,11 +973,12 @@ class _BasicDetailsStepState extends State<BasicDetailsStep> {
                 child: _field(
                   'CNIC',
                   d.cnicController,
-                  'CNIC in format XXXXXXXXXXXXX',
+                  'CNIC in format XXXXX-XXXXXXX-X',
                   type: TextInputType.number,
                   formatters: [
                     FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(13),
+                    LengthLimitingTextInputFormatter(15),
+                    _CnicInputFormatter(),
                   ],
                   isWide: isWide,
                 ),
@@ -1000,11 +1006,12 @@ class _BasicDetailsStepState extends State<BasicDetailsStep> {
           _field(
             'CNIC',
             d.cnicController,
-            'CNIC in format XXXXXXXXXXXXX',
+            'CNIC in format XXXXX-XXXXXXX-X',
             type: TextInputType.number,
             formatters: [
               FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(13),
+              LengthLimitingTextInputFormatter(15),
+              _CnicInputFormatter(),
             ],
           ),
         ],
@@ -2338,3 +2345,27 @@ InputDecoration _inputDec(String hint, {bool isWide = false}) =>
         vertical: isWide ? 10 : 12,
       ),
     );
+
+class _CnicInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Strip everything except digits
+    final digits = newValue.text.replaceAll('-', '');
+
+    // Build formatted string: XXXXX-XXXXXXX-X
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length && i < 13; i++) {
+      if (i == 5 || i == 12) buffer.write('-');
+      buffer.write(digits[i]);
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
