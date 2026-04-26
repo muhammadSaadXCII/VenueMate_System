@@ -106,6 +106,10 @@ class _CreatePackageScreenState extends State<CreatePackageScreen> {
       _snack('Package Description is required.');
       return false;
     }
+    if (_descController.text.trim().length < 10) {
+      _snack('Package description must be at least 10 characters.');
+      return false;
+    }
 
     final minText = _minController.text.trim();
     final maxText = _maxController.text.trim();

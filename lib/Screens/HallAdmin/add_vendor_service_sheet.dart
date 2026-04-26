@@ -48,9 +48,22 @@ class _AddServiceSheetState extends State<AddServiceSheet> {
   void _save() {
     final name = _nameController.text.trim();
     final price = _priceController.text.trim();
+    final description = _descController.text.trim();
 
     if (name.isEmpty) {
       _snack('Service Name is required.');
+      return;
+    }
+    if (name.length < 3) {
+      _snack('Please enter a valid service.');
+      return;
+    }
+    if (description.isEmpty) {
+      _snack('Service Description is required.');
+      return;
+    }
+    if (description.length < 10) {
+      _snack('Service description must be at least 10 characters.');
       return;
     }
     if (price.isEmpty) {

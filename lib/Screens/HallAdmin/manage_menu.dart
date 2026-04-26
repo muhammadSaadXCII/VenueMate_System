@@ -416,9 +416,23 @@ class _AddMenuItemSheetState extends State<_AddMenuItemSheet> {
 
   Future<void> _save() async {
     final name = _nameController.text.trim();
+    final description = _descController.text.trim();
     final price = double.tryParse(_priceController.text.trim());
+
     if (name.isEmpty) {
       _snack('Please enter item name.');
+      return;
+    }
+    if (name.length < 3) {
+      _snack('Please enter a valid item.');
+      return;
+    }
+    if (description.isEmpty) {
+      _snack('Please enter item description.');
+      return;
+    }
+    if (description.length < 10) {
+      _snack('Item description must be at least 10 characters.');
       return;
     }
     if (price == null) {

@@ -749,8 +749,8 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: Colors.grey[400]!),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.grey[200]!),
     ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -776,8 +776,8 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
               Text(
                 item.name,
                 style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 3),
@@ -785,7 +785,12 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
                 item.description.isNotEmpty
                     ? item.description
                     : 'Freshly prepared.',
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                maxLines: 1,
               ),
             ],
           ),
@@ -793,7 +798,7 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
         Text(
           item.isAvailable ? item.priceLabel : 'Sold Out',
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
             color: item.isAvailable ? const Color(0xFFF47C20) : Colors.grey,
           ),
@@ -813,7 +818,7 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
       'assets/images/karahi.png',
       errorBuilder:
           (_, __, ___) =>
-              const Icon(Icons.fastfood, color: Colors.grey, size: 22),
+              const Icon(Icons.fastfood, color: Colors.grey, size: 30),
     ),
   );
 
@@ -874,13 +879,18 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
               const SizedBox(height: 3),
               Text(
                 desc,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                maxLines: 1,
               ),
             ],
           ),
         ),
         Text(
-          price,
+          "$price/Event",
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
@@ -1038,10 +1048,7 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
     final name = r['customerName'] as String? ?? 'Anonymous';
     final comment = r['reviewText'] as String? ?? ''; // ← correct field name
     final Timestamp? ts = r['submittedAt'] as Timestamp?;
-    final dateLabel =
-        ts != null
-            ? _formatDate(ts.toDate())
-            : '';
+    final dateLabel = ts != null ? _formatDate(ts.toDate()) : '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1136,8 +1143,18 @@ class _VenueDetailsScreenState extends State<VenueDetailsScreen>
     if (diff.inDays == 1) return 'Yesterday';
     if (diff.inDays < 7) return '${diff.inDays} days ago';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${date.day} ${months[date.month - 1]}, ${date.year}';
   }

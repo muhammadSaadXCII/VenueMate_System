@@ -674,8 +674,8 @@ class _PackagesDetailState extends State<Packagesdetailscreen>
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: Colors.grey[400]!),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.grey[200]!),
     ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -701,7 +701,7 @@ class _PackagesDetailState extends State<Packagesdetailscreen>
               Text(
                 item.name,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -710,7 +710,12 @@ class _PackagesDetailState extends State<Packagesdetailscreen>
                 item.description.isNotEmpty
                     ? item.description
                     : 'Freshly prepared.',
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                maxLines: 1,
               ),
             ],
           ),
@@ -718,7 +723,7 @@ class _PackagesDetailState extends State<Packagesdetailscreen>
         Text(
           item.isAvailable ? item.priceLabel : 'Sold Out',
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
             color: item.isAvailable ? const Color(0xFFF47C20) : Colors.grey,
           ),
@@ -738,7 +743,7 @@ class _PackagesDetailState extends State<Packagesdetailscreen>
       'assets/images/karahi.png',
       errorBuilder:
           (_, __, ___) =>
-              const Icon(Icons.fastfood, color: Colors.grey, size: 22),
+              const Icon(Icons.fastfood, color: Colors.grey, size: 30),
     ),
   );
 
@@ -787,13 +792,18 @@ class _PackagesDetailState extends State<Packagesdetailscreen>
               const SizedBox(height: 3),
               Text(
                 s.description.isNotEmpty ? s.description : '',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                maxLines: 1,
               ),
             ],
           ),
         ),
         Text(
-          'Rs. ${s.price.toStringAsFixed(0)}',
+          'Rs. ${s.price.toStringAsFixed(0)}/Event',
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
