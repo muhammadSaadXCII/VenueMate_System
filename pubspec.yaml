@@ -82,7 +82,9 @@ dev_dependencies:
 
 flutter_launcher_icons:
   android: true
-  image_path: "assets/images/app_logo.jpeg"
+  image_path: "assets/images/app_logo2.jpg"
+  adaptive_icon_background: "#F47C20"
+  adaptive_icon_foreground: "assets/images/app_logo2.jpg"
 
   web:
     generate: true
