@@ -62,22 +62,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!AuthService.isLoggedIn) {
       if (isOnboarded) {
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder:
-                (context, animation, secondaryAnimation) => const LoginScreen(),
-            transitionsBuilder: (
-              context,
-              animation,
-              secondaryAnimation,
-              child,
-            ) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 500),
-          ),
-        );
+        _navigateToLogin();
       } else {
         _navigateToOnboarding();
       }
@@ -122,6 +107,20 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.of(
       context,
     ).pushReplacement(MaterialPageRoute(builder: (_) => destination));
+  }
+
+  Future<dynamic> _navigateToLogin() {
+    return Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder:
+            (context, animation, secondaryAnimation) => const LoginScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
   }
 
   void _showDeactivatedAndGoToOnboarding() {
@@ -195,7 +194,7 @@ class _SplashScreenState extends State<SplashScreen>
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    _navigateToOnboarding();
+                    _navigateToLogin();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,

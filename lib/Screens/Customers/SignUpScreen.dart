@@ -65,6 +65,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Future<void> _handleSignUp() async {
     final email = _emailController.text.trim();
+
+    // Step 1: Email validation
     if (!_isValidEmailStructure(email)) {
       _showError('Invalid Email', 'Please enter a valid email address.');
       return;
@@ -74,10 +76,51 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _showError('Invalid Email', '$typo\nPlease check your spelling.');
       return;
     }
-    if (_passwordController.text != _confirmPasswordController.text) {
+
+    // Step 2: Password validations (sequential, one at a time)
+    final password = _passwordController.text;
+    if (password.isEmpty) {
+      _showError('Password Required', 'Please enter a password.');
+      return;
+    }
+    if (password.length < 8) {
+      _showError('Weak Password', 'Password must be at least 8 characters.');
+      return;
+    }
+    final digitCount = RegExp(r'\d').allMatches(password).length;
+    if (digitCount < 2) {
+      _showError('Weak Password', 'Password must contain at least 2 digits.');
+      return;
+    }
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      _showError(
+        'Weak Password',
+        'Password must contain at least 1 uppercase letter.',
+      );
+      return;
+    }
+    if (!RegExp(r'[a-z]').hasMatch(password)) {
+      _showError(
+        'Weak Password',
+        'Password must contain at least 1 lowercase letter.',
+      );
+      return;
+    }
+    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) {
+      _showError(
+        'Weak Password',
+        'Password must contain at least 1 special character.',
+      );
+      return;
+    }
+
+    // Step 3: Confirm password match
+    if (_confirmPasswordController.text != password) {
       _showError('Password Mismatch', 'Passwords do not match.');
       return;
     }
+
+    // Step 4: Terms & Conditions
     if (!_agreeToTerms) {
       _showError(
         'Terms Required',
@@ -85,6 +128,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
       return;
     }
+
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     final String? error = await AuthService.signUpWithEmail(
