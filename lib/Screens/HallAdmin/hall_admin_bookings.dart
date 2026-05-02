@@ -428,101 +428,109 @@ class _HallAdminBookingsScreenState extends State<HallAdminBookingsScreen>
   // ── Hall disabled by system admin ─────────────────────────────────────────
   Widget _buildDisabledState(HallModel hall) {
     final reason = hall.disabledReason.trim();
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF0F1),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: const Color(0xFFD92D20).withOpacity(0.15),
-                  width: 2,
-                ),
-              ),
-              child: const Icon(
-                Icons.block_rounded,
-                size: 52,
-                color: Color(0xFFD92D20),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Bookings Disabled',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3436),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Your hall has been disabled by the system administrator. '
-              'You cannot receive or manage bookings at this time.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[600],
-                height: 1.6,
-              ),
-            ),
-            if (reason.isNotEmpty) ...[
-              const SizedBox(height: 20),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3CD),
-                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFFFFF0F1),
+                  shape: BoxShape.circle,
                   border: Border.all(
-                    color: const Color(0xFFFFD166).withOpacity(0.6),
+                    color: const Color(0xFFD92D20).withOpacity(0.15),
+                    width: 2,
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.info_outline,
-                          size: 16,
-                          color: Color(0xFF856404),
-                        ),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'Reason given by admin',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF856404),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      reason,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF533F03),
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
+                child: const Icon(
+                  Icons.block_rounded,
+                  size: 52,
+                  color: Color(0xFFD92D20),
                 ),
               ),
+              const SizedBox(height: 20),
+              const Text(
+                'Bookings Disabled',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2D3436),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Your hall has been disabled by the system administrator. '
+                'You cannot receive or manage bookings at this time.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[600],
+                  height: 1.6,
+                ),
+              ),
+              if (reason.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3CD),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFFFD166).withOpacity(0.6),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: Color(0xFF856404),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Reason given by admin',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF856404),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        reason,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF533F03),
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              Text(
+                'Please contact support if you believe this is a mistake.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+              ),
             ],
-            const SizedBox(height: 24),
-            Text(
-              'Please contact support if you believe this is a mistake.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-            ),
-          ],
+          ),
         ),
       ),
     );
