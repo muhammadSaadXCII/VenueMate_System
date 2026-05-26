@@ -1,8 +1,11 @@
 # VenueMate — Venue Booking & Management System
 
-VenueMate is a centralized venue booking and management platform that connects customers, hall administrators, and system administrators in a single unified system. Customers can search and filter verified venues, customize events with menus and service packages, upload payment receipts, and chat with hall admins in real time. Hall admins manage their listings, bookings, and services end-to-end. System admins verify hall authenticity and maintain platform integrity. Built with Flutter and Firebase — featuring role-based access control, location-based search, push notifications, and cloud-based payment verification.
+[![Flutter](https://img.shields.io/badge/Flutter-3.7.2+-02569B?logo=flutter&logoColor=white)](https://flutter.dev/)
+[![Dart](https://img.shields.io/badge/Dart-3.0+-0175C2?logo=dart&logoColor=white)](https://dart.dev/)
+[![Firebase](https://img.shields.io/badge/Firebase-Firestore%20%7C%20Auth%20%7C%20FCM-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com/)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Web-green?logo=android&logoColor=white)](https://flutter.dev/)
 
-> **Platform:** Android · Web &nbsp;|&nbsp; **Language:** Dart · Flutter 3.7.2+ &nbsp;|&nbsp; **Backend:** Firebase
+VenueMate is a centralized venue booking and management platform that connects customers, hall administrators, and system administrators in a single unified system. Customers can search and filter verified venues, customize events with menus and service packages, upload payment receipts, and chat with hall admins in real time. Hall admins manage their listings, bookings, and services end-to-end. System admins verify hall authenticity and maintain platform integrity. Built with Flutter and Firebase — featuring role-based access control, location-based search, push notifications, and cloud-based payment verification.
 
 ---
 
