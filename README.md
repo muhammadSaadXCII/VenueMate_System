@@ -1,4 +1,4 @@
-# VenueMate
+# VenueMate — Venue Booking & Management System
 
 VenueMate is a centralized venue booking and management platform that connects customers, hall administrators, and system administrators in a single unified system. Customers can search and filter verified venues, customize events with menus and service packages, upload payment receipts, and chat with hall admins in real time. Hall admins manage their listings, bookings, and services end-to-end. System admins verify hall authenticity and maintain platform integrity. Built with Flutter and Firebase — featuring role-based access control, location-based search, push notifications, and cloud-based payment verification.
 
